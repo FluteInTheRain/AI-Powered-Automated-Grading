@@ -34,7 +34,12 @@ st.caption(
 with st.sidebar:
     st.header("Server")
     base_url = st.text_input("base_url", value="http://localhost:8080/v1")
-    model = st.text_input("model", value="Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0")
+    model = st.text_input("model", value="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
+    st.caption(
+        "Note: Phase 0-2 experiments (results/*.json) all used the 1.5B "
+        "model — this UI's default follows whatever scripts/model_server.sh "
+        "is currently serving, which may differ."
+    )
     try:
         import urllib.request
         with urllib.request.urlopen(base_url.replace("/v1", "/health"), timeout=2) as resp:
@@ -93,7 +98,8 @@ if st.button("Grade", type="primary"):
     with st.spinner("Generating line-by-line feedback..."):
         try:
             feedback = generate_feedback(
-                client, problem["statement"], code, exec_result, result["sub_scores_0_to_1"]
+                client, problem["statement"], code, exec_result,
+                result["sub_scores_0_to_1"], result["check_details"],
             )
         except Exception as e:
             st.error(f"Feedback generation failed: {e}")

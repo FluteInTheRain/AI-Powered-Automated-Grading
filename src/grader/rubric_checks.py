@@ -23,29 +23,34 @@ def _load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def check_efficiency(client: LLMClient, statement: str, submission_code: str) -> float:
+def check_efficiency(client: LLMClient, statement: str, submission_code: str) -> tuple[float, EfficiencyCheck]:
+    """Returns (score, raw_result). The raw result carries the *reason* behind
+    the score (e.g. observed_pattern) — callers that only need the number can
+    ignore it, but discarding it entirely (as an earlier version of this
+    function did) means nothing downstream can explain the score."""
     prompt = _load_prompt("efficiency").format(statement=statement, submission_code=submission_code)
     result: EfficiencyCheck = client.structured_call(
         system_prompt="You are a precise, terse grading assistant. Output only valid JSON.",
         user_prompt=prompt,
         schema=EfficiencyCheck,
     )
-    return 1.0 if result.meets_expected_complexity else 0.4
+    score = 1.0 if result.meets_expected_complexity else 0.4
+    return score, result
 
 
-def check_code_style(client: LLMClient, submission_code: str) -> float:
+def check_code_style(client: LLMClient, submission_code: str) -> tuple[float, StyleCheck]:
     prompt = _load_prompt("code_style").format(submission_code=submission_code)
     result: StyleCheck = client.structured_call(
         system_prompt="You are a precise, terse grading assistant. Output only valid JSON.",
         user_prompt=prompt,
         schema=StyleCheck,
     )
-    return _STYLE_LEVEL_TO_SCORE[result.level]
+    return _STYLE_LEVEL_TO_SCORE[result.level], result
 
 
 def check_edge_case_handling(
     client: LLMClient, statement: str, submission_code: str, rubric_weight: float
-) -> float:
+) -> tuple[float, EdgeCaseCheck]:
     prompt = _load_prompt("edge_case_handling").format(
         statement=statement, submission_code=submission_code, rubric_edge_case_weight=rubric_weight
     )
@@ -54,4 +59,13 @@ def check_edge_case_handling(
         user_prompt=prompt,
         schema=EdgeCaseCheck,
     )
-    return 1.0 if result.handled else max(0.0, 1.0 - 0.25 * len(result.missing_cases))
+    if result.handled:
+        score = 1.0
+    else:
+        # handled=False must never score 1.0, even if the model didn't (or
+        # couldn't) name any specific missing_cases — an empty list here
+        # means "unspecified", not "zero penalty". Previously this formula
+        # gave 1.0 - 0.25*0 == 1.0 in that situation, silently overriding
+        # the model's own "not handled" verdict.
+        score = max(0.25, 1.0 - 0.25 * max(1, len(result.missing_cases)))
+    return score, result
