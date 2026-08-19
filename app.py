@@ -17,6 +17,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "data"))
 
+from grader.feedback import generate_feedback
 from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from problems import PROBLEMS
@@ -83,4 +84,28 @@ if st.button("Grade", type="primary"):
         col.metric(check, f"{score:.2f}")
 
     st.subheader("Sandbox execution detail")
-    st.json(result["execution_result"])
+    exec_result = result["execution_result"]
+    st.write(f"Passed {exec_result['pass_count']}/{exec_result['total']} test cases.")
+    if exec_result["errors"]:
+        st.table([{"failure": e} for e in exec_result["errors"]])
+
+    st.subheader("Teacher feedback")
+    with st.spinner("Generating line-by-line feedback..."):
+        try:
+            feedback = generate_feedback(
+                client, problem["statement"], code, exec_result, result["sub_scores_0_to_1"]
+            )
+        except Exception as e:
+            st.error(f"Feedback generation failed: {e}")
+            feedback = None
+
+    if feedback:
+        st.write(feedback.summary)
+        if feedback.issues:
+            code_lines = code.split("\n")
+            for item in feedback.issues:
+                with st.expander(f"Line {item.line}: {item.issue}"):
+                    if 1 <= item.line <= len(code_lines):
+                        st.code(code_lines[item.line - 1], language="python")
+                    st.markdown(f"**Why it's wrong:** {item.explanation}")
+                    st.markdown(f"**Suggested fix:** {item.suggested_fix}")

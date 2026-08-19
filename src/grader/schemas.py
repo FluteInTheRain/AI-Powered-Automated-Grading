@@ -47,3 +47,19 @@ CHECK_SCHEMAS = {
     "code_style": StyleCheck,
     "edge_case_handling": EdgeCaseCheck,
 }
+
+
+class FeedbackItem(BaseModel):
+    """One specific issue, anchored to a line, in teacher-review style."""
+    line: int = Field(description="1-indexed line number in the submitted code this issue is about")
+    issue: str = Field(description="short label for what's wrong, e.g. 'off-by-one', 'wrong base case'")
+    explanation: str = Field(description="why this is wrong, 1-2 sentences")
+    suggested_fix: str = Field(description="concrete fix — a corrected line/snippet or precise instruction")
+
+
+class CodeFeedback(BaseModel):
+    """Explanatory feedback on a submission — separate from and does not
+    affect scoring (see src/grader/feedback.py). Generated after grading,
+    from the code plus the already-computed sandbox/rubric results."""
+    summary: str = Field(description="1-2 sentence overall assessment")
+    issues: List[FeedbackItem] = Field(default_factory=list)
