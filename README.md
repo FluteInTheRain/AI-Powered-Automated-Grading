@@ -10,7 +10,7 @@ non-batched inference).
 This is a determinism requirement, not a semantic-robustness one:
 paraphrased-but-equivalent submissions scoring differently is a separate,
 out-of-scope question. What's in scope is that dynamic batching in serving
-engines like vLLM can break *bit-exact* determinism even at temp=0, due to
+engines can break *bit-exact* determinism even at temp=0, due to
 floating-point non-associativity — so this project treats consistency as
 something to measure empirically, not something a config flag guarantees.
 
@@ -60,7 +60,7 @@ results/          experiment outputs (gitignored, dir kept)
 ```
 pip install -r requirements.txt
 python3 data/build_dataset.py                 # regenerates data/dataset.json locally
-# start a vLLM (or other OpenAI-compatible) server serving Qwen2.5-Coder-1.5B/3B-Instruct
+# start llama.cpp's llama-server (OpenAI-compatible) serving Qwen2.5-Coder-1.5B/3B-Instruct GGUF
 python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clean --n 100
 ```
 

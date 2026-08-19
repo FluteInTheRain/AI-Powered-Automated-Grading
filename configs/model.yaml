@@ -1,18 +1,23 @@
 # Model / serving config. Keep this the single source of truth for
 # determinism-relevant settings so experiments don't silently drift.
 model:
-  name: Qwen2.5-Coder-3B-Instruct   # baseline; try 1.5B first, escalate only if needed
-  base_url: http://localhost:8000/v1
+  name: Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0   # T0.1 default; escalate to 3B only if needed
+  base_url: http://localhost:8080/v1
   temperature: 0
   seed: 0
-  guided_decoding_backend: outlines  # vLLM guided_json backend
+  guided_decoding_backend: gbnf  # llama.cpp grammar-constrained JSON output
 
 serving:
-  engine: vllm
+  engine: llama.cpp   # llama-server, run locally on Apple Silicon (Metal)
+  # NOTE: originally planned around vLLM, but this machine is Apple Silicon
+  # (M1 Pro, no CUDA) where vLLM has no supported GPU backend. Switched to
+  # llama.cpp's llama-server, which is OpenAI-API-compatible, uses Metal for
+  # GPU accel, and supports grammar-constrained JSON output (GBNF).
+  #
   # IMPORTANT: dynamic batching can break bit-exact determinism even at temp=0
   # (floating-point non-associativity across batch sizes). For the
   # consistency experiment, either:
-  #   1. run with --max-num-seqs 1 (no batching), or
+  #   1. run with --parallel 1 (no batching), or
   #   2. run sequential single requests against a normally-batched server
-  #      and treat any variance as the empirical answer to the research
-  #      question, not a bug to eliminate before measuring.
+  #      (--parallel N > 1) and treat any variance as the empirical answer to
+  #      the research question, not a bug to eliminate before measuring.

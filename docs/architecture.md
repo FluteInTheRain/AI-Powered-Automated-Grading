@@ -43,9 +43,10 @@ Each LLM check:
   dimension — smaller context, less for the model to reason about, less
   variance surface.
 - returns a small pydantic-schema JSON object (`src/grader/schemas.py`) via
-  guided/constrained decoding (vLLM `guided_json` / outlines backend), so
-  there's no free-form number to be inconsistent about — only a bounded
-  enum or boolean, then a fixed, code-side mapping to a 0..1 sub-score.
+  guided/constrained decoding (`response_format: json_schema`, backed by
+  llama.cpp's GBNF grammar engine), so there's no free-form number to be
+  inconsistent about — only a bounded enum or boolean, then a fixed,
+  code-side mapping to a 0..1 sub-score.
 
 ## Determinism verification (not just config)
 
@@ -54,8 +55,8 @@ under a batching serving engine (floating-point non-associativity across
 batch compositions — this is an active, measured phenomenon, not
 theoretical). `experiments/consistency_test.py` is the empirical check:
 run one fixed sample N=100 times, sequential requests, count unique scores.
-Compare with `--max-num-seqs 1` (no batching) vs. a normally-batched vLLM
-server to isolate how much of any inconsistency is batching-induced.
+Compare with `--parallel 1` (no batching) vs. a normally-batched
+`llama-server` to isolate how much of any inconsistency is batching-induced.
 
 ## Planned ablation (experiments/ablation.py)
 

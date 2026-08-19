@@ -20,10 +20,13 @@ source of truth for project status, not a one-off plan to read once.
 
 ## Phase 0 — Infrastructure (prerequisite for everything else)
 
-- [ ] **T0.1 — Stand up a local model server.**
-  Install vLLM (or an alternative OpenAI-compatible server), serve
-  `Qwen2.5-Coder-1.5B-Instruct` first (smallest, fastest to iterate on).
-  Verify `configs/model.yaml` points at it and a single manual
+- [x] **T0.1 — Stand up a local model server.**
+  Dev machine is Apple Silicon (M1 Pro, no CUDA) — vLLM has no supported GPU
+  backend here, so use **llama.cpp's `llama-server`** instead (OpenAI-API
+  compatible, Metal-accelerated, GBNF grammar for constrained JSON output).
+  Install via `brew install llama.cpp`, pull a GGUF build of
+  `Qwen2.5-Coder-1.5B-Instruct` first (smallest, fastest to iterate on),
+  serve it, and verify `configs/model.yaml` points at it and a single manual
   `structured_call` succeeds. *Done when:* one call to
   `experiments/consistency_test.py --n 1` returns a score without error.
   ~2-4h.
@@ -37,13 +40,13 @@ source of truth for project status, not a one-off plan to read once.
 ## Phase 1 — Consistency experiment (the thesis's core claim)
 
 - [ ] **T1.1 — Baseline consistency, no batching.**
-  Serve with `--max-num-seqs 1`. Run `/run-consistency <sample_id> 100` on
+  Serve with `--parallel 1`. Run `/run-consistency <sample_id> 100` on
   3-4 samples of different problems. Record exact-match rate per sample.
   *Done when:* `results/consistency_*.json` exists for each sample tested.
   ~half day (mostly wait time, low effort).
 
 - [ ] **T1.2 — Consistency under normal (batched) serving.**
-  Same samples, same n=100, but with vLLM's default batching enabled.
+  Same samples, same n=100, but with `--parallel` > 1 (batching enabled).
   Compare exact-match rate against T1.1. *This is the empirical answer to
   the project's central open question* — write the numbers down even if
   they're not what you expect.
