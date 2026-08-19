@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+results/*.json
+!results/.gitkeep
+.env
+
+# Generated dataset artifact — regenerate locally with:
+#   python3 data/build_dataset.py
+# (keeps data/problems.py, data/build_dataset.py, data/script.md tracked as code/docs)
+data/dataset.json

@@ -1,0 +1,8 @@
+You are checking ONE thing only: code style (naming, structure, readability) of the submission below. Do not evaluate correctness or efficiency.
+
+Submission:
+```python
+{submission_code}
+```
+
+Answer with the required JSON only.

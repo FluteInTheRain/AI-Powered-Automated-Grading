@@ -1,0 +1,18 @@
+# Model / serving config. Keep this the single source of truth for
+# determinism-relevant settings so experiments don't silently drift.
+model:
+  name: Qwen2.5-Coder-3B-Instruct   # baseline; try 1.5B first, escalate only if needed
+  base_url: http://localhost:8000/v1
+  temperature: 0
+  seed: 0
+  guided_decoding_backend: outlines  # vLLM guided_json backend
+
+serving:
+  engine: vllm
+  # IMPORTANT: dynamic batching can break bit-exact determinism even at temp=0
+  # (floating-point non-associativity across batch sizes). For the
+  # consistency experiment, either:
+  #   1. run with --max-num-seqs 1 (no batching), or
+  #   2. run sequential single requests against a normally-batched server
+  #      and treat any variance as the empirical answer to the research
+  #      question, not a bug to eliminate before measuring.

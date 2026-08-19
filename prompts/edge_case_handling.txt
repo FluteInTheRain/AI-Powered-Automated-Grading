@@ -1,0 +1,13 @@
+You are checking ONE thing only: whether this submission visibly handles the edge cases implied by the rubric below. Do not evaluate correctness of the happy path or style.
+
+Problem statement:
+{statement}
+
+Rubric edge cases expected: {rubric_edge_case_weight} points allocated to this dimension.
+
+Submission:
+```python
+{submission_code}
+```
+
+Answer with the required JSON only.

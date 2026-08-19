@@ -1,0 +1,11 @@
+You are checking ONE thing only: does this submission meet the expected time-complexity for the problem below. Do not evaluate correctness or style.
+
+Problem statement:
+{statement}
+
+Submission:
+```python
+{submission_code}
+```
+
+Answer with the required JSON only.
