@@ -44,3 +44,18 @@ class LLMClient:
         )
         raw = response.choices[0].message.content
         return schema.model_validate(json.loads(raw))
+
+    def free_form_call(self, system_prompt: str, user_prompt: str) -> str:
+        """No schema, no constrained decoding — this is deliberately the
+        'naive' arm for the ablation (see experiments/ablation.py): a single
+        free-text response the caller must parse itself."""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            temperature=0,
+            seed=self.seed,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return response.choices[0].message.content

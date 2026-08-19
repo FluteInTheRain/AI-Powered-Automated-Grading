@@ -1,0 +1,15 @@
+You are grading the NON-CORRECTNESS aspects of a programming submission:
+efficiency, code style, and edge-case handling combined. Correctness is
+scored separately — ignore it here.
+
+Problem statement:
+{statement}
+
+Submission:
+```python
+{submission_code}
+```
+
+Think it through, then end your answer with a single line in exactly this
+format (no extra text after it):
+NON_CORRECTNESS_SCORE: <integer 0-100>
