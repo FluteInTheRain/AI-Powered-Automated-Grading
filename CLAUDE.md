@@ -7,6 +7,11 @@ same input (temp=0, greedy, fixed seed, non-batched inference).
 Read `docs/architecture.md` for the full design rationale and citations
 before proposing architecture changes — don't re-derive it from scratch.
 
+`docs/roadmap.md` is the live task tracker (checkboxes, task IDs T0.1...).
+Check it at the start of a work session to find the current task, and check
+off items there as they're completed — see that file's own header for the
+exact protocol.
+
 ## Non-negotiable design rules (don't relitigate these without being asked)
 
 - Correctness is scored ONLY by real sandboxed test execution
