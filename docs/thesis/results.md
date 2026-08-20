@@ -60,6 +60,24 @@ consistent" — a formal repeat with larger n and/or harder submissions
 Raw data: `results/consistency_*.json` (7B, current) and
 `results/archive_1.5b/consistency_*.json` (1.5B, archived).
 
+**Follow-up: harder submissions (7B only).** To address the scope caveat
+above, the same test was repeated on 4 submissions with real, subtle bugs
+(not the `S1_correct_clean` easy case): a self-pairing logic bug
+(`P01_two_sum__S3`), a negative-input edge case (`P02_is_prime__S3`), a
+correct-but-exponential-time solution (`P05_fibonacci__S2`), and a
+missing-lowercasing edge case (`P07_palindrome_check__S2`). Result: **still
+1.0 exact-match on all 4, both batched and unbatched, with zero variance in
+every per-check breakdown** (`results/consistency_P01_two_sum__S3_*.json`
+etc.). This meaningfully strengthens the consistency finding beyond the
+easy-case caveat — the pipeline held up on genuinely ambiguous judgment
+calls (e.g. `P05_fibonacci__S2` scored `efficiency=0.4` consistently,
+correctly penalizing the exponential-time-but-correct solution every time).
+It does not resolve the separate manual-testing observation above (that was
+about non-determinism between repeated identical calls, a different
+question from "does this input produce a stable modal score"), but it does
+rule out "only tested on easy inputs" as an explanation for the high
+exact-match rate.
+
 ## Ablation (Phase 2)
 
 **Setup:** three arms compared on the full 33-sample pilot dataset
