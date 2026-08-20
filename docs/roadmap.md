@@ -98,11 +98,20 @@ source of truth for project status, not a one-off plan to read once.
 
 ## Phase 3 — Dataset scale-up and validation (addresses the known limitation)
 
-- [ ] **T3.1 — Expand the pilot dataset.**
-  Use `/add-problem` to add 8-12 more problems (aim for ~15-20 total,
-  ~70-100 samples), covering problem types not yet represented (e.g.
-  string processing, simple data structures, recursion beyond fibonacci).
-  ~1-2 days spread over several sessions.
+- [x] **T3.1 — Expand the pilot dataset.**
+  Added 8 problems (P09-P16) covering the 3 previously-missing types:
+  string processing (`count_vowels`, `is_anagram`, `caesar_cipher`),
+  simple data structures (`valid_parentheses`, `merge_sorted_lists`),
+  recursion beyond fibonacci (`factorial`, `gcd_euclidean`, `power`).
+  16 problems, 65 samples total (was 8/33). Verified every `S1` submission
+  passes 100% and every injected-bug submission actually fails on some test
+  case (`P12_valid_parentheses__S3`'s bug initially passed 6/6 — fixed by
+  adding an unclosed-bracket test case, see `data/script.md`). Ablation
+  (T2.2) rerun on the full 65-sample set: free_form ρ=0.60, hybrid_freeform
+  ρ=0.85, hybrid_decomposed ρ=0.88 — same ordering as the original 33-sample
+  run, conclusion holds on the larger, more varied set. 33-sample run
+  archived at `results/ablation_33samples_7b.json`, 65-sample is the current
+  `results/ablation.json`. See `docs/thesis/results.md` for full table.
 
 - [ ] **T3.2 — Recruit 1-2 independent graders.**
   Get an instructor/TA to grade a subsample (won't need all of them —

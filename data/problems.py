@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Defines 8 programming problems, each with:
+Defines 16 programming problems, each with:
 - statement: the problem statement
 - rubric: 4 criteria with weights (sum = 100)
 - test_cases: list of (input_args, expected_output) to run for real in the sandbox
@@ -507,6 +507,497 @@ def fizzbuzz(n):
     return list(range(1, n + 1))
 ''',
                 "expected_profile": {"correctness": "fail_all", "efficiency": "O(n)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P09_count_vowels",
+        "statement": "Write a function count_vowels(s) that returns the number of vowels (a, e, i, o, u, case-insensitive) in the string s. Do not count 'y' as a vowel.",
+        "func_name": "count_vowels",
+        "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
+        "test_cases": [
+            (("hello",), 2), (("HELLO",), 2), (("",), 0), (("xyz",), 0), (("AEIOUaeiou",), 10), (("Sky",), 0),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def count_vowels(s):
+    vowels = set("aeiouAEIOU")
+    return sum(1 for ch in s if ch in vowels)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_poor_style",
+                "code": '''
+def count_vowels(s):
+    c=0
+    for i in range(len(s)):
+        if s[i]=='a' or s[i]=='e' or s[i]=='i' or s[i]=='o' or s[i]=='u' or s[i]=='A' or s[i]=='E' or s[i]=='I' or s[i]=='O' or s[i]=='U':
+            c=c+1
+    return c
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "poor", "edge": "handled"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_case_sensitive",
+                "code": '''
+def count_vowels(s):
+    vowels = set("aeiou")
+    return sum(1 for ch in s if ch in vowels)
+''',
+                "expected_profile": {"correctness": "fail_uppercase", "efficiency": "O(n)", "style": "clean", "edge": "broken"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def count_vowels(s):
+    return len(s)
+''',
+                "expected_profile": {"correctness": "fail_all", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P10_is_anagram",
+        "statement": "Write a function is_anagram(s1, s2) that returns True if s1 and s2 are anagrams of each other (same letters, same counts, case-insensitive, ignoring spaces), False otherwise.",
+        "func_name": "is_anagram",
+        "rubric": {"correctness": 55, "efficiency": 15, "code_style": 15, "edge_case_handling": 15},
+        "test_cases": [
+            (("listen", "silent"), True),
+            (("Dormitory", "dirty room"), True),
+            (("hello", "world"), False),
+            (("", ""), True),
+            (("a", "ab"), False),
+            (("Astronomer", "Moon starer"), True),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def is_anagram(s1, s2):
+    normalize = lambda s: sorted(s.lower().replace(" ", ""))
+    return normalize(s1) == normalize(s2)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n log n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_bruteforce_counter",
+                "code": '''
+def is_anagram(s1, s2):
+    a = s1.lower().replace(" ", "")
+    b = s2.lower().replace(" ", "")
+    if len(a) != len(b):
+        return False
+    a_list = list(a)
+    for ch in b:
+        found = False
+        for i in range(len(a_list)):
+            if a_list[i] == ch:
+                a_list.pop(i)
+                found = True
+                break
+        if not found:
+            return False
+    return True
+''',
+                "expected_profile": {"correctness": "pass_all_slow", "efficiency": "O(n^2)", "style": "medium", "edge": "handled",
+                                       "note": "correct but quadratic due to repeated list.pop - tests whether efficiency check catches non-obvious O(n^2)"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_spaces",
+                "code": '''
+def is_anagram(s1, s2):
+    normalize = lambda s: sorted(s.lower())
+    return normalize(s1) == normalize(s2)
+''',
+                "expected_profile": {"correctness": "fail_spaces", "efficiency": "O(n log n)", "style": "clean", "edge": "broken"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def is_anagram(s1, s2):
+    return len(s1) == len(s2)
+''',
+                "expected_profile": {"correctness": "fail_most", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P11_caesar_cipher",
+        "statement": "Write a function caesar_encrypt(s, shift) that shifts every letter in s forward by `shift` positions in the alphabet, wrapping around from z back to a (and Z back to A). Non-letter characters are left unchanged. Preserve the original case of each letter.",
+        "func_name": "caesar_encrypt",
+        "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
+        "test_cases": [
+            (("abc", 1), "bcd"),
+            (("xyz", 1), "yza"),
+            (("Hello, World!", 3), "Khoor, Zruog!"),
+            (("abc", 0), "abc"),
+            (("XYZ", 2), "ZAB"),
+            (("", 5), ""),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def caesar_encrypt(s, shift):
+    result = []
+    for ch in s:
+        if ch.isupper():
+            result.append(chr((ord(ch) - ord('A') + shift) % 26 + ord('A')))
+        elif ch.islower():
+            result.append(chr((ord(ch) - ord('a') + shift) % 26 + ord('a')))
+        else:
+            result.append(ch)
+    return "".join(result)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_poor_style",
+                "code": '''
+def caesar_encrypt(s,shift):
+    r=""
+    for c in s:
+        if c.isupper(): r+=chr((ord(c)-65+shift)%26+65)
+        elif c.islower(): r+=chr((ord(c)-97+shift)%26+97)
+        else: r+=c
+    return r
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "poor", "edge": "handled"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_no_wraparound",
+                "code": '''
+def caesar_encrypt(s, shift):
+    result = []
+    for ch in s:
+        if ch.isalpha():
+            result.append(chr(ord(ch) + shift))
+        else:
+            result.append(ch)
+    return "".join(result)
+''',
+                "expected_profile": {"correctness": "fail_wraparound", "efficiency": "O(n)", "style": "clean", "edge": "broken",
+                                       "note": "wraps into non-letter ASCII range for letters near the end of the alphabet"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def caesar_encrypt(s, shift):
+    return s
+''',
+                "expected_profile": {"correctness": "fail_all_nonzero_shift", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P12_valid_parentheses",
+        "statement": "Write a function valid_parentheses(s) that returns True if every opening bracket in s ('(', '[', '{') has a matching closing bracket in the correct order, False otherwise. s may also contain other characters, which should be ignored.",
+        "func_name": "valid_parentheses",
+        "rubric": {"correctness": 60, "efficiency": 10, "code_style": 15, "edge_case_handling": 15},
+        "test_cases": [
+            (("()",), True),
+            (("()[]{}",), True),
+            (("(]",), False),
+            (("([)]",), False),
+            (("{[]}",), True),
+            (("",), True),
+            (("(",), False),
+            (("[[[",), False),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def valid_parentheses(s):
+    pairs = {')': '(', ']': '[', '}': '{'}
+    stack = []
+    for ch in s:
+        if ch in "([{":
+            stack.append(ch)
+        elif ch in ")]}":
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+    return not stack
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_poor_style",
+                "code": '''
+def valid_parentheses(s):
+    st=[]
+    p={')':'(',']':'[','}':'{'}
+    for c in s:
+        if c=='(' or c=='[' or c=='{': st.append(c)
+        elif c==')' or c==']' or c=='}':
+            if len(st)==0: return False
+            if st[len(st)-1]!=p[c]: return False
+            st=st[:len(st)-1]
+    if len(st)==0: return True
+    return False
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "poor", "edge": "handled"}
+            },
+            {
+                "sub_id": "S3_logic_bug_no_leftover_check",
+                "code": '''
+def valid_parentheses(s):
+    pairs = {')': '(', ']': '[', '}': '{'}
+    stack = []
+    for ch in s:
+        if ch in "([{":
+            stack.append(ch)
+        elif ch in ")]}":
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+    return True
+''',
+                "expected_profile": {"correctness": "fail_unclosed_brackets", "efficiency": "O(n)", "style": "clean", "edge": "broken",
+                                       "note": "never checks for leftover unmatched opening brackets, e.g. '(' returns True incorrectly"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def valid_parentheses(s):
+    return s.count('(') == s.count(')')
+''',
+                "expected_profile": {"correctness": "fail_order_and_bracket_types", "efficiency": "O(n)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P13_merge_sorted_lists",
+        "statement": "Write a function merge_sorted_lists(a, b) that merges two sorted (ascending) lists of integers into a single sorted (ascending) list, keeping all duplicates.",
+        "func_name": "merge_sorted_lists",
+        "rubric": {"correctness": 55, "efficiency": 20, "code_style": 10, "edge_case_handling": 15},
+        "test_cases": [
+            (([1, 3, 5], [2, 4, 6]), [1, 2, 3, 4, 5, 6]),
+            (([], [1, 2, 3]), [1, 2, 3]),
+            (([1, 2, 3], []), [1, 2, 3]),
+            (([], []), []),
+            (([1, 1, 2], [1, 3]), [1, 1, 1, 2, 3]),
+            (([5], [1]), [1, 5]),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def merge_sorted_lists(a, b):
+    result = []
+    i, j = 0, 0
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+            result.append(a[i])
+            i += 1
+        else:
+            result.append(b[j])
+            j += 1
+    result.extend(a[i:])
+    result.extend(b[j:])
+    return result
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n+m)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_but_sort_based",
+                "code": '''
+def merge_sorted_lists(a, b):
+    return sorted(a + b)
+''',
+                "expected_profile": {"correctness": "pass_all_slow", "efficiency": "O((n+m)log(n+m))", "style": "clean", "edge": "handled",
+                                       "note": "correct output but doesn't exploit that both inputs are already sorted - tests whether efficiency check catches this"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_empty_list",
+                "code": '''
+def merge_sorted_lists(a, b):
+    result = []
+    i, j = 0, 0
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+            result.append(a[i])
+            i += 1
+        else:
+            result.append(b[j])
+            j += 1
+    return result
+''',
+                "expected_profile": {"correctness": "fail_leftover_elements", "efficiency": "O(n+m)", "style": "clean", "edge": "broken",
+                                       "note": "drops the remaining tail of whichever list wasn't fully consumed"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def merge_sorted_lists(a, b):
+    return a + b
+''',
+                "expected_profile": {"correctness": "fail_not_sorted", "efficiency": "O(n+m)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P14_factorial",
+        "statement": "Write a recursive function factorial(n) that returns n! (the factorial of n). factorial(0) = 1. Assume n >= 0.",
+        "func_name": "factorial",
+        "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
+        "test_cases": [
+            ((0,), 1), ((1,), 1), ((2,), 2), ((5,), 120), ((10,), 3628800),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_poor_style",
+                "code": '''
+def factorial(n):
+    if n<=1:
+        return 1
+    else:
+        return n*factorial(n-1)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(n)", "style": "medium", "edge": "handled"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_wrong_base_case",
+                "code": '''
+def factorial(n):
+    if n == 1:
+        return 1
+    return n * factorial(n - 1)
+''',
+                "expected_profile": {"correctness": "fail_zero_case", "efficiency": "O(n)", "style": "clean", "edge": "broken",
+                                       "note": "missing n==0 base case causes infinite recursion / RecursionError for factorial(0)"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def factorial(n):
+    return n
+''',
+                "expected_profile": {"correctness": "fail_all_except_0_1", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P15_gcd_euclidean",
+        "statement": "Write a recursive function gcd(a, b) that returns the greatest common divisor of non-negative integers a and b, using the Euclidean algorithm (gcd(a, 0) = a; gcd(a, b) = gcd(b, a % b) for b != 0).",
+        "func_name": "gcd",
+        "rubric": {"correctness": 55, "efficiency": 15, "code_style": 15, "edge_case_handling": 15},
+        "test_cases": [
+            ((48, 18), 6), ((17, 5), 1), ((0, 5), 5), ((5, 0), 5), ((100, 75), 25), ((7, 7), 7),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_clean",
+                "code": '''
+def gcd(a, b):
+    if b == 0:
+        return a
+    return gcd(b, a % b)
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(log(min(a,b)))", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_but_subtraction_based",
+                "code": '''
+def gcd(a, b):
+    if a == 0:
+        return b
+    if b == 0:
+        return a
+    if a == b:
+        return a
+    if a > b:
+        return gcd(a - b, b)
+    return gcd(a, b - a)
+''',
+                "expected_profile": {"correctness": "pass_all_slow", "efficiency": "O(max(a,b))", "style": "medium", "edge": "handled",
+                                       "note": "correct but uses repeated subtraction instead of modulo - much slower for large inputs, tests efficiency check"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_no_zero_handling",
+                "code": '''
+def gcd(a, b):
+    if a % b == 0:
+        return b
+    return gcd(b, a % b)
+''',
+                "expected_profile": {"correctness": "fail_b_zero", "efficiency": "O(log(min(a,b)))", "style": "clean", "edge": "broken",
+                                       "note": "ZeroDivisionError when b=0, e.g. gcd(5, 0)"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def gcd(a, b):
+    return min(a, b) if min(a, b) != 0 else max(a, b)
+''',
+                "expected_profile": {"correctness": "fail_most", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
+            },
+        ],
+    },
+    {
+        "id": "P16_power",
+        "statement": "Write a recursive function power(x, n) that returns x raised to the power n (x ** n), where n is a non-negative integer. For full efficiency credit, use fast exponentiation (O(log n)) rather than multiplying x by itself n times.",
+        "func_name": "power",
+        "rubric": {"correctness": 50, "efficiency": 20, "code_style": 15, "edge_case_handling": 15},
+        "test_cases": [
+            ((2, 10), 1024), ((3, 0), 1), ((5, 1), 5), ((2, 1), 2), ((1, 100), 1), ((0, 5), 0),
+        ],
+        "submissions": [
+            {
+                "sub_id": "S1_correct_fast_exponentiation",
+                "code": '''
+def power(x, n):
+    if n == 0:
+        return 1
+    half = power(x, n // 2)
+    if n % 2 == 0:
+        return half * half
+    return half * half * x
+''',
+                "expected_profile": {"correctness": "pass_all", "efficiency": "O(log n)", "style": "clean", "edge": "handled"}
+            },
+            {
+                "sub_id": "S2_correct_but_linear",
+                "code": '''
+def power(x, n):
+    if n == 0:
+        return 1
+    return x * power(x, n - 1)
+''',
+                "expected_profile": {"correctness": "pass_all_slow", "efficiency": "O(n)", "style": "clean", "edge": "handled",
+                                       "note": "correct but linear recursion instead of the requested fast exponentiation - tests efficiency check"}
+            },
+            {
+                "sub_id": "S3_edge_case_bug_no_base_case",
+                "code": '''
+def power(x, n):
+    half = power(x, n // 2)
+    if n % 2 == 0:
+        return half * half
+    return half * half * x
+''',
+                "expected_profile": {"correctness": "fail_all", "efficiency": "O(log n)", "style": "clean", "edge": "broken",
+                                       "note": "missing n==0 base case causes infinite recursion for every input"}
+            },
+            {
+                "sub_id": "S4_wrong_completely",
+                "code": '''
+def power(x, n):
+    return x * n
+''',
+                "expected_profile": {"correctness": "fail_all_except_trivial", "efficiency": "O(1)", "style": "clean", "edge": "not_handled"}
             },
         ],
     },

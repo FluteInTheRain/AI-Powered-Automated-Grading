@@ -1,6 +1,10 @@
 # Pilot Dataset — Automated Programming Grading
 
-33 samples, 8 original problems, 4-5 solutions per problem simulating different kinds of errors.
+65 samples, 16 original problems, 4-5 solutions per problem simulating different kinds of errors.
+(The first 8 problems / 33 samples were the original pilot set, used for the
+Phase 1/2 experiments in `docs/thesis/results.md`; problems P09-P16 were
+added in T3.1 to cover string processing, simple data structures, and
+recursion beyond fibonacci — problem types not represented in the original 8.)
 
 ## Structure of each sample (`dataset.json`)
 
@@ -30,11 +34,13 @@ annotation_source: origin of each sub-score
 It CANNOT be used to:
 - Report "the model achieves X% correlation with humans" in the thesis — because the "human" here is me self-labeling by rule, not an independent instructor grading.
 
-**Next step needed:** take these 33 samples (or an expanded set), have 1-2 instructors/TAs grade them independently using the same rubric, and compute Cohen's kappa or ICC between these rule-based scores and the real human scores. If agreement is high, the rule-based labels can be used to scale the dataset to hundreds of samples without needing a human to grade everything. If agreement is low, the rubric needs to be rewritten more clearly before scaling.
+**Next step needed:** take these 65 samples (or a further-expanded set), have 1-2 instructors/TAs grade them independently using the same rubric, and compute Cohen's kappa or ICC between these rule-based scores and the real human scores. If agreement is high, the rule-based labels can be used to scale the dataset to hundreds of samples without needing a human to grade everything. If agreement is low, the rubric needs to be rewritten more clearly before scaling.
 
 ## Notable finding from running the real pipeline
 
 Two submissions I designed to be buggy (`P01_two_sum__S3`, `P02_is_prime__S4`) actually **pass 100% of test cases** — because the current test suite isn't strong enough to catch that bug (missing a strict duplicate-value case for S3, missing a perfect-square-prime case for S4). This isn't a tool bug — it's empirical evidence for an important point to make in the Proposed Method / Literature Review section: **the quality of ground-truth correctness depends directly on test suite coverage** — if the test suite is weak, sandbox execution will also produce a wrong score. Worth citing this finding when discussing rubric design.
+
+Same class of issue caught and fixed during T3.1: `P12_valid_parentheses__S3`'s injected bug (missing the "leftover unmatched opening brackets" check) initially passed 6/6 test cases because none of them covered an unclosed-bracket input — added `"("` and `"[[["` as test cases so the bug is actually exercised. Lesson for anyone adding more problems: always run the buggy submissions against the test suite and check they actually fail, don't just trust that writing a bug means the test suite will catch it.
 
 ## How to extend the dataset
 
