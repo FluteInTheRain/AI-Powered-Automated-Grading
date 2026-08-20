@@ -58,7 +58,7 @@ def main():
     parser.add_argument("--sample_id", required=True)
     parser.add_argument("--n", type=int, default=100)
     parser.add_argument("--base_url", default="http://localhost:8080/v1")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
     parser.add_argument("--tag", default="", help="suffix for the output filename, e.g. 'batched'")
     parser.add_argument(
         "--concurrency", type=int, default=1,

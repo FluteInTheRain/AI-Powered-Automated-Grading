@@ -60,7 +60,8 @@ results/          experiment outputs (gitignored, dir kept)
 ```
 pip install -r requirements.txt
 python3 data/build_dataset.py                 # regenerates data/dataset.json locally
-# start llama.cpp's llama-server (OpenAI-compatible) serving Qwen2.5-Coder-1.5B/3B-Instruct GGUF
+# start llama.cpp's llama-server (OpenAI-compatible); default model is Qwen2.5-Coder-7B-Instruct
+# (largest model still inside the project's sub-7B scope — see configs/model.yaml)
 python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clean --n 100
 ```
 

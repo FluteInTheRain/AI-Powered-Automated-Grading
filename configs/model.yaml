@@ -1,7 +1,7 @@
 # Model / serving config. Keep this the single source of truth for
 # determinism-relevant settings so experiments don't silently drift.
 model:
-  name: Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0   # T0.1 default; escalate to 3B only if needed
+  name: Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M   # project default — largest model still inside the sub-7B scope
   base_url: http://localhost:8080/v1
   temperature: 0
   seed: 0

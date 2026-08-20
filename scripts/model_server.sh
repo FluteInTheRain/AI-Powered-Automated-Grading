@@ -6,7 +6,7 @@
 #   scripts/model_server.sh status
 set -euo pipefail
 
-MODEL="Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0"
+MODEL="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M"
 PORT=8080
 LOG_FILE=/tmp/llama-server.log
 PID_FILE=/tmp/llama-server.pid
@@ -31,7 +31,7 @@ start() {
     echo "Already running on port ${PORT}."
     exit 0
   fi
-  nohup llama-server -hf "$MODEL" --port "$PORT" --seed 0 -c 4096 "$@" \
+  nohup llama-server -hf "$MODEL" --port "$PORT" --seed 0 -c 16384 "$@" \
     > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   echo "Starting (pid $(cat "$PID_FILE")), logging to ${LOG_FILE}..."

@@ -159,6 +159,17 @@ source of truth for project status, not a one-off plan to read once.
 
 ## Notes
 
+- **Project default model changed to Qwen2.5-Coder-7B-Instruct** (was 1.5B).
+  Phase 1/2 rerun on 7B — 1.5B results archived in `results/archive_1.5b/`.
+  Current (7B) numbers: consistency still 1.0 exact-match on all 4 samples,
+  both batched and unbatched (did not reproduce the manual-testing
+  inconsistency noted in `docs/architecture.md` in this 100-run-per-sample
+  formal test — that finding stands as a separate, rarer observation, not
+  contradicted but not confirmed at this n either). Ablation agreement rose
+  across the board: free_form 0.52→0.59, hybrid_freeform 0.75→0.88,
+  hybrid_decomposed 0.87→0.89 (7B narrows the free-form-vs-hybrid gap
+  without closing it — hybrid_decomposed is still best). See
+  `docs/thesis/results.md` for the full writeup.
 - Phases 1 and 2 are the load-bearing ones — everything else (dataset
   scale-up, fine-tuning, writing) depends on their numbers. Don't start
   Phase 3/4 work speculatively before Phase 1/2 numbers exist.

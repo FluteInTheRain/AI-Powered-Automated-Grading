@@ -105,7 +105,7 @@ def run_hybrid_freeform(dataset: list, client: LLMClient) -> list:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_url", default="http://localhost:8080/v1")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q8_0")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
     parser.add_argument(
         "--arm", choices=["free_form", "hybrid_freeform", "hybrid_decomposed", "all"], default="all",
     )
