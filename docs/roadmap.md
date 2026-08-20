@@ -113,18 +113,16 @@ source of truth for project status, not a one-off plan to read once.
   archived at `results/ablation_33samples_7b.json`, 65-sample is the current
   `results/ablation.json`. See `docs/thesis/results.md` for full table.
 
-- [ ] **T3.2 — Recruit 1-2 independent graders.**
-  Get an instructor/TA to grade a subsample (won't need all of them —
-  20-30 samples is enough for a kappa/ICC estimate) using the same rubric,
-  blind to your rule-based labels. *This is a scheduling task, not a coding
-  one — start it early since it depends on someone else's time.*
-  ~start in parallel with T3.1, don't block on it.
+- [x] **T3.2 — skipped for now (user decision).** Recruiting an
+  instructor/TA to independently grade a subsample is deferred — not
+  ruled out, just not being pursued at the moment. Revisit if there's time
+  before writing, since T3.3 and the "agreement with humans" thesis claim
+  both depend on it; until then, `data/script.md`'s single-rater caveat
+  stands as-is and any agreement numbers (T2.2/ablation) stay framed as
+  "agreement with rule-based labels," never "agreement with human graders."
 
-- [ ] **T3.3 — Compute Cohen's kappa / ICC vs. real grader labels.**
-  Once T3.2 data is back: agreement between rule-based efficiency/style
-  labels and the real grader. This determines whether the rule-based
-  labels can be trusted to scale the dataset further, or need rework.
-  ~half day once data is in hand.
+- [x] **T3.3 — skipped, depends on T3.2.** No independent grader data to
+  compute kappa/ICC against. Revisit only if T3.2 is picked back up.
 
 ## Phase 4 — Fine-tuning decision point (conditional, may be skipped)
 
