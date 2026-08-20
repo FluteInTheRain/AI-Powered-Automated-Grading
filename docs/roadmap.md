@@ -63,13 +63,14 @@ source of truth for project status, not a one-off plan to read once.
   T1.1/T1.2's 4 samples. Result: **every check (correctness, efficiency,
   code_style, edge_case_handling) had exactly 1 unique value across all 100
   runs, in both conditions** — zero variance anywhere, nothing to isolate.
-  Important scope caveat: all 4 samples tested are `S1_correct_clean`
-  (clean, correct submissions) — the easiest case for the LLM checks to
-  judge. Buggy/poor-style/edge-case submissions (`S2`-`S4` per problem) are
-  untested and more likely to surface real variance; if Phase 2's ablation
-  run (T2.2, which covers the full pilot set) turns up any inconsistency,
-  revisit this with a larger, harder sample set before concluding
-  "0 variance" more broadly.
+  Scope caveat addressed (7B follow-up): repeated on 4 submissions with real
+  bugs/inefficiency (`P01_two_sum__S3` self-pairing bug, `P02_is_prime__S3`
+  negative-input edge case, `P05_fibonacci__S2` correct-but-exponential,
+  `P07_palindrome_check__S2` missing lowercasing) — **still 1.0 exact-match,
+  zero variance in every per-check breakdown**, both batched and unbatched.
+  See `docs/thesis/results.md` "harder submissions" section for detail.
+  Not fully closed: this still doesn't explain the separate manual-testing
+  inconsistency noted in `docs/architecture.md` — that remains open.
 
 ## Phase 2 — Ablation (justifies the architecture choice)
 
