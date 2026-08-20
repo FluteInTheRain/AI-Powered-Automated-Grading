@@ -43,9 +43,10 @@ Each LLM check:
   dimension — smaller context, less for the model to reason about, less
   variance surface.
 - returns a small pydantic-schema JSON object (`src/grader/schemas.py`) via
-  guided/constrained decoding (vLLM `guided_json` / outlines backend), so
-  there's no free-form number to be inconsistent about — only a bounded
-  enum or boolean, then a fixed, code-side mapping to a 0..1 sub-score.
+  guided/constrained decoding (`response_format: json_schema`, backed by
+  llama.cpp's GBNF grammar engine), so there's no free-form number to be
+  inconsistent about — only a bounded enum or boolean, then a fixed,
+  code-side mapping to a 0..1 sub-score.
 
 ## Determinism verification (not just config)
 
@@ -54,8 +55,8 @@ under a batching serving engine (floating-point non-associativity across
 batch compositions — this is an active, measured phenomenon, not
 theoretical). `experiments/consistency_test.py` is the empirical check:
 run one fixed sample N=100 times, sequential requests, count unique scores.
-Compare with `--max-num-seqs 1` (no batching) vs. a normally-batched vLLM
-server to isolate how much of any inconsistency is batching-induced.
+Compare with `--parallel 1` (no batching) vs. a normally-batched
+`llama-server` to isolate how much of any inconsistency is batching-induced.
 
 ## Planned ablation (experiments/ablation.py)
 
@@ -72,12 +73,28 @@ re-annotated by a real grader.
 
 ## Model choice
 
-Start with Qwen2.5-Coder (1.5B, then 3B) — code-capable, instruction-tuned,
-small enough for cheap, fast, repeated experiments (the consistency
-experiment alone is 100+ sequential calls per condition). Escalate to
-DeepSeek-Coder-6.7B-Instruct only if the small model's checks are too
-unreliable. LoRA fine-tuning is a fallback if prompting + structured output
-isn't sufficient — not a starting assumption.
+Started with Qwen2.5-Coder-1.5B-Instruct for Phase 0-2 (cheap, fast,
+repeated experiments — the consistency experiment alone is 100+ sequential
+calls per condition), then escalated within the family up to
+**Qwen2.5-Coder-7B-Instruct**, the project default as of the model-size
+comparison below — the largest model still inside the thesis's sub-7B scope.
+LoRA fine-tuning remains a fallback if prompting + structured output isn't
+sufficient — not a starting assumption.
+
+**Model-size finding (informal, from manual demo-UI testing, not yet a
+formal experiment):** bigger was not more reliable for the line-by-line
+feedback feature (`src/grader/feedback.py`, outside the scored pipeline).
+1.5B gave generic-but-honest feedback when it couldn't pin down a specific
+issue; 3B produced confident, specific, but factually wrong claims about
+the code (hallucinated a missing null-check that was actually present);
+7B was better but still contradicted its own `edge_case_handling` check
+result in one observed case. Also caught: two back-to-back calls to
+`check_edge_case_handling` with identical input, seed=0, and the 7B model
+returned different `handled` verdicts — a real run-to-run inconsistency,
+directly relevant to the thesis's central claim, found outside the formal
+Phase 1 experiment. Worth a proper repeat of T1.1/T1.2 on 7B and on harder
+(non-`correct_clean`) submissions before treating either finding as
+conclusive — see `docs/roadmap.md` Phase 1 notes.
 
 ## References
 
