@@ -4,3 +4,7 @@ scipy>=1.11
 streamlit>=1.35  # demo UI only (app.py), not part of the grading pipeline itself
 fastapi>=0.111  # REST API (server/main.py) for the React frontend (frontend/)
 uvicorn[standard]>=0.30  # ASGI server for server/main.py
+sqlalchemy>=2.0  # ORM for the product DB (server/models.py) — problems/exams/submissions
+psycopg[binary]>=3.1  # PostgreSQL driver for sqlalchemy
+alembic>=1.13  # DB schema migrations for the product DB
+openpyxl>=3.1  # Excel export of exam results

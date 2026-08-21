@@ -68,6 +68,25 @@ python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clea
 `data/dataset.json` is generated, not committed — always regenerate it
 locally from `data/problems.py` rather than expecting it in a fresh clone.
 
+## Product server (exam links)
+
+Separate from the thesis pipeline above: `server/` + `frontend/` are a
+product slice that lets a teacher author a problem and share an exam link
+with students (see `docs/productionization.md`). This needs a Postgres DB:
+
+```
+docker compose up -d          # starts local Postgres (postgres:16)
+alembic upgrade head          # creates the problems/exams/submissions tables
+uvicorn server.main:app --reload --port 8001
+cd frontend && npm install && npm run dev
+```
+
+`DATABASE_URL` defaults to `postgresql+psycopg://grading:grading@localhost:5433/grading`
+(matching `docker-compose.yml`); override it in the environment to point at
+a different Postgres instance. This DB is entirely separate from
+`data/problems.py`/`data/dataset.json` — the thesis pipeline has no
+database dependency.
+
 ## Working with Claude Code on this project
 
 This repo has a `CLAUDE.md` (project rules and conventions) and a few

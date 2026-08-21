@@ -1,0 +1,22 @@
+# Local Postgres for the product DB (server/models.py — problems/exams/
+# submissions). Not used by the thesis pipeline (src/, experiments/, data/),
+# which has no database dependency.
+#
+# Usage: docker compose up -d
+# Then:  alembic upgrade head
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: grading
+      POSTGRES_PASSWORD: grading
+      POSTGRES_DB: grading
+    ports:
+      # Host port 5433, not 5432 — another project's Postgres container may
+      # already hold 5432 on this machine.
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
