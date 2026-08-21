@@ -11,6 +11,7 @@ case (server/models.py) — no positional convention like server/main.py's
 from __future__ import annotations
 
 import datetime
+import logging
 import sys
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from grader.feedback import generate_feedback
 from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
@@ -28,6 +30,8 @@ from grader.sandbox import run_submission_cases
 from .config import BASE_URL, MODEL
 from .db import get_session
 from .models import Exam, Submission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/exam", tags=["exam"])
 
@@ -113,6 +117,20 @@ def submit_exam(student_token: str, req: ExamSubmitRequest, session: Session = D
         result = grade(sample, client)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Grading failed: {e}")
+
+    # Explanatory only — generated AFTER grading from the already-fixed
+    # score/execution result, so it can never feed back into the score
+    # (see src/grader/feedback.py). Best-effort: a feedback failure
+    # shouldn't take down an otherwise-successful grading response.
+    try:
+        feedback = generate_feedback(
+            client, problem.statement, req.code,
+            result["execution_result"], result["sub_scores_0_to_1"], result["check_details"],
+        )
+        result["feedback"] = feedback.model_dump()
+    except Exception:
+        logger.exception("generate_feedback failed for student_token=%s", student_token)
+        result["feedback"] = None
 
     submission = Submission(
         exam_id=exam.id,

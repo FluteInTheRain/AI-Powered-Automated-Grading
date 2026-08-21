@@ -1,6 +1,6 @@
 export default function ResultPanel({ result }) {
   if (!result) return null
-  const { sub_scores_0_to_1: scores, final_score_0_to_100: finalScore, execution_result: exec } = result
+  const { sub_scores_0_to_1: scores, final_score_0_to_100: finalScore, execution_result: exec, feedback } = result
 
   return (
     <div className="result-panel">
@@ -31,6 +31,29 @@ export default function ResultPanel({ result }) {
           </ul>
         )}
       </div>
+
+      {feedback && (
+        <div className="feedback-section">
+          <h3>Nhận xét từ AI</h3>
+          <p className="feedback-summary">{feedback.summary}</p>
+          {feedback.issues.length > 0 && (
+            <ul className="feedback-issue-list">
+              {feedback.issues.map((item, i) => (
+                <li key={i} className="feedback-issue">
+                  <div className="feedback-issue-title">
+                    <span className="feedback-issue-line">Dòng {item.line}</span>
+                    {item.issue}
+                  </div>
+                  <p className="feedback-issue-explanation">{item.explanation}</p>
+                  <p className="feedback-issue-fix">
+                    <strong>Gợi ý sửa:</strong> {item.suggested_fix}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }

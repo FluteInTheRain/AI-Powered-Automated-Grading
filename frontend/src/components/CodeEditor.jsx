@@ -57,9 +57,6 @@ export default function CodeEditor({ value, onChange, readOnly, filename = 'solu
   return (
     <div className="editor-shell">
       <div className="editor-titlebar">
-        <span className="editor-dot editor-dot-red" />
-        <span className="editor-dot editor-dot-yellow" />
-        <span className="editor-dot editor-dot-green" />
         <span className="editor-filename">{filename}</span>
       </div>
       <Editor

@@ -19,10 +19,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import logging
+
+from grader.feedback import generate_feedback
 from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 from problems import PROBLEMS
+
+logger = logging.getLogger(__name__)
 
 from .config import BASE_URL, MODEL
 from .exam import router as exam_router
@@ -209,4 +214,20 @@ def submit(req: SubmitRequest):
     # hidden cases incrementally across attempts (docs/productionization.md
     # — worth a PR-C3-adjacent follow-up if repeat attempts turn out to be
     # possible in practice).
+
+    # Explanatory only — generated AFTER grading from the already-fixed
+    # score/execution result, so it can never feed back into the score
+    # (see src/grader/feedback.py). Best-effort: logged, not fatal, if it
+    # fails — an otherwise-successful grading response shouldn't 502 just
+    # because the follow-up explanation call did.
+    try:
+        feedback = generate_feedback(
+            client, problem["statement"], req.code,
+            result["execution_result"], result["sub_scores_0_to_1"], result["check_details"],
+        )
+        result["feedback"] = feedback.model_dump()
+    except Exception:
+        logger.exception("generate_feedback failed for problem_id=%s", req.problem_id)
+        result["feedback"] = None
+
     return result

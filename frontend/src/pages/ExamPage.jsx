@@ -78,69 +78,80 @@ export default function ExamPage({ studentToken }) {
   if (phase === 'error' && !exam) return <p className="status-line status-error">Error: {errorMessage}</p>
   if (phase === 'closed') return <p className="status-line">Đề kiểm tra này đã đóng.</p>
 
+  const problemPanel = (
+    <div className="problem-header">
+      <div className="statement">
+        <ReactMarkdown>{exam.statement}</ReactMarkdown>
+      </div>
+      <div className="rubric">
+        {Object.entries(exam.rubric).map(([key, weight]) => (
+          <span key={key} className="rubric-chip">
+            {key.replace(/_/g, ' ')}: {weight}
+          </span>
+        ))}
+      </div>
+      <p className="hidden-note">
+        {exam.public_test_case_count} public test case(s) — use "Run Tests" to check pass/fail. Your
+        score is based only on the {exam.hidden_test_case_count} hidden test case(s).
+      </p>
+    </div>
+  )
+
+  const solving = phase === 'in_progress' || phase === 'grading' || phase === 'done' || phase === 'error'
+
   return (
-    <div className="app">
+    <div className="app app-wide">
       <header className="app-header">
         <h1>Bài kiểm tra</h1>
-        {(phase === 'in_progress' || phase === 'grading' || phase === 'done' || phase === 'error') && (
+        {solving && (
           <Timer durationSeconds={durationSeconds} isRunning={phase === 'in_progress'} onExpire={handleSubmit} />
         )}
       </header>
 
-      <div className="problem-header">
-        <div className="statement">
-          <ReactMarkdown>{exam.statement}</ReactMarkdown>
-        </div>
-        <div className="rubric">
-          {Object.entries(exam.rubric).map(([key, weight]) => (
-            <span key={key} className="rubric-chip">
-              {key.replace(/_/g, ' ')}: {weight}
-            </span>
-          ))}
-        </div>
-        <p className="hidden-note">
-          {exam.public_test_case_count} public test case(s) — use "Run Tests" to check pass/fail. Your
-          score is based only on the {exam.hidden_test_case_count} hidden test case(s).
-        </p>
-      </div>
-
       {phase === 'name_gate' && (
-        <div className="name-gate">
-          <label htmlFor="student-name">Họ tên</label>
-          <input
-            id="student-name"
-            type="text"
-            value={studentName}
-            onChange={(e) => setStudentName(e.target.value)}
-            placeholder="Nhập họ tên của bạn"
-          />
-          <button className="btn btn-primary btn-start" onClick={handleStart} disabled={!studentName.trim()}>
-            Bắt đầu ({Math.round(exam.time_limit_seconds / 60)} phút)
-          </button>
-        </div>
-      )}
-
-      {(phase === 'in_progress' || phase === 'grading' || phase === 'done' || phase === 'error') && (
         <>
-          <CodeEditor value={code} onChange={setCode} readOnly={phase !== 'in_progress'} />
-          <div className="submit-row">
-            <button
-              className="btn btn-secondary"
-              onClick={handleRunTests}
-              disabled={phase !== 'in_progress' || isRunningTests}
-            >
-              {isRunningTests ? 'Running…' : 'Run Tests'}
+          {problemPanel}
+          <div className="name-gate">
+            <label htmlFor="student-name">Họ tên</label>
+            <input
+              id="student-name"
+              type="text"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              placeholder="Nhập họ tên của bạn"
+            />
+            <button className="btn btn-primary btn-start" onClick={handleStart} disabled={!studentName.trim()}>
+              Bắt đầu ({Math.round(exam.time_limit_seconds / 60)} phút)
             </button>
-            <button className="btn btn-primary" onClick={handleSubmit} disabled={phase !== 'in_progress'}>
-              {phase === 'grading' ? 'Grading…' : 'Submit'}
-            </button>
-            {phase === 'error' && <span className="status-error">Grading failed: {errorMessage}</span>}
           </div>
-          <TestRunPanel runResult={runResult} />
         </>
       )}
 
-      {phase === 'done' && <ResultPanel result={result} />}
+      {solving && (
+        <div className="solve-grid">
+          <div className="solve-left">
+            {problemPanel}
+            {phase === 'done' && <ResultPanel result={result} />}
+          </div>
+          <div className="solve-right">
+            <div className="submit-row">
+              {phase === 'error' && <span className="status-error">Grading failed: {errorMessage}</span>}
+              <button
+                className="btn btn-secondary"
+                onClick={handleRunTests}
+                disabled={phase !== 'in_progress' || isRunningTests}
+              >
+                {isRunningTests ? 'Running…' : 'Run Tests'}
+              </button>
+              <button className="btn btn-primary" onClick={handleSubmit} disabled={phase !== 'in_progress'}>
+                {phase === 'grading' ? 'Grading…' : 'Submit'}
+              </button>
+            </div>
+            <CodeEditor value={code} onChange={setCode} readOnly={phase !== 'in_progress'} />
+            <TestRunPanel runResult={runResult} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
