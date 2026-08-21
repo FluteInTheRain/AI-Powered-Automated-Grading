@@ -80,10 +80,13 @@ exact-match rate.
 
 ## Ablation (Phase 2)
 
-**Setup:** three arms compared on the full 33-sample pilot dataset
-(`data/dataset.json`), each producing a predicted final score compared
-against the dataset's rule-based reference labels via Spearman rank
-correlation.
+**Setup:** three arms compared on the pilot dataset (`data/dataset.json`),
+each producing a predicted final score compared against the dataset's
+rule-based reference labels via Spearman rank correlation. Originally run
+on the 33-sample / 8-problem pilot set; rerun on the expanded 65-sample /
+16-problem set after T3.1 (dataset expansion — see `docs/roadmap.md`) added
+8 problems covering string processing, simple data structures, and
+recursion beyond fibonacci.
 
 1. **free_form** — one prompt, one holistic 0-100 score, no sandbox
    execution, no structured output (the "naive" baseline: just ask the LLM
@@ -95,13 +98,17 @@ correlation.
    correctness + three independent, structured-output LLM calls (one per
    non-correctness rubric dimension) + fixed code-side weighted aggregation.
 
-| Arm | ρ (7B) | p-value (7B) | ρ (1.5B, archived) |
-|---|---|---|---|
-| free_form | 0.59 | 0.0003 | 0.52 |
-| hybrid_freeform | 0.88 | 2.7e-11 | 0.75 |
-| hybrid_decomposed | **0.89** | 2.2e-12 | 0.87 |
+| Arm | ρ (7B, n=65) | p-value | ρ (7B, n=33, archived) | ρ (1.5B, n=33, archived) |
+|---|---|---|---|---|
+| free_form | 0.60 | 1.2e-07 | 0.59 | 0.52 |
+| hybrid_freeform | 0.85 | 2.3e-19 | 0.88 | 0.75 |
+| hybrid_decomposed | **0.88** | 2.1e-22 | 0.89 | 0.87 |
 
-n=33, 0/33 parse failures in both free-form arms, at both model sizes.
+0/65 parse failures in both free-form arms on the current 65-sample run
+(0/33 on the archived 33-sample runs). The 33-sample columns are archived
+at `results/ablation_33samples_7b.json` (7B) and
+`results/archive_1.5b/ablation.json` (1.5B); the current `results/ablation.json`
+is the 65-sample run.
 
 **Finding:** agreement with the reference labels increases monotonically
 with each decomposition step, at both model sizes — replacing "ask the LLM
@@ -111,15 +118,20 @@ each measurably improves agreement. This is the empirical justification for
 the architecture described in `docs/architecture.md`, consistent with the
 rubric-decomposition literature it cites (arXiv:2606.08625, arXiv:2411.15594).
 
-**7B vs. 1.5B:** the larger model improves all three arms, but narrows
-rather than closes the gap between the naive free-form arm and the hybrid
-arms — hybrid_decomposed is still the best arm at both sizes, and the
-9-point-ρ gap between free_form and hybrid_decomposed at 1.5B only shrinks
-to a 3-point-ρ gap at 7B for hybrid_freeform vs. hybrid_decomposed
-specifically (0.88 vs 0.89 — nearly tied). This suggests the architecture's
-benefit is largest for small models and may matter less as model size
-grows, though 7B is still the largest size tested (sub-7B scope) — this
-trend should not be extrapolated past 7B without more data points.
+**7B vs. 1.5B:** the larger model improves all three arms on the original
+33-sample set, but narrows rather than closes the gap between the naive
+free-form arm and the hybrid arms — hybrid_decomposed is still the best arm
+at both sizes. This suggests the architecture's benefit may be largest for
+small models and matter less as model size grows, though 7B is still the
+largest size tested (sub-7B scope) — this trend should not be extrapolated
+past 7B without more data points.
+
+**33 vs. 65 samples (both 7B):** conclusion is stable across dataset size —
+same ordering (free_form < hybrid_freeform < hybrid_decomposed), p-values
+tighten with the larger n as expected. hybrid_freeform and hybrid_decomposed
+moved closer together on the larger set (0.85 vs 0.88, a 3-point gap,
+versus 0.88 vs 0.89 on the smaller set) — worth watching if the dataset
+grows further (T3.1 follow-up), but not yet a meaningful reversal.
 
 **Caveat — read before citing this table as "accuracy":** the reference
 labels for `efficiency` and `code_style` are single-rater (self-annotated by

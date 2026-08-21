@@ -83,7 +83,7 @@ project:
 
 ## Known dataset limitation
 
-The 33-sample pilot dataset has real, sandbox-executed labels for
+The 65-sample pilot dataset (16 problems) has real, sandbox-executed labels for
 correctness and edge-case handling, but efficiency/style labels are
 single-rater (self-annotated by the author), not independent human ground
 truth. Full detail and what's needed to fix it before making a
