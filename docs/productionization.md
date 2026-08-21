@@ -86,10 +86,13 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
 
 ## E — Transparency & trust (matters once scores affect real people)
 
-- [ ] **PR-E1 — Audit trail.** Log the prompt, model version, and raw
-  model output behind every graded score, so a grade can actually be
-  explained and defended if a student disputes it — not just the final
-  number.
+- [x] **PR-E1 — Audit trail.** `LLMClient.call_log` (src/grader/llm_client.py)
+  records every call's system/user prompt + raw response; `server/exam.py`
+  persists it as `GradingLog` rows per submission; `server/teacher.py`
+  exposes it via `GET /api/teacher/exams/{admin_token}/submissions/{id}/audit`;
+  `AdminResultsPage.jsx` shows it per submission ("Chi tiết"). Scoped to the
+  real exam-link flow only — the `/demo` path doesn't persist submissions,
+  so there's nothing to attach a trail to there.
 
 - [ ] **PR-E2 — Low-confidence flagging.** Flag borderline scores or cases
   where the model's rubric-check output looks uncertain, for manual
