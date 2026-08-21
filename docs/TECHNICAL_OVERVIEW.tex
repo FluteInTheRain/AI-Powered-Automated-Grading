@@ -1,0 +1,438 @@
+% Tài liệu kỹ thuật (portfolio/CV) đi kèm docs/TECHNICAL_OVERVIEW.md.
+% Cần XeLaTeX/LuaLaTeX (fontspec + polyglossia) để hiển thị tiếng Việt.
+% Biên dịch: tectonic TECHNICAL_OVERVIEW.tex (hoặc xelatex, chạy 2 lần cho
+% mục lục / danh sách hình).
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+\setmainfont{Times New Roman} % đổi sang font có sẵn trên máy nếu không có
+
+\usepackage{geometry}
+\geometry{margin=2.3cm}
+\usepackage{microtype}
+\sloppy
+\emergencystretch=3em
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc, fit, backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  backgroundcolor=\color{black!3},
+}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black,
+}
+
+% ---- các style node TikZ dùng lại nhiều lần -------------------------------
+\tikzset{
+  procbox/.style={rectangle, rounded corners=3pt, draw=blue!55!black, very thick,
+    fill=blue!6, text width=3.3cm, minimum height=1.1cm, align=center,
+    font=\footnotesize, inner sep=5pt},
+  llmbox/.style={rectangle, rounded corners=3pt, draw=orange!65!black, very thick,
+    fill=orange!8, text width=3.3cm, minimum height=1.0cm, align=center,
+    font=\footnotesize, inner sep=5pt},
+  iobox/.style={rectangle, draw=black!70, very thick, fill=black!4,
+    text width=3.6cm, minimum height=1.0cm, align=center, font=\footnotesize,
+    inner sep=5pt},
+  goodbox/.style={rectangle, rounded corners=3pt, draw=green!45!black, very thick,
+    fill=green!8, text width=3.4cm, minimum height=1.1cm, align=center,
+    font=\footnotesize, inner sep=5pt},
+  badbox/.style={rectangle, rounded corners=3pt, draw=red!55!black, very thick,
+    fill=red!7, text width=3.4cm, minimum height=1.1cm, align=center,
+    font=\footnotesize, inner sep=5pt},
+  arr/.style={-{Latex[length=2.3mm]}, thick},
+}
+
+\title{\textbf{AI-Powered Automated Grading}\\[2pt]
+  \large Tổng quan kỹ thuật \& các quyết định thiết kế}
+\author{Khang Nguyen}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent Tài liệu này trình bày các quyết định kỹ thuật đứng sau một hệ
+thống chấm điểm tự động bài tập lập trình dùng LLM dưới 7 tỷ tham số, xây
+dựng quanh một yêu cầu cứng, có thể kiểm chứng: \emph{điểm số khớp tuyệt
+đối (exact-match) giữa các lần chạy lặp lại trên cùng một đầu vào}, kể cả
+dưới điều kiện serving có batching thật. Đây là bản mở rộng có sơ đồ của
+\texttt{docs/TECHNICAL\_OVERVIEW.md} trong repo dự án, viết cho mục đích
+portfolio/CV. Phần khung học thuật của cùng dự án (tổng quan tài liệu, mô
+tả phương pháp chính thức, kết quả kiểu luận văn) nằm riêng ở
+\texttt{docs/thesis/}.
+\end{abstract}
+
+\tableofcontents
+\listoffigures
+
+% =====================================================================
+\section{Vấn đề kỹ thuật thực sự}
+
+``Chấm code bằng LLM'' tự bản thân nó không phải bài toán kỹ thuật khó —
+một prompt đơn giản làm được việc đó trong một buổi chiều. Bài toán mà dự
+án này thực sự giải quyết là:
+
+\begin{quote}
+\itshape Với cùng một đề bài, cùng một rubric, và cùng một bài nộp, hệ
+thống có thể được thiết kế để luôn trả về \textbf{đúng cùng một điểm số ở
+mọi lần chạy}, kể cả dưới một cấu hình serving có batching như trong sản
+xuất thật — và tuyên bố đó có thể được chứng minh bằng một phép đo, chứ
+không phải một cờ cấu hình?
+\end{quote}
+
+Đó là bài toán tính xác định (determinism) dưới điều kiện serving thật.
+Nó cắt ngang qua ba lớp thường không được xem là cùng một bài toán: cấu
+trúc đầu ra của mô hình, chiến lược giải mã (decoding), và cơ chế batching
+nội bộ của serving engine.
+
+% =====================================================================
+\section{Vì sao ``cứ hỏi LLM chấm điểm'' không đáp ứng được yêu cầu này}
+
+Một lệnh gọi tự do (free-form) yêu cầu mô hình trả về một điểm toàn thể
+0--100 duy nhất có phương sai giữa các lần chạy rất cao: kể cả ở
+\texttt{temperature=0}, mô hình vẫn có nhiều đường suy luận văn bản tự do
+khác nhau nhưng đều hợp lý để đi đến cùng một kết luận, và đường nào được
+chọn lại nhạy cảm với nhiễu ở tầng serving. Dự án đo trực tiếp khoảng cách
+này thay vì tin theo cảm tính. Thực nghiệm ablation
+(\texttt{experiments/ablation.py}) so sánh ba kiến trúc trên cùng bộ dữ
+liệu 65 mẫu, chấm theo độ tương quan hạng Spearman với nhãn tham chiếu của
+bộ dữ liệu.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=26pt,
+    width=11cm, height=6.2cm,
+    symbolic x coords={freeform, hybridfree, hybriddec},
+    xtick=data,
+    xticklabels={free\_form, hybrid\_freeform, hybrid\_decomposed},
+    xticklabel style={font=\small, align=center},
+    ymin=0, ymax=1,
+    ylabel={Spearman $\rho$ so với nhãn tham chiếu},
+    nodes near coords,
+    nodes near coords style={font=\small},
+    enlarge x limits=0.3,
+    axis lines*=left,
+    ymajorgrids,
+    major grid style={draw=black!15},
+  ]
+\addplot[fill=blue!35, draw=blue!55!black] coordinates
+  {(freeform,0.60) (hybridfree,0.85) (hybriddec,0.88)};
+\end{axis}
+\end{tikzpicture}
+\caption{Mức độ đồng thuận với nhãn tham chiếu tăng đơn điệu theo từng bước
+phân rã: một lệnh gọi free-form
+$\rightarrow$ correctness từ sandbox + một lệnh gọi free-form cho phần còn
+lại
+$\rightarrow$ correctness từ sandbox + một lệnh gọi có cấu trúc cho mỗi
+tiêu chí rubric. Bảng đầy đủ kèm p-value trong \texttt{docs/thesis/results.md}.}
+\label{fig:ablation-bar}
+\end{figure}
+
+Hình~\ref{fig:ablation-bar} là căn cứ thực nghiệm cho kiến trúc ở mục sau —
+một kết quả đo được, không phải một sở thích thiết kế.
+
+% =====================================================================
+\section{Kiến trúc}
+
+\texttt{src/grader/pipeline.py} là một hàm tuần tự duy nhất — cố tình
+\textbf{không} xây trên một agent framework (LangChain, CrewAI, v.v.).
+Không có khám phá nhiều bước hay định tuyến công cụ nào cần điều phối ở
+đây: chỉ có ba lệnh gọi phân loại độc lập và một phép cộng số học. Mỗi lớp
+điều phối thêm vào là một nơi có thể làm rò rỉ thêm phi-xác-định hoặc
+token, mà không mang lại lợi ích gì cho khối lượng công việc này.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Latex]
+
+\node[iobox] (input) at (5.5,14.2) {\textbf{Đầu vào}\\statement, rubric,\\submission\_code, test\_cases};
+
+\node[procbox] (sandbox) at (0,10.4) {\texttt{sandbox.}\\\texttt{run\_submission()}\\correctness\\\emph{(xác định, không LLM)}};
+
+\node[llmbox] (eff)   at (9.4,12.0) {\texttt{check\_efficiency()}\\JSON có cấu trúc, temp=0};
+\node[llmbox] (style) at (9.4,9.4) {\texttt{check\_code\_style()}\\JSON có cấu trúc, temp=0};
+\node[llmbox] (edge)  at (9.4,6.6) {\texttt{check\_edge\_case\_}\\\texttt{handling()}\\JSON có cấu trúc, temp=0};
+
+\node[procbox] (agg) at (5.5,4.4) {\texttt{aggregator.}\\\texttt{aggregate()}\\tổng có trọng số cố định\\\emph{(code thuần, không LLM)}};
+
+\node[iobox] (output) at (5.5,1.7) {\textbf{final\_score\_0\_to\_100}};
+
+\draw[arr] (input.south west) -- (sandbox.north);
+\draw[arr] (input.south) -- (eff.north west);
+\draw[arr] (input.south east) -- (style.north west);
+\draw[arr] (input.east) -- (edge.north west);
+
+\draw[arr] (sandbox.south) -- (agg.north west);
+\draw[arr] (eff.south west) -- (agg.north east);
+\draw[arr] (style.west) -- (agg.east);
+\draw[arr] (edge.north west) -- (agg.south east);
+
+\draw[arr] (agg.south) -- (output.north);
+
+\end{tikzpicture}
+\caption{Toàn bộ pipeline chấm điểm. Correctness chạy trên đường thực thi
+thật, không có LLM tham gia; mọi tiêu chí rubric còn lại là một lệnh gọi
+LLM hẹp, ràng buộc theo schema; điểm cuối cùng được tính bằng Python thuần,
+không bao giờ do mô hình tính.}
+\label{fig:pipeline}
+\end{figure}
+
+% =====================================================================
+\section{Các quyết định kỹ thuật cốt lõi}
+
+\subsection{Correctness không bao giờ chạm vào LLM}
+
+\texttt{src/grader/sandbox.py} chạy code nộp bài với các test case thật
+trong một namespace riêng biệt và tính \texttt{pass\_rate} trực tiếp —
+không có suy luận mô hình nào trên con đường quan trọng nhất đối với tính
+xác định. Điều này cũng làm lộ ra một bài học tinh tế hơn trong quá trình
+xây bộ dữ liệu (\texttt{data/script.md}): hai bài nộp \emph{được thiết kế}
+để chứa lỗi vẫn đạt 100\% test, vì bộ test không tình cờ bao phủ đúng dạng
+lỗi đó. Correctness từ sandbox chỉ đáng tin cậy bằng bộ test đứng sau nó.
+
+\subsection{Giải mã ràng buộc theo schema, không phải ``xin JSON một cách lịch sự''}
+
+Mỗi tiêu chí rubric ngoài correctness có một prompt hẹp riêng
+(\texttt{prompts/*.txt}) và một schema Pydantic nhỏ riêng
+(\texttt{src/grader/schemas.py}): một \texttt{EfficiencyCheck} (boolean +
+một cụm từ ngắn mô tả mẫu quan sát được), một \texttt{StyleCheck} (một
+enum thứ bậc 3 giá trị), một \texttt{EdgeCaseCheck} (boolean + danh sách
+trường hợp thiếu, có thể rỗng). Các ràng buộc này được áp dụng ngay ở tầng
+giải mã qua \texttt{response\_format: json\_schema}, được biên dịch thành
+văn phạm GBNF bởi \texttt{llama.cpp}
+(\texttt{src/grader/llm\_client.py}) — mô hình \emph{không có khả năng cấu
+trúc} để sinh ra bất cứ thứ gì ngoài schema, chứ không chỉ đơn thuần được
+prompt để làm vậy.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Latex]
+
+% -- đường không ràng buộc (trên) --
+\node[iobox] (p1) at (0,6) {Prompt: ``chấm bài này,\\trả về JSON''};
+\node[llmbox] (m1) at (4.2,6) {Giải mã LLM\\\emph{không ràng buộc}};
+\node[badbox] (t1) at (8.6,6) {Văn bản tự do\\(có thể không\\phải JSON hợp lệ)};
+\node[badbox] (r1) at (12.6,6) {Bước regex/parse\\\textbf{rủi ro: parse fail,}\\\textbf{trôi giữa các lần chạy}};
+
+\draw[arr] (p1) -- (m1);
+\draw[arr] (m1) -- (t1);
+\draw[arr] (t1) -- (r1);
+
+% -- đường ràng buộc (dưới) --
+\node[iobox] (p2) at (0,2.6) {Prompt: chỉ một\\tiêu chí rubric};
+\node[llmbox] (m2) at (4.2,2.6) {Giải mã LLM\\\emph{ràng buộc bởi văn phạm}\\\emph{GBNF (từ schema)}};
+\node[goodbox] (t2) at (8.6,2.6) {JSON hợp lệ về\\cấu trúc, khớp\\schema Pydantic};
+\node[goodbox] (r2) at (12.6,2.6) {\texttt{schema.model\_validate()}\\\textbf{luôn thành công,}\\\textbf{không có bề mặt trôi}};
+
+\draw[arr] (p2) -- (m2);
+\draw[arr] (m2) -- (t2);
+\draw[arr] (t2) -- (r2);
+
+\end{tikzpicture}
+\caption{Giải mã tự do (trên) để lại một bề mặt mở cho lỗi parse và
+phương sai điểm số. Giải mã ràng buộc theo văn phạm với một schema nhỏ
+(dưới) loại bỏ bề mặt đó về mặt cấu trúc — đây là cơ chế đứng sau phương
+sai bằng 0 trên từng check trong thực nghiệm consistency
+(Hình~\ref{fig:consistency}), không chỉ là ý định thiết kế.}
+\label{fig:constrained-decoding}
+\end{figure}
+
+\subsection{Một lỗi trong công thức ánh xạ điểm đáng biết}
+
+Các điểm thành phần là hàm xác định của đầu ra có cấu trúc, ví dụ:
+
+\begin{lstlisting}[language=Python]
+# edge_case_handling: handled=False must never silently score 1.0
+score = max(0.25, 1.0 - 0.25 * max(1, len(result.missing_cases)))
+\end{lstlisting}
+
+\texttt{max(1, ...)} tồn tại vì một phiên bản trước của công thức này tính
+\texttt{1.0 - 0.25 * 0 == 1.0} bất cứ khi nào mô hình trả về
+\texttt{handled=False} nhưng danh sách \texttt{missing\_cases} rỗng —
+âm thầm ghi đè phán quyết ``không xử lý được'' của chính mô hình bằng một
+điểm tuyệt đối. Danh sách rỗng ở đây có nghĩa ``chưa xác định'', không
+phải ``không bị trừ điểm''. Đây là một lỗi nhỏ, nhưng đúng kiểu lỗi mà một
+lượt kiểm tra nhanh trên happy-path sẽ bỏ sót, và nó trực tiếp làm suy yếu
+tuyên bố correctness trung tâm của dự án nếu để sót lại.
+
+\subsection{Tính xác định được đo, không giả định}
+
+\texttt{temperature=0} + seed cố định + giải mã ràng buộc \textbf{không}
+đảm bảo lặp lại chính xác từng bit dưới một serving engine có batching —
+tính không kết hợp của số học dấu phẩy động qua các tổ hợp batch khác nhau
+là một hiện tượng có thật, đã được ghi nhận trong serving LLM, không phải
+mối lo lý thuyết. \texttt{experiments/consistency\_test.py} đo trực tiếp
+điều này thay vì khẳng định cấu hình làm cho hệ thống có tính xác định.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Latex]
+
+\node[iobox] (sample) at (5.5,7.6) {Mẫu đầu vào cố định\\(statement + rubric\\+ submission\_code)};
+
+\node[procbox] (seq) at (1.6,5.2) {\texttt{--parallel 1}\\yêu cầu tuần tự\\(không batching)};
+\node[procbox] (batch) at (9.4,5.2) {\texttt{--parallel 4}\\8 yêu cầu đồng thời\\(batching thật, xác nhận\\qua slot ID của server)};
+
+\node[llmbox] (run1) at (1.6,3.0) {Toàn bộ pipeline\\$\times$ 100 lần};
+\node[llmbox] (run2) at (9.4,3.0) {Toàn bộ pipeline\\$\times$ 100 lần};
+
+\node[goodbox] (res1) at (1.6,0.7) {Số giá trị điểm\\khác nhau: \textbf{1}\\exact-match = 1.0};
+\node[goodbox] (res2) at (9.4,0.7) {Số giá trị điểm\\khác nhau: \textbf{1}\\exact-match = 1.0};
+
+\draw[arr] (sample) -- (seq);
+\draw[arr] (sample) -- (batch);
+\draw[arr] (seq) -- (run1);
+\draw[arr] (batch) -- (run2);
+\draw[arr] (run1) -- (res1);
+\draw[arr] (run2) -- (res2);
+
+\end{tikzpicture}
+\caption{Phương pháp đo consistency: cùng một mẫu cố định được chấm 100
+lần dưới cả serving không batching và có batching. Kết quả trên 4 mẫu dễ
+và 4 mẫu cố tình khó (có lỗi / trường hợp biên): tỷ lệ exact-match = 1.0 ở
+mọi điều kiện, phương sai bằng 0 trên mọi breakdown theo từng check. Xem
+\texttt{docs/thesis/results.md} để biết các lưu ý về phạm vi (cơ chế
+batching cụ thể của llama.cpp, một mức concurrency).}
+\label{fig:consistency}
+\end{figure}
+
+\subsection{Triển khai xoay quanh giới hạn phần cứng, không bất chấp nó}
+
+Kế hoạch ban đầu giả định dùng vLLM, serving engine phổ biến nhất trong
+tài liệu LLM-as-judge mà dự án này dựa vào. Máy phát triển là Apple Silicon
+(M1 Pro) không có GPU hỗ trợ CUDA — vLLM không có backend GPU nào được hỗ
+trợ trên nền tảng này.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Latex]
+
+\node[iobox] (start) at (5.2,5.6) {Máy phát triển:\\Apple Silicon (M1 Pro),\\không có GPU CUDA};
+
+\node[badbox] (vllm) at (1.4,3.4) {Kế hoạch ban đầu:\\vLLM\\\textbf{không có backend}\\\textbf{GPU nào phù hợp}};
+\node[goodbox] (llama) at (9.0,3.4) {Đã chọn: llama.cpp\\\texttt{llama-server}\\Tăng tốc bằng Metal,\\tương thích API OpenAI};
+
+\node[goodbox] (gbnf) at (9.0,1.0) {Cho phép giải mã\\ràng buộc văn phạm\\GBNF\\$\rightarrow$ Hình~\ref{fig:constrained-decoding}};
+
+\draw[arr] (start) -- (vllm) node[midway, above, sloped, font=\scriptsize] {bị chặn};
+\draw[arr] (start) -- (llama) node[midway, above, sloped, font=\scriptsize] {chuyển hướng};
+\draw[arr] (llama) -- (gbnf);
+
+\end{tikzpicture}
+\caption{Việc chuyển serving engine bị ép buộc bởi phần cứng, nhưng đó
+cũng chính là điều làm cho giải mã ràng buộc theo schema ở
+Hình~\ref{fig:constrained-decoding} khả thi trên máy này —
+\texttt{src/grader/llm\_client.py} không cần thay đổi gì ngoài
+\texttt{base\_url} vì cả hai engine đều phơi bày API tương thích OpenAI.}
+\label{fig:pivot}
+\end{figure}
+
+% =====================================================================
+\section{Kết quả định lượng}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{p{4.6cm}p{5.4cm}p{3.6cm}}
+\toprule
+\textbf{Thực nghiệm} & \textbf{Thiết lập} & \textbf{Kết quả} \\
+\midrule
+Consistency, không batching & 4 mẫu $\times$ 100 lần chạy, \texttt{--parallel 1} & exact-match = 1.0, cả 4 mẫu \\
+Consistency, có batching & Cùng 4 mẫu $\times$ 100 lần chạy, \texttt{--parallel 4}, 8 đồng thời & exact-match = 1.0, cả 4 mẫu \\
+Consistency, mẫu khó & 4 bài nộp có lỗi/trường hợp biên $\times$ 100 lần, cả hai điều kiện & exact-match = 1.0, cả 4 mẫu \\
+Ablation (căn cứ kiến trúc) & 65 mẫu, 3 nhánh, Spearman $\rho$ so với nhãn tham chiếu & 0.60 $\rightarrow$ 0.85 $\rightarrow$ \textbf{0.88} \\
+Parse fail, các nhánh free-form & 65 mẫu, cả hai điều kiện free-form & 0/65 \\
+\bottomrule
+\end{tabular}
+\caption{Các con số chính, đều lấy từ \texttt{docs/thesis/results.md}
+(không tính lại ở đây).}
+\label{tab:results}
+\end{table}
+
+% =====================================================================
+\section{Stack công nghệ}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[>=Latex]
+\def\w{11.5}
+\node[iobox, text width=\w cm, fill=black!4] (l5) at (0,4.8) {\textbf{Demo UI} --- \texttt{streamlit} (\texttt{app.py}): lớp vỏ mỏng quanh pipeline thật, không phải bản triển khai lại};
+\node[iobox, text width=\w cm, fill=orange!7] (l4) at (0,3.4) {\textbf{Experiments} --- \texttt{scipy} (tương quan Spearman); harness tự viết cho exact-match và ablation 3 nhánh};
+\node[iobox, text width=\w cm, fill=blue!6] (l3) at (0,2.0) {\textbf{Grading core} --- Python thuần, \texttt{pydantic} (định nghĩa/kiểm tra schema), SDK \texttt{openai} làm client mỏng};
+\node[iobox, text width=\w cm, fill=green!7] (l2) at (0,0.6) {\textbf{Serving} --- \texttt{llama.cpp} \texttt{llama-server}, backend Metal, JSON ràng buộc GBNF, API tương thích OpenAI};
+\node[iobox, text width=\w cm, fill=black!7] (l1) at (0,-0.8) {\textbf{Model} --- Qwen2.5-Coder-7B-Instruct (GGUF, Q4\_K\_M) --- model lớn nhất còn nằm trong phạm vi sub-7B của dự án};
+
+\draw[arr] (l5.south) -- (l4.north);
+\draw[arr] (l4.south) -- (l3.north);
+\draw[arr] (l3.south) -- (l2.north);
+\draw[arr] (l2.south) -- (l1.north);
+\end{tikzpicture}
+\caption{Stack phân lớp, lớp trên sử dụng lớp dưới.}
+\label{fig:stack}
+\end{figure}
+
+% =====================================================================
+\section{Thực hành kỹ thuật đáng chú ý}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Chung một đường code giữa bộ sinh dữ liệu và pipeline
+    thật:} \texttt{sandbox.run\_submission()} là hàm giống hệt mà
+    \texttt{data/build\_dataset.py} dùng để sinh nhãn tham chiếu, nên
+    pipeline chấm điểm và bộ dữ liệu dùng để kiểm chứng nó không thể âm
+    thầm lệch nhau theo thời gian.
+  \item \textbf{Dữ liệu sinh ra, không commit:}
+    \texttt{data/dataset.json} được sinh từ \texttt{data/problems.py} qua
+    \texttt{data/build\_dataset.py} và bị gitignore — nguồn sự thật là bộ
+    sinh, không phải một file JSON cũ có thể lỗi thời.
+  \item \textbf{Lưu lại các lần so sánh, không ghi đè kết quả:} mỗi lần
+    chạy lại ở một kích thước model hoặc dataset mới đều giữ lại kết quả
+    trước đó (\texttt{results/archive\_1.5b/},
+    \texttt{results/ablation\_33samples\_7b.json}) để các tuyên bố
+    trước/sau có thể kiểm chứng được, không chỉ là khẳng định suông.
+  \item \textbf{Hạn chế đã biết được nêu ngay tại nơi dữ liệu sống, không
+    giấu đi:} \texttt{data/script.md} ghi rõ, ngay trong thư mục của bộ dữ
+    liệu, rằng nhãn \texttt{efficiency}/\texttt{code\_style} là tự gán
+    nhãn một người, không phải ground truth độc lập — mọi bảng kết quả
+    dùng các nhãn này đều nhắc lại lưu ý đó.
+\end{itemize}
+
+% =====================================================================
+\section{Những gì cố tình nằm ngoài phạm vi (và vì sao đó là một quyết định)}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Fine-tuning (LoRA):} được xây như một phương án dự phòng,
+    có cổng go/no-go. Vì prompting + giải mã có cấu trúc đã vượt ngưỡng
+    consistency và agreement của dự án (Bảng~\ref{tab:results}), giai đoạn
+    fine-tuning bị bỏ qua — ghi nhận như một phát hiện
+    (\texttt{docs/roadmap.md}, Phase 4), không phải một tính năng dang dở.
+  \item \textbf{Kiểm chứng bằng giám khảo con người thật:} các con số
+    agreement hiện tại là so với nhãn tham chiếu dựa trên luật, không bao
+    giờ được gọi là ``đồng thuận với giám khảo con người'' ở bất kỳ đâu
+    trong tài liệu repo (xem lưu ý trong \texttt{data/script.md}). Việc
+    tuyển một giám khảo độc lập là một bước tiếp theo đã được lên kế
+    hoạch nhưng chưa bắt đầu (\texttt{docs/roadmap.md} T3.2), tách bạch
+    rõ ràng khỏi các con số không phụ thuộc vào nó.
+\end{itemize}
+
+\end{document}
