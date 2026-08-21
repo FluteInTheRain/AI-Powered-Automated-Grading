@@ -52,6 +52,8 @@ configs/          model/serving config (determinism-relevant settings)
 data/             pilot dataset + generator (problems.py, build_dataset.py)
 docs/             architecture notes, roadmap, literature references
 results/          experiment outputs (gitignored, dir kept)
+server/, frontend/ product API + React app (see "Product server" below)
+deploy/           single-VM deployment for an internal demo (deploy/README.md)
 .claude/commands/ project-specific slash commands (see below)
 ```
 
@@ -86,6 +88,11 @@ cd frontend && npm install && npm run dev
 a different Postgres instance. This DB is entirely separate from
 `data/problems.py`/`data/dataset.json` — the thesis pipeline has no
 database dependency.
+
+To put this in front of other people instead of running it locally, see
+[`deploy/README.md`](deploy/README.md) — a single-GPU-VM setup for an
+internal/trusted demo (**not** hardened for public, unknown-student use —
+that runbook says exactly what's still missing before it would be).
 
 ## Working with Claude Code on this project
 

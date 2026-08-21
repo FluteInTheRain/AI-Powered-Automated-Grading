@@ -1,0 +1,24 @@
+[Unit]
+Description=llama-server (Qwen2.5-Coder-7B-Instruct, grading pipeline)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Binds 0.0.0.0, not 127.0.0.1: the backend reaches this from inside a
+# Docker container via the host-gateway route, which arrives as a real
+# network connection, not loopback. deploy/README.md's firewall step
+# blocks external access to this port — do that before starting this unit.
+ExecStart=/usr/local/bin/llama-server \
+  -hf Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --seed 0 \
+  -c 16384 \
+  --n-gpu-layers 999
+Restart=on-failure
+RestartSec=5
+User=llama
+Group=llama
+
+[Install]
+WantedBy=multi-user.target

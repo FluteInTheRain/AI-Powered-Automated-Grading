@@ -9,6 +9,7 @@ Run: uvicorn server.main:app --reload --port 8001
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -63,13 +64,20 @@ TIME_LIMIT_SECONDS = 600
 # share of the hidden set.
 PUBLIC_TEST_CASE_COUNT = 1
 
+# Prod (deploy/) serves the frontend build and proxies /api on the same
+# origin via nginx, so CORS doesn't come into play there — this list only
+# matters for `npm run dev` (Vite on a different port than uvicorn) and any
+# split-origin setup, extendable via CORS_ALLOWED_ORIGINS (comma-separated).
+_default_origins = [
+    "http://localhost:5173", "http://127.0.0.1:5173",
+    "http://localhost:5174", "http://127.0.0.1:5174",
+]
+_extra_origins = [o for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o]
+
 app = FastAPI(title="Automated Grading API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", "http://127.0.0.1:5173",
-        "http://localhost:5174", "http://127.0.0.1:5174",
-    ],
+    allow_origins=_default_origins + _extra_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

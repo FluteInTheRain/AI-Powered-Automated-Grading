@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+__pycache__
+**/__pycache__
+frontend/node_modules
+frontend/dist
+results
+docs
+data/dataset.json

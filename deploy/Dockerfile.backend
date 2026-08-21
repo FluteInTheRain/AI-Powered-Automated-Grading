@@ -1,0 +1,24 @@
+# Backend API (server/), for the single-GPU-VM demo deployment described in
+# deploy/README.md. Does NOT contain the LLM — llama-server runs natively on
+# the host (see deploy/llama-server.service) so it gets direct GPU/CUDA
+# access without nvidia-docker toolkit setup.
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ src/
+COPY server/ server/
+COPY data/ data/
+COPY prompts/ prompts/
+COPY configs/ configs/
+COPY alembic/ alembic/
+COPY alembic.ini .
+
+COPY deploy/backend-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 8001
+ENTRYPOINT ["/entrypoint.sh"]
