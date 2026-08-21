@@ -23,6 +23,27 @@ def grade(sample: dict, client: LLMClient) -> dict:
     )
     rubric = sample["rubric"]
 
+    if exec_result["status"] != "ran" or exec_result["pass_rate"] == 0.0:
+        # Either the code never ran (compile error / func_name missing), or
+        # it ran but passed zero test cases — no verified correct behavior
+        # either way. The LLM checks assume there's a real algorithm to
+        # judge the efficiency/style/edge-case handling of; a submission
+        # with no confirmed-working behavior gives them nothing trustworthy
+        # to go on, so every dimension scores 0 instead of letting the LLM
+        # hand out partial credit for a stub or a fully-wrong submission.
+        sub_scores = {
+            "correctness": 0.0,
+            "efficiency": 0.0,
+            "code_style": 0.0,
+            "edge_case_handling": 0.0,
+        }
+        return {
+            "sub_scores_0_to_1": sub_scores,
+            "final_score_0_to_100": aggregate(sub_scores, rubric),
+            "execution_result": exec_result,
+            "check_details": None,
+        }
+
     efficiency_score, efficiency_detail = check_efficiency(
         client, sample["statement"], sample["submission_code"]
     )

@@ -26,3 +26,10 @@ export function submitCode(problemId, code) {
     body: JSON.stringify({ problem_id: problemId, code }),
   })
 }
+
+export function checkSyntax(code) {
+  return request('/api/syntax-check', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}

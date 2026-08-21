@@ -87,6 +87,26 @@ def get_problem(problem_id: str):
     }
 
 
+class SyntaxCheckRequest(BaseModel):
+    code: str
+
+
+@app.post("/api/syntax-check")
+def syntax_check(req: SyntaxCheckRequest):
+    """Fast, deterministic, LLM-free syntax check for live editor feedback
+    (frontend/src/components/CodeEditor.jsx). `compile()` only parses/
+    compiles to bytecode — it never runs the submitted code, so this is
+    safe to call on arbitrary untrusted input unlike sandbox.run_submission.
+    Catches syntax errors only (e.g. a stray unclosed quote), not semantic
+    ones (undefined names, wrong logic) — those still require real
+    execution and are out of scope here on purpose."""
+    try:
+        compile(req.code, "<submission>", "exec")
+    except SyntaxError as e:
+        return {"ok": False, "message": e.msg, "line": e.lineno or 1}
+    return {"ok": True}
+
+
 class SubmitRequest(BaseModel):
     problem_id: str
     code: str

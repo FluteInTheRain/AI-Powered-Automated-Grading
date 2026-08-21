@@ -165,3 +165,22 @@ Raw data: `results/ablation.json` (7B, current) and
   The archived 1.5B numbers above were NOT rerun with the fix — treat any
   precise comparison of per-check scores (not just the aggregate/ρ numbers
   reported here) between the two archives with that in mind.
+- **`pipeline.grade()` no longer runs the three LLM rubric checks when a
+  submission never produces verified-correct behavior** — added 2026-08-21,
+  after building the React frontend (`frontend/`) surfaced two failure
+  modes: a submission that fails to compile previously still collected
+  partial `efficiency`/`code_style`/`edge_case_handling` credit from the
+  LLM (e.g. a `SyntaxError` submission scoring 18.3/100 instead of 0), and
+  separately, a submission that runs but passes zero test cases (a bare
+  `pass` stub) did the same. `src/grader/pipeline.py` now forces all three
+  non-correctness dimensions to 0 whenever `status != "ran"` **or**
+  `pass_rate == 0.0`, instead of asking the LLM to independently judge
+  code with no confirmed-working behavior. **This postdates the T2.2
+  ablation run reported above** — 3 of the 65 pilot samples
+  (`P01_two_sum::S5_wrong_completely`, `P06_sum_of_digits::S4_wrong_completely`,
+  `P16_power::S3_edge_case_bug_no_base_case`) have `pass_rate == 0.0` and
+  would now score differently under `hybrid_decomposed`. The reported
+  ρ=0.88 was computed before this fix; the effect on the correlation from
+  3/65 samples is likely small but has not been verified — rerun
+  `experiments/ablation.py` before citing ρ=0.88 as reflecting the current
+  pipeline exactly.
