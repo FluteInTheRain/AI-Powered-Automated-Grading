@@ -19,9 +19,9 @@ export default function ResultPanel({ result }) {
       </div>
 
       <div className="exec-detail">
-        <h3>Sandbox execution</h3>
+        <h3>Sandbox execution (hidden test cases)</h3>
         <p>
-          Passed {exec.pass_count}/{exec.total} test cases ({exec.status})
+          Passed {exec.pass_count}/{exec.total} hidden test cases ({exec.status})
         </p>
         {exec.errors.length > 0 && (
           <ul className="exec-errors">

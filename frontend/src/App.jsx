@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getProblem, listProblems, submitCode } from './api.js'
+import { getProblem, listProblems, runPublicTests, submitCode } from './api.js'
 import ProblemHeader from './components/ProblemHeader.jsx'
 import CodeEditor from './components/CodeEditor.jsx'
 import Timer from './components/Timer.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
+import TestRunPanel from './components/TestRunPanel.jsx'
 
 // phase: 'loading' | 'idle' | 'in_progress' | 'grading' | 'done' | 'error'
 
@@ -15,6 +16,8 @@ export default function App() {
   const [phase, setPhase] = useState('loading')
   const [result, setResult] = useState(null)
   const [errorMessage, setErrorMessage] = useState(null)
+  const [runResult, setRunResult] = useState(null)
+  const [isRunningTests, setIsRunningTests] = useState(false)
 
   useEffect(() => {
     listProblems()
@@ -57,8 +60,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId, code])
 
+  const handleRunTests = useCallback(async () => {
+    setIsRunningTests(true)
+    try {
+      const data = await runPublicTests(problemId, code)
+      setRunResult(data)
+    } catch (e) {
+      setRunResult({ status: 'error', message: e.message, cases: [] })
+    } finally {
+      setIsRunningTests(false)
+    }
+  }, [problemId, code])
+
   const handleStart = () => {
     setResult(null)
+    setRunResult(null)
     setPhase('in_progress')
   }
 
@@ -117,6 +133,13 @@ export default function App() {
               />
               <div className="submit-row">
                 <button
+                  className="btn btn-secondary"
+                  onClick={handleRunTests}
+                  disabled={phase !== 'in_progress' || isRunningTests}
+                >
+                  {isRunningTests ? 'Running…' : 'Run Tests'}
+                </button>
+                <button
                   className="btn btn-primary"
                   onClick={handleSubmit}
                   disabled={phase !== 'in_progress'}
@@ -127,6 +150,7 @@ export default function App() {
                   <span className="status-error">Grading failed: {errorMessage}</span>
                 )}
               </div>
+              <TestRunPanel runResult={runResult} />
             </>
           )}
 

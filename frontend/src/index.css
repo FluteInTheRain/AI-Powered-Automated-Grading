@@ -125,6 +125,15 @@ body {
   text-transform: capitalize;
 }
 
+.hidden-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
 .btn {
   border: none;
   border-radius: 8px;
@@ -145,6 +154,83 @@ body {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-run-panel {
+  margin-top: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.test-run-panel-error {
+  color: var(--danger);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.test-run-summary {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.test-run-summary-ok {
+  color: var(--good);
+}
+
+.test-run-summary-fail {
+  color: var(--danger);
+}
+
+.test-case-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.test-case-list code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.test-case-icon {
+  display: inline-block;
+  width: 18px;
+  font-weight: 700;
+}
+
+.test-case-pass .test-case-icon {
+  color: var(--good);
+}
+
+.test-case-fail .test-case-icon {
+  color: var(--danger);
+}
+
+.test-case-error {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--text-dim);
 }
 
 .btn-start {

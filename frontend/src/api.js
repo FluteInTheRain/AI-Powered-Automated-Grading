@@ -27,6 +27,13 @@ export function submitCode(problemId, code) {
   })
 }
 
+export function runPublicTests(problemId, code) {
+  return request('/api/run', {
+    method: 'POST',
+    body: JSON.stringify({ problem_id: problemId, code }),
+  })
+}
+
 export function checkSyntax(code) {
   return request('/api/syntax-check', {
     method: 'POST',

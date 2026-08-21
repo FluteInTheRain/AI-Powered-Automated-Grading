@@ -11,6 +11,14 @@ export default function ProblemHeader({ problem }) {
           </span>
         ))}
       </div>
+
+      {(problem.public_test_case_count > 0 || problem.hidden_test_case_count > 0) && (
+        <p className="hidden-note">
+          {problem.public_test_case_count} public test case(s) — use "Run Tests" to check pass/fail
+          (inputs and expected output are not shown). Your score is based only on the
+          {' '}{problem.hidden_test_case_count} hidden test case(s), revealed at grading time.
+        </p>
+      )}
     </div>
   )
 }
