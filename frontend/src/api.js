@@ -77,6 +77,10 @@ export function updateExamDeadline(adminToken, deadline) {
   })
 }
 
+export function getSubmissionAudit(adminToken, submissionId) {
+  return request(`/api/teacher/exams/${adminToken}/submissions/${submissionId}/audit`)
+}
+
 export function exportUrl(adminToken) {
   return `${API_BASE}/api/teacher/exams/${adminToken}/export.xlsx`
 }

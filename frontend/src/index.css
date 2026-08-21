@@ -689,3 +689,48 @@ body {
   padding: 4px 10px;
   font-size: 0.82rem;
 }
+
+.audit-section {
+  margin-top: 20px;
+}
+
+.audit-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.audit-log-entry {
+  background: var(--panel-alt);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.audit-log-entry summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.audit-log-entry label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 12px 0 4px;
+}
+
+.audit-log-block {
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+}

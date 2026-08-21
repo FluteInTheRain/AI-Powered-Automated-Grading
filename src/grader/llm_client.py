@@ -24,6 +24,12 @@ class LLMClient:
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.model = model
         self.seed = seed
+        # Every call this instance makes, in order — purely additive
+        # bookkeeping for the audit trail (server/teacher.py's
+        # submission-audit endpoint persists this to GradingLog rows after
+        # grading finishes). Never read by grading logic itself, so it can't
+        # affect a score; callers that don't care just never look at it.
+        self.call_log: list[dict] = []
 
     def structured_call(self, system_prompt: str, user_prompt: str, schema: Type[T]) -> T:
         """One request, no batching side effects on this end (the server may
@@ -43,6 +49,14 @@ class LLMClient:
             },
         )
         raw = response.choices[0].message.content
+        self.call_log.append({
+            "kind": "structured",
+            "schema": schema.__name__,
+            "model": self.model,
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "raw_response": raw,
+        })
         return schema.model_validate(json.loads(raw))
 
     def free_form_call(self, system_prompt: str, user_prompt: str) -> str:
@@ -58,4 +72,13 @@ class LLMClient:
                 {"role": "user", "content": user_prompt},
             ],
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        self.call_log.append({
+            "kind": "free_form",
+            "schema": None,
+            "model": self.model,
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "raw_response": content,
+        })
+        return content

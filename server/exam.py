@@ -29,7 +29,7 @@ from grader.sandbox import run_submission_cases
 
 from .config import BASE_URL, MODEL
 from .db import get_session
-from .models import Exam, Submission
+from .models import Exam, GradingLog, Submission
 
 logger = logging.getLogger(__name__)
 
@@ -139,5 +139,19 @@ def submit_exam(student_token: str, req: ExamSubmitRequest, session: Session = D
         result=result,
     )
     session.add(submission)
+    session.flush()  # assigns submission.id, needed by the FK below
+
+    for i, entry in enumerate(client.call_log):
+        session.add(GradingLog(
+            submission_id=submission.id,
+            call_index=i,
+            kind=entry["kind"],
+            schema_name=entry["schema"],
+            model=entry["model"],
+            system_prompt=entry["system_prompt"],
+            user_prompt=entry["user_prompt"],
+            raw_response=entry["raw_response"],
+        ))
+
     session.commit()
     return result

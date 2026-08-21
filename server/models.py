@@ -84,3 +84,31 @@ class Submission(Base):
     )
 
     exam: Mapped["Exam"] = relationship(back_populates="submissions")
+    grading_logs: Mapped[list["GradingLog"]] = relationship(
+        back_populates="submission", order_by="GradingLog.call_index"
+    )
+
+
+class GradingLog(Base):
+    """Audit trail (docs/productionization.md PR-E1): one row per LLM call
+    made while grading a submission — the exact prompt sent and the raw
+    response, so a score can be explained/defended later. Populated from
+    `LLMClient.call_log` (src/grader/llm_client.py) after grading finishes;
+    never read back during grading, so it can't affect a score."""
+
+    __tablename__ = "grading_logs"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    submission_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("submissions.id"))
+    call_index: Mapped[int] = mapped_column(Integer)  # order within the request (0 = first LLM call)
+    kind: Mapped[str] = mapped_column(String)  # "structured" | "free_form" (LLMClient method used)
+    schema_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    model: Mapped[str] = mapped_column(String)
+    system_prompt: Mapped[str] = mapped_column(Text)
+    user_prompt: Mapped[str] = mapped_column(Text)
+    raw_response: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+
+    submission: Mapped["Submission"] = relationship(back_populates="grading_logs")

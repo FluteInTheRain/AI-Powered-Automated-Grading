@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { exportUrl, getAdminResults, updateExamDeadline } from '../api.js'
+import { exportUrl, getAdminResults, getSubmissionAudit, updateExamDeadline } from '../api.js'
 
 function toDatetimeLocalValue(iso) {
   if (!iso) return ''
@@ -14,6 +14,10 @@ export default function AdminResultsPage({ adminToken }) {
   const [errorMessage, setErrorMessage] = useState(null)
   const [deadlineInput, setDeadlineInput] = useState('')
   const [saving, setSaving] = useState(false)
+  const [selectedSubmission, setSelectedSubmission] = useState(null)
+  const [auditLog, setAuditLog] = useState(null)
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState(null)
 
   const load = useCallback(() => {
     getAdminResults(adminToken)
@@ -49,6 +53,21 @@ export default function AdminResultsPage({ adminToken }) {
       setErrorMessage(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleViewAudit = async (submission) => {
+    setSelectedSubmission(submission)
+    setAuditLog(null)
+    setAuditError(null)
+    setAuditLoading(true)
+    try {
+      const log = await getSubmissionAudit(adminToken, submission.id)
+      setAuditLog(log)
+    } catch (e) {
+      setAuditError(e.message)
+    } finally {
+      setAuditLoading(false)
     }
   }
 
@@ -104,12 +123,13 @@ export default function AdminResultsPage({ adminToken }) {
             <th>Code style</th>
             <th>Edge case</th>
             <th>Nộp lúc</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {data.submissions.length === 0 && (
             <tr>
-              <td colSpan={7} className="status-line">
+              <td colSpan={8} className="status-line">
                 Chưa có bài nộp nào.
               </td>
             </tr>
@@ -123,10 +143,50 @@ export default function AdminResultsPage({ adminToken }) {
               <td>{s.sub_scores_0_to_1?.code_style?.toFixed(2)}</td>
               <td>{s.sub_scores_0_to_1?.edge_case_handling?.toFixed(2)}</td>
               <td>{new Date(s.submitted_at).toLocaleString()}</td>
+              <td>
+                <button className="btn btn-secondary" onClick={() => handleViewAudit(s)}>
+                  Chi tiết
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {selectedSubmission && (
+        <div className="teacher-section audit-section">
+          <h2>Audit trail — {selectedSubmission.student_name}</h2>
+          <p className="field-hint">
+            Toàn bộ prompt gửi cho LLM và phản hồi thô đằng sau điểm số này — dùng để giải thích/bảo vệ
+            điểm nếu học viên thắc mắc.
+          </p>
+          {auditLoading && <p className="status-line">Đang tải…</p>}
+          {auditError && <p className="status-error">{auditError}</p>}
+          {auditLog && auditLog.length === 0 && (
+            <p className="status-line">Không có log nào cho bài nộp này.</p>
+          )}
+          {auditLog && auditLog.length > 0 && (
+            <div className="audit-log-list">
+              {auditLog.map((entry) => (
+                <details key={entry.call_index} className="audit-log-entry">
+                  <summary>
+                    Lệnh gọi #{entry.call_index + 1} — {entry.schema || entry.kind} ({entry.model})
+                  </summary>
+                  <label>System prompt</label>
+                  <pre className="audit-log-block">{entry.system_prompt}</pre>
+                  <label>User prompt</label>
+                  <pre className="audit-log-block">{entry.user_prompt}</pre>
+                  <label>Raw response</label>
+                  <pre className="audit-log-block">{entry.raw_response}</pre>
+                </details>
+              ))}
+            </div>
+          )}
+          <button className="btn btn-secondary" onClick={() => setSelectedSubmission(null)}>
+            Đóng
+          </button>
+        </div>
+      )}
     </div>
   )
 }

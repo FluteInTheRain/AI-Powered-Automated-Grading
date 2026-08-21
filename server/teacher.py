@@ -228,6 +228,7 @@ def _exam_by_admin_token(admin_token: str, session: Session) -> Exam:
 def _submission_row(sub: Submission) -> dict:
     result = sub.result or {}
     return {
+        "id": str(sub.id),
         "student_name": sub.student_name,
         "final_score_0_to_100": result.get("final_score_0_to_100"),
         "sub_scores_0_to_1": result.get("sub_scores_0_to_1"),
@@ -250,6 +251,33 @@ def get_exam_results(admin_token: str, session: Session = Depends(get_session)):
         "problem": {"id": str(exam.problem.id), "statement": exam.problem.statement},
         "submissions": [_submission_row(s) for s in submissions],
     }
+
+
+@router.get("/exams/{admin_token}/submissions/{submission_id}/audit")
+def get_submission_audit(admin_token: str, submission_id: str, session: Session = Depends(get_session)):
+    """The PR-E1 audit trail: every LLM call made while grading this one
+    submission (exact prompt + raw response), so a score can be explained
+    or defended later. Gated by the exam's admin_token, not the bare
+    submission id, so guessing/enumerating submission ids alone can't leak
+    another exam's prompts."""
+    exam = _exam_by_admin_token(admin_token, session)
+    submission = session.get(Submission, submission_id)
+    if submission is None or submission.exam_id != exam.id:
+        raise HTTPException(status_code=404, detail="Unknown submission for this exam")
+
+    return [
+        {
+            "call_index": log.call_index,
+            "kind": log.kind,
+            "schema": log.schema_name,
+            "model": log.model,
+            "system_prompt": log.system_prompt,
+            "user_prompt": log.user_prompt,
+            "raw_response": log.raw_response,
+            "created_at": log.created_at.isoformat(),
+        }
+        for log in submission.grading_logs
+    ]
 
 
 class UpdateExamRequest(BaseModel):
