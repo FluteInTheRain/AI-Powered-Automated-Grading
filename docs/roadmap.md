@@ -126,33 +126,41 @@ source of truth for project status, not a one-off plan to read once.
 
 ## Phase 4 — Fine-tuning decision point (conditional, may be skipped)
 
-- [ ] **T4.1 — Go/no-go check.**
-  Only if T1.2/T2.2 show consistency or agreement below an acceptable bar
-  (define a threshold with your advisor, e.g. >98% exact-match). If
-  prompting + structured output already clears the bar, **skip Phase 4
-  entirely** and note that in the thesis as a finding.
-  ~1h decision, not implementation.
+- [x] **T4.1 — Go/no-go check: NO-GO, Phase 4 skipped.**
+  Threshold: >98% exact-match consistency and reasonable rubric agreement.
+  Both cleared: T1.2 shows **1.0 exact-match** consistency (unbatched and
+  batched, 7B model, 65-sample dataset), and T2.2 shows
+  **hybrid_decomposed ρ=0.88** agreement with rule-based labels, best of
+  the three arms. Prompting + structured-output decoding alone clears the
+  bar without fine-tuning — recorded as a thesis finding in its own right
+  ("prompting + structured decoding is sufficient; LoRA fine-tuning was not
+  necessary to hit the consistency target"), not a skipped step.
 
-- [ ] **T4.2 — LoRA fine-tune on the weakest rubric check(s) only.**
-  Only if T4.1 says go. Build a small labeled set from `data/problems.py`'s
-  `expected_profile` fields, targeted at whichever check (efficiency /
-  style / edge_case) had the worst consistency or agreement.
-  ~2-3 days.
+- [x] **T4.2 — skipped: T4.1 was no-go.**
 
-- [ ] **T4.3 — Re-run T1 and T2 with the fine-tuned model, compare.**
-  Same experiments, same metrics, before/after fine-tuning table.
-  ~half day.
+- [x] **T4.3 — skipped: T4.1 was no-go.**
 
 ## Phase 5 — Writing
 
-- [ ] **T5.1 — Literature review section.**
-  `/thesis-section "literature review"` — draft from `docs/architecture.md`
-  citations, expand with any additional arXiv sources found while writing.
-  ~1-2 days.
+- [x] **T5.1 — Literature review section.**
+  Written in Vietnamese, LaTeX: `docs/thesis/latex/main.tex` (single-file
+  thesis doc, per user request — superseded the earlier English Markdown
+  draft and a short-lived multi-file `chapters/`+`.bib` split, both
+  removed). Draws only on the citations already in `docs/architecture.md`
+  (7 arXiv IDs) — bibliography is an inline `thebibliography` in
+  `main.tex` with titles + arXiv IDs but missing full author/venue/year
+  metadata, flagged there as a to-do before submission.
 
-- [ ] **T5.2 — Proposed method section.**
-  `/thesis-section "proposed method"` from `docs/architecture.md`.
-  ~1 day.
+- [x] **T5.2 — Proposed method section.**
+  Written in Vietnamese, LaTeX, same single file: `docs/thesis/latex/main.tex`.
+  Covers pipeline shape, the no-agent-framework rationale, sandbox
+  correctness scoring, the three structured rubric checks (efficiency /
+  code_style / edge_case_handling) with their exact scoring formulas from
+  `src/grader/rubric_checks.py`/`schemas.py`, code-side aggregation
+  formula, model/serving choice, and the pilot dataset's annotation-source
+  caveat table from `data/script.md`. Needs a Vietnamese-capable LaTeX
+  toolchain (XeLaTeX/LuaLaTeX + polyglossia) — not installed on this
+  machine, so not yet compiled/verified to build.
 
 - [ ] **T5.3 — Experiments + results sections.**
   `/thesis-section "experiments"` and `/thesis-section "results"`, pulling

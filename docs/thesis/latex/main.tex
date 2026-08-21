@@ -1,0 +1,503 @@
+% !TEX program = xelatex
+% Biên dịch bằng XeLaTeX hoặc LuaLaTeX để hỗ trợ tiếng Việt qua fontspec/polyglossia
+% (compile với: xelatex main.tex — chạy 2 lần để mục lục/tham chiếu chương đúng)
+\documentclass[a4paper,12pt]{report}
+
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{vietnamese}
+\setmainfont{Times New Roman} % đổi sang font có sẵn trên máy nếu không có (vd: Noto Serif)
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+}
+
+\title{Hệ thống chấm điểm bài tập lập trình tự động\\ dựa trên mô hình ngôn ngữ lớn dưới 7 tỷ tham số}
+\author{Khang Nguyen}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+% ============================================================
+\chapter{Tổng quan tài liệu}
+\label{ch:lit-review}
+
+\section{Phạm vi}
+
+Đề tài này nằm ở giao điểm của hai hướng nghiên cứu: chấm điểm tự động bài
+tập lập trình bằng LLM, và hướng nghiên cứu rộng hơn về LLM-as-a-judge —
+làm sao để lấy được một điểm số đáng tin cậy từ một mô hình ngôn ngữ. Các
+mục dưới đây được tổ chức theo từng quyết định thiết kế trong
+\texttt{docs/architecture.md}: mỗi mục nêu quyết định thiết kế, tài liệu
+tham khảo làm căn cứ, và — ở những chỗ có thực nghiệm trong repo kiểm chứng
+thực nghiệm cho luận điểm đó — dẫn chiếu tới kết quả tương ứng
+(\texttt{docs/thesis/results.md}).
+
+\section{Từ chấm điểm toàn thể (holistic) đến đánh giá có cấu trúc, phân rã}
+
+Vấn đề gốc của cách làm ``cứ hỏi thẳng LLM cho điểm'' là một lệnh gọi tự do
+(free-form) tạo ra một điểm số toàn thể duy nhất có phương sai (variance)
+rất cao giữa các lần chạy — mô hình suy luận khác nhau ở mỗi lần gọi, kể cả
+khi giải mã tham lam (greedy decoding), vì văn bản tự do cho mô hình nhiều
+đường suy luận khác nhau nhưng đều hợp lý để đi đến cùng một con số cuối
+cùng. Bài khảo sát về LLM-as-a-Judge (arXiv:2411.15594
+\cite{survey_llm_judge}) và công trình về đánh giá theo rubric có cấu trúc
+(\textit{From Holistic Evaluation to Structured Criteria: Rubrics Across
+the Evolving LLM Landscape}, arXiv:2606.08625
+\cite{rubric_decomposition}) đều hội tụ về cùng một giải pháp: phân rã một
+phán đoán toàn thể thành các kiểm tra (check) nhỏ, độc lập, có cấu trúc, và
+tổng hợp kết quả bên ngoài mô hình thay vì để mô hình tự tạo ra hoặc tự
+điều chỉnh con số cuối cùng. Đây chính là động lực trực tiếp cho hình dạng
+pipeline của đề tài — chấm điểm đúng/sai (correctness) bằng thực thi trong
+sandbox cộng với một lệnh gọi LLM hẹp, có cấu trúc theo schema, cho mỗi
+tiêu chí rubric còn lại (\texttt{src/grader/rubric\_checks.py}), tổng hợp
+bằng một tổng có trọng số cố định trong code thuần
+(\texttt{src/grader/aggregator.py}) — được mô tả đầy đủ trong
+\texttt{docs/architecture.md}.
+
+Một vấn đề liên quan nhưng khác biệt được nêu trong \textit{Reliability
+without Validity: Systematic Evaluation of LLM-as-a-Judge}
+(arXiv:2606.19544 \cite{reliability_without_validity}): một ``giám khảo''
+(judge) có thể đáng tin cậy (reliable — nhất quán) mà không nhất thiết hợp
+lệ (valid — đúng, hoặc khớp với một chuẩn con người thực sự). Sự phân biệt
+này ánh xạ trực tiếp vào hai nhánh thực nghiệm riêng biệt của đề tài — Pha
+1 đo độ tin cậy (tỷ lệ khớp tuyệt đối — exact-match — qua nhiều lần chạy
+lặp lại, mục ``Consistency'' trong \texttt{docs/thesis/results.md}) và Pha
+2 đo một đại lượng đại diện cho tính hợp lệ (độ tương quan Spearman với
+nhãn tham chiếu của bộ dữ liệu, mục ``Ablation'' trong
+\texttt{docs/thesis/results.md}) — và cũng là lý do đề tài luôn gọi cẩn
+thận các con số tương quan ở Pha 2 là ``mức độ đồng thuận với nhãn dựa trên
+luật'' (agreement with rule-based labels), chứ không phải ``mức độ đồng
+thuận với giám khảo con người'': nhãn tham chiếu cho \texttt{efficiency}
+và \texttt{code\_style} do một người duy nhất (chính tác giả đề tài) tự gán
+nhãn, không phải nhãn chuẩn độc lập từ con người
+(\texttt{data/script.md}). Đáng tin cậy mà không hợp lệ là một cái bẫy dễ
+gặp ở đây — một pipeline luôn trả về cùng một điểm số \emph{sai} ở mọi lần
+chạy vẫn được coi là ``đáng tin cậy'' nhưng vô dụng — vì vậy cả hai nhánh
+thực nghiệm đều được coi là cần thiết, không thể thay thế cho nhau.
+
+\section{Chấm điểm từng bước mà không có phương sai của văn bản tự do}
+
+Hai bài báo chuyên về chấm điểm bài tập lập trình, CodEv (arXiv:2501.10421
+\cite{codev}) và StepGrade (\textit{Grading Programming Assignments with
+Context-Aware LLMs}, arXiv:2503.20851 \cite{stepgrade}), đều báo cáo rằng
+chấm điểm theo kiểu chuỗi suy luận (chain-of-thought) hoặc từng bước
+(step-by-step) cho kết quả tốt hơn một lệnh gọi toàn thể duy nhất. Đây là
+một mâu thuẫn thực sự với yêu cầu về tính nhất quán ở trên: suy luận
+chain-of-thought bằng văn bản tự do chính là loại sinh văn bản không ràng
+buộc mà thực nghiệm về tính nhất quán ở Pha 1 được thiết kế để nhạy cảm với
+nó. Giải pháp của đề tài này là lấy lợi ích của ``từng bước'' mà hai bài
+báo trên báo cáo, nhưng không phải trả giá bằng phương sai của văn bản tự
+do — việc phân rã diễn ra dưới dạng các \emph{lệnh gọi} mô hình riêng biệt,
+mỗi lệnh gọi giới hạn trong đúng một tiêu chí rubric với đầu ra dạng đóng
+(enum hoặc boolean) nhỏ gọn thông qua giải mã ràng buộc theo văn phạm
+(grammar-constrained decoding), thay vì một chuỗi suy luận dài hướng tới
+một con số. Phần mô tả pipeline trong \texttt{docs/architecture.md} nêu rõ
+đây là câu trả lời của đề tài cho phát hiện của CodEv/StepGrade.
+
+\section{Đặt correctness bên ngoài mô hình}
+
+Hai bài báo khác củng cố việc giữ chấm điểm đúng/sai (correctness) hoàn
+toàn bên ngoài LLM. \textit{Automating Autograding: LLMs as Test Suite
+Generators} (arXiv:2411.09261 \cite{autograding_test_suites}) và
+\textit{Multi-Programming Language Sandbox for LLMs} (arXiv:2410.23074
+\cite{multi_lang_sandbox}) đều làm việc với công cụ liên quan đến LLM xoay
+quanh việc thực thi code thật, thay vì để LLM đánh giá correctness bằng
+cách đọc code. Đề tài này giữ lập trường tương tự, vì lý do tính xác định
+(determinism) cũng nhiều như vì lý do độ chính xác: correctness được chấm
+hoàn toàn bằng cách chạy code nộp bài với các test case thật trong sandbox
+(\texttt{src/grader/sandbox.py}) — có tính xác định theo cấu trúc, không
+có LLM tham gia, do đó không có bề mặt phương sai nào trên tiêu chí rubric
+này. Chính ghi chú xây dựng bộ dữ liệu (\texttt{data/script.md}, mục
+``Notable finding from running the real pipeline'') cũng độc lập củng cố
+một lưu ý ngầm trong hướng nghiên cứu này: correctness từ sandbox chỉ tốt
+bằng bộ test case đứng sau nó — hai bài nộp được thiết kế cố tình có lỗi
+vẫn đạt 100\% test vì bộ test không bao phủ đúng lỗi đó, một lời nhắc rằng
+``ground truth từ thực thi'' không tự động là ground truth đầy đủ.
+
+\section{Tính xác định dưới batched serving: một khoảng trống trong tài liệu}
+
+Câu hỏi thực nghiệm khó hơn của yêu cầu về tính nhất quán — liệu dynamic
+batching trong một serving engine có thể phá vỡ tính xác định bit-chính-xác
+ngay cả ở temperature = 0, do tính không kết hợp (non-associativity) của
+số học dấu phẩy động qua các tổ hợp batch khác nhau — được
+\texttt{docs/architecture.md} coi là một hiện tượng đã được ghi nhận, đo
+đạc trong lĩnh vực serving LLM nói chung, là động lực cho thực nghiệm về
+tính nhất quán ở Pha 1. Tìm kiếm trong các tài liệu đã trích dẫn ở trên
+không thấy bài báo nào đo trực tiếp tỷ lệ khớp tuyệt đối (exact-match) của
+việc \emph{chấm điểm} bằng LLM dưới điều kiện batched serving;
+\texttt{docs/thesis/results.md} ghi nhận rõ đây là một khoảng trống mà
+chính thực nghiệm về tính nhất quán của đề tài (Pha 1, chạy trên
+continuous-batching của llama.cpp) phần nào giải quyết được, kèm lưu ý về
+phạm vi rằng một serving engine và một họ mô hình duy nhất ở một mức độ
+concurrency không thiết lập được kết luận tổng quát. Khoảng trống này là
+một cách đóng khung khả dĩ cho đóng góp của đề tài: một phép đo tính nhất
+quán thực nghiệm cho một pipeline chấm điểm hybrid-decomposed cụ thể, dưới
+một serving engine cụ thể, thay vì một tuyên bố tổng quát về tính xác định
+của serving LLM.
+
+\section{Tóm tắt: thiết kế của đề tài bám theo tài liệu như thế nào}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{p{4cm}p{4cm}p{5cm}}
+\toprule
+\textbf{Quyết định thiết kế} & \textbf{Tài liệu căn cứ} & \textbf{Nơi triển khai} \\
+\midrule
+Phân rã rubric thành các check độc lập, có cấu trúc &
+  \cite{survey_llm_judge}, \cite{rubric_decomposition} &
+  \texttt{src/grader/rubric\_checks.py}, \texttt{src/grader/schemas.py} \\
+Tách riêng độ tin cậy và tính hợp lệ như hai luận điểm không thay thế
+  được cho nhau &
+  \cite{reliability_without_validity} &
+  Pha 1 (consistency) và Pha 2 (ablation agreement),
+  \texttt{docs/thesis/results.md} \\
+Lấy lợi ích chấm điểm từng bước mà không có phương sai của CoT tự do &
+  \cite{codev}, \cite{stepgrade} &
+  Các lệnh gọi riêng cho từng tiêu chí thay vì một chuỗi CoT \\
+Chấm correctness bằng thực thi thật, không phải phán đoán của LLM &
+  \cite{autograding_test_suites}, \cite{multi_lang_sandbox} &
+  \texttt{src/grader/sandbox.py} \\
+Đo tính xác định của batched serving bằng thực nghiệm thay vì giả định &
+  Khoảng trống đã xác định, chưa tìm thấy công trình trực tiếp trước đó &
+  \texttt{experiments/consistency\_test.py}, Pha 1 \\
+\bottomrule
+\end{tabular}
+\caption{Ánh xạ giữa quyết định thiết kế và tài liệu tham khảo}
+\end{table}
+
+\section{Lưu ý về mức độ đầy đủ (dành cho người đọc/người hướng dẫn)}
+
+Bản dự thảo này chỉ nêu những luận điểm đã có căn cứ sẵn trong mô tả một
+dòng của \texttt{docs/architecture.md} cho mỗi bài báo được trích dẫn.
+Chương này \emph{không} thêm chi tiết phương pháp, số liệu báo cáo, hay
+phát hiện cụ thể của các bài báo đó ngoài những gì đã nêu ở đó, vì repo
+hiện chưa có toàn văn hay tóm tắt (abstract) của các bài báo để đối chiếu
+xa hơn — muốn thêm chi tiết hơn (ví dụ: số liệu accuracy CodEv/StepGrade tự
+báo cáo, hoặc cơ chế batching cụ thể đứng sau luận điểm về tính không kết
+hợp của số học dấu phẩy động) cần bổ sung nguồn đó vào danh sách tham khảo
+của \texttt{docs/architecture.md} trước, để đường dẫn trích dẫn vẫn có thể
+kiểm chứng được. Ngoài ra, danh mục tài liệu tham khảo ở cuối file này hiện
+\textbf{chưa có tên tác giả/năm xuất bản/hội nghị đầy đủ} cho 7 trích dẫn
+trên — cần tra lại từng arXiv ID trên arxiv.org và điền đầy đủ trước khi
+nộp luận văn chính thức.
+
+% ============================================================
+\chapter{Phương pháp đề xuất}
+\label{ch:proposed-method}
+
+\section{Tổng quan kiến trúc}
+
+Hệ thống chấm điểm là một pipeline tuần tự duy nhất
+(\texttt{src/grader/pipeline.py}), \emph{không} phải một khung điều phối
+đa tác tử (multi-agent orchestration framework). Với một mẫu bài nộp gồm đề
+bài, rubric, code nộp bài và tập test case, pipeline thực hiện bốn bước:
+
+\begin{enumerate}
+  \item \textbf{Chấm correctness bằng thực thi thật} trong sandbox
+    (\texttt{sandbox.run\_submission()}) — có tính xác định theo cấu
+    trúc, không có LLM tham gia.
+  \item \textbf{Ba lệnh gọi LLM độc lập, có cấu trúc}, mỗi lệnh gọi chấm
+    đúng một tiêu chí rubric còn lại: \texttt{efficiency},
+    \texttt{code\_style}, \texttt{edge\_case\_handling}
+    (\texttt{rubric\_checks.py}), ở nhiệt độ (temperature) = 0, seed cố
+    định.
+  \item \textbf{Tổng hợp điểm cuối cùng bằng code thuần}
+    (\texttt{aggregator.aggregate()}) — một tổng có trọng số cố định,
+    không bao giờ do LLM tính hoặc điều chỉnh.
+  \item (Tùy chọn, không ảnh hưởng điểm số) \textbf{Sinh phản hồi giải
+    thích} theo dòng code cụ thể (\texttt{feedback.py}), chạy sau khi đã
+    có kết quả chấm, tách biệt hoàn toàn khỏi quá trình tính điểm.
+\end{enumerate}
+
+Sơ đồ luồng dữ liệu (theo \texttt{docs/architecture.md}):
+
+\begin{verbatim}
+input: statement, rubric, submission_code, test_cases
+   |
+   +-- sandbox.run_submission()          -> correctness (xác định, không LLM)
+   |
+   +-- rubric_checks.check_efficiency()          -> JSON có cấu trúc, temp=0, seed cố định
+   +-- rubric_checks.check_code_style()          -> JSON có cấu trúc, temp=0, seed cố định
+   +-- rubric_checks.check_edge_case_handling()  -> JSON có cấu trúc, temp=0, seed cố định
+   |
+   +-- aggregator.aggregate()             -> final_score = sum(sub_score*weight)/sum(weight)*100
+\end{verbatim}
+
+\section{Vì sao không dùng agent framework}
+
+Quyết định không dùng một khung điều phối đa tác tử (LangChain, CrewAI,
+v.v.) xuất phát trực tiếp từ yêu cầu cứng của đề tài — tính nhất quán
+(consistency) giữa các lần chạy lặp lại trên cùng một đầu vào. Mỗi lớp điều
+phối thêm vào (lập kế hoạch từng bước, định tuyến gọi công cụ, giao tiếp
+giữa các tác tử) là một nơi có thể làm rò rỉ thêm phi-xác-định
+(non-determinism) hoặc token, mà không mang lại lợi ích gì ở đây: không có
+khám phá nhiều bước hay sử dụng công cụ (tool use) cần điều phối — chỉ có
+ba lệnh gọi phân loại độc lập và một phép cộng ở phía code. Việc phân rã
+rubric thành các kiểm tra nhỏ, độc lập, có cấu trúc — như tài liệu
+LLM-as-a-judge đã chỉ ra (Chương~\ref{ch:lit-review}) — là một bài toán
+thiết kế dữ liệu/prompt, không phải bài toán điều phối.
+
+\section{Chấm correctness: thực thi trong sandbox}
+
+Correctness được chấm bởi \texttt{sandbox.run\_submission()}: nạp code nộp
+bài vào một namespace Python riêng bằng \texttt{exec()}, sau đó chạy hàm
+tương ứng (\texttt{func\_name}) lần lượt trên từng test case
+(\texttt{(args, expected)}), so sánh kết quả thực tế với kết quả kỳ vọng.
+Hàm trả về một cấu trúc kết quả gồm \texttt{pass\_count}, \texttt{total},
+\texttt{pass\_rate}, danh sách lỗi cụ thể (\texttt{errors}) và một
+\texttt{status} (\texttt{ran}, \texttt{compile\_error}, hoặc
+\texttt{func\_not\_found} nếu code không biên dịch được hoặc không định
+nghĩa đúng hàm cần chấm). Điểm correctness dưới dạng số
+(\texttt{score\_correctness()}) chính là \texttt{pass\_rate} — tỷ lệ test
+case vượt qua, không qua bất kỳ bước diễn giải nào của LLM. Đây là logic
+được dùng chung với \texttt{data/build\_dataset.py} khi xây bộ dữ liệu, để
+pipeline chấm điểm thực tế và bộ dữ liệu tham chiếu không lệch nhau theo
+thời gian.
+
+Một giới hạn quan trọng của cách tiếp cận này, đã được ghi nhận thực nghiệm
+trong \texttt{data/script.md}: chất lượng của correctness phụ thuộc trực
+tiếp vào độ bao phủ của bộ test case — nếu bộ test yếu, sandbox vẫn chạy
+đúng về mặt kỹ thuật nhưng cho ra điểm sai (hai bài nộp cố tình có lỗi vẫn
+đạt 100\% vì test không bao phủ đúng lỗi đó; xem
+Chương~\ref{ch:lit-review}, mục về đặt correctness ngoài mô hình).
+
+\section{Ba kiểm tra rubric có cấu trúc, độc lập}
+
+Với mỗi tiêu chí rubric ngoài correctness, pipeline gọi đúng một prompt hẹp
+(\texttt{prompts/*.txt}), yêu cầu mô hình trả về một đối tượng JSON nhỏ
+khớp với một schema Pydantic cố định (\texttt{schemas.py}), thông qua giải
+mã có ràng buộc (\texttt{response\_format: json\_schema}, dựa trên bộ máy
+văn phạm GBNF của llama.cpp). Nhờ vậy không có con số tự do nào để có thể
+thiếu nhất quán — chỉ có một enum hoặc boolean bị giới hạn, sau đó được ánh
+xạ sang điểm 0..1 theo một công thức cố định ở phía code.
+
+\subsection{Efficiency}
+
+\texttt{EfficiencyCheck} yêu cầu mô hình trả về \texttt{meets\_expected\_}
+\texttt{complexity} (boolean) và \texttt{observed\_pattern} (một cụm từ
+ngắn mô tả mẫu độ phức tạp quan sát được, ví dụ \texttt{"nested loop
+O(n\textasciicircum 2)"}). Điểm số:
+\[
+\text{score}_{\text{efficiency}} =
+\begin{cases}
+1.0 & \text{nếu } \texttt{meets\_expected\_complexity} = \text{true} \\
+0.4 & \text{ngược lại}
+\end{cases}
+\]
+Trường \texttt{observed\_pattern} không ảnh hưởng điểm số — nó được giữ lại
+để phục vụ sinh phản hồi giải thích (Mục~\ref{sec:feedback}), thay vì bị bỏ
+đi hoàn toàn như một phiên bản trước đó của hàm này từng làm.
+
+\subsection{Code style}
+
+\texttt{StyleCheck} yêu cầu mô hình trả về đúng một giá trị enum thứ bậc
+\texttt{OrdinalLevel} $\in \{\texttt{poor}, \texttt{medium},
+\texttt{clean}\}$, ánh xạ sang điểm theo bảng cố định:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Mức (level)} & \textbf{Điểm} \\
+\midrule
+\texttt{clean} & 1.0 \\
+\texttt{medium} & 0.6 \\
+\texttt{poor} & 0.2 \\
+\bottomrule
+\end{tabular}
+\caption{Ánh xạ mức code style sang điểm 0..1}
+\end{table}
+
+\subsection{Edge-case handling}
+
+\texttt{EdgeCaseCheck} yêu cầu mô hình trả về \texttt{handled} (boolean) và
+\texttt{missing\_cases} (danh sách chuỗi, có thể rỗng, liệt kê các trường
+hợp biên chưa được xử lý). Công thức điểm:
+\[
+\text{score}_{\text{edge\_case}} =
+\begin{cases}
+1.0 & \text{nếu } \texttt{handled} = \text{true} \\
+\max\bigl(0.25,\; 1.0 - 0.25 \times \max(1, |\texttt{missing\_cases}|)\bigr)
+  & \text{nếu } \texttt{handled} = \text{false}
+\end{cases}
+\]
+Việc lấy $\max(1, \cdot)$ trong nhánh \texttt{false} là một điểm sửa lỗi có
+chủ đích: nếu mô hình trả về \texttt{handled=False} nhưng
+\texttt{missing\_cases} rỗng (không nêu được trường hợp cụ thể), công thức
+cũ sẽ tính $1.0 - 0.25 \times 0 = 1.0$ — tức là âm thầm ghi đè phán quyết
+``không xử lý được'' của chính mô hình thành điểm tuyệt đối. Danh sách rỗng
+ở đây có nghĩa là ``chưa xác định cụ thể'', không phải ``không bị trừ
+điểm'', nên điểm sàn được giữ ở 0.25 thay vì cho phép điểm tối đa.
+
+\section{Tổng hợp điểm cuối cùng}
+
+Điểm cuối cùng được tính hoàn toàn ở phía code, không qua LLM
+(\texttt{aggregator.aggregate()}):
+\[
+\text{final\_score} = \text{round}\!\left(
+  \frac{\sum_{k} \text{sub\_score}_k \times \text{weight}_k}
+       {\sum_{k} \text{weight}_k} \times 100,\; 2 \right)
+\]
+với $k \in \{\texttt{correctness}, \texttt{efficiency},
+\texttt{code\_style}, \texttt{edge\_case\_handling}\}$, và các trọng số
+\texttt{weight}$_k$ lấy trực tiếp từ rubric của từng mẫu bài (tổng các
+trọng số không bắt buộc phải là 100, công thức tự chuẩn hóa qua phép chia
+cho $\sum_k \text{weight}_k$).
+
+\section{Sinh phản hồi giải thích (không ảnh hưởng điểm số)}
+\label{sec:feedback}
+
+Sau khi đã có kết quả chấm, \texttt{feedback.py} có thể sinh phản hồi kiểu
+giáo viên rà bài, dựa trên \texttt{CodeFeedback} — một tóm tắt 1--2 câu
+cộng một danh sách \texttt{FeedbackItem} (mỗi mục gắn với một số dòng cụ
+thể trong code, nêu vấn đề, giải thích ngắn, và đề xuất sửa). Bước này chạy
+\emph{sau} và \emph{tách biệt} khỏi quá trình tính điểm — nó dùng lại kết
+quả sandbox/rubric đã có để giải thích điểm số, nhưng không có khả năng làm
+thay đổi điểm số đó.
+
+\section{Lựa chọn mô hình và cấu hình phục vụ (serving)}
+
+Mô hình mặc định của đề tài là \textbf{Qwen2.5-Coder-7B-Instruct} (định
+dạng GGUF, lượng tử hóa Q4\_K\_M) — mô hình lớn nhất còn nằm trong phạm vi
+dưới 7 tỷ tham số mà đề tài đặt ra. Ban đầu đề tài dự kiến dùng vLLM, nhưng
+máy phát triển là Apple Silicon (M1 Pro, không có CUDA) — vLLM không có
+backend GPU được hỗ trợ trên nền tảng này, nên đề tài chuyển sang
+\texttt{llama-server} của llama.cpp: tương thích API kiểu OpenAI, tăng tốc
+bằng Metal, và hỗ trợ giải mã ràng buộc theo văn phạm GBNF cho đầu ra JSON.
+Cấu hình xác định (\texttt{configs/model.yaml}) cố định
+\texttt{temperature=0}, \texttt{seed=0}, và
+\texttt{guided\_decoding\_backend=gbnf}.
+
+Vì \texttt{temperature=0} + seed cố định + giải mã ràng buộc \emph{không}
+tự động đảm bảo lặp lại chính xác từng bit dưới một serving engine có
+batching (do tính không kết hợp của số học dấu phẩy động qua các tổ hợp
+batch khác nhau), đề tài coi đây là điều cần đo thực nghiệm chứ không phải
+điều một cờ cấu hình (config flag) đảm bảo sẵn —
+\texttt{experiments/consistency\_test.py} là phép kiểm định thực nghiệm
+tương ứng (chi tiết và kết quả: \texttt{docs/thesis/results.md}, ngoài
+phạm vi chương Phương pháp này).
+
+\section{Thiết kế bộ dữ liệu thí điểm}
+
+Bộ dữ liệu thí điểm (\texttt{data/dataset.json}, sinh từ
+\texttt{data/problems.py} qua \texttt{data/build\_dataset.py}) gồm 65 mẫu
+trên 16 bài toán gốc, mỗi bài toán có 4--5 lời giải mô phỏng các loại lỗi
+khác nhau (đúng-sạch, đúng-nhưng-kém-hiệu-quả/kém-style, và vài dạng sai
+khác nhau). Mỗi mẫu gồm: đề bài, rubric, code nộp bài, kết quả thực thi
+(\texttt{pass\_count}, \texttt{total\_tests}, \texttt{pass\_rate},
+\texttt{status}, \texttt{sample\_errors}), các điểm thành phần
+(\texttt{sub\_scores\_0\_to\_1}), điểm cuối cùng, và nguồn gốc của từng
+nhãn (\texttt{annotation\_source}).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Tiêu chí} & \textbf{Nguồn} & \textbf{Độ tin cậy} \\
+\midrule
+correctness & Chạy code thật với test case trong sandbox & Khách quan hoàn toàn \\
+edge\_case\_handling & Suy ra trực tiếp từ pass\_rate thực thi & Khách quan hoàn toàn \\
+efficiency & Quy tắc cố định, tự phân loại độ phức tạp thuật toán
+  khi viết bài nộp & Một người tự gán nhãn, KHÔNG phải ground truth thật \\
+code\_style & Quy tắc 3 mức cố định (clean/medium/poor), tự gán & Một người tự gán nhãn,
+  KHÔNG phải ground truth thật \\
+\bottomrule
+\end{tabular}
+\caption{Nguồn gốc và độ tin cậy của từng nhãn trong bộ dữ liệu thí điểm
+(\texttt{data/script.md})}
+\end{table}
+
+\textbf{Hạn chế quan trọng nhất, cần nhắc lại xuyên suốt luận văn:} dữ liệu
+này là code do chính tác giả viết với lỗi cố ý chèn vào, tự phân loại —
+không phải bài làm của sinh viên thật, và không có điểm số từ giảng viên
+thật. Do đó bộ dữ liệu này \emph{có thể} dùng để kiểm tra pipeline chạy
+đúng và đo tính nhất quán của LLM (không cần ground truth thật, chỉ cần đầu
+vào cố định), nhưng \emph{không thể} dùng để báo cáo ``mô hình đạt X\% độ
+tương quan với con người'' trong luận văn — vì ``con người'' ở đây là chính
+tác giả tự gán nhãn theo luật, không phải giảng viên chấm độc lập. Bước
+tiếp theo cần thiết (T3.2 trong \texttt{docs/roadmap.md}, hiện đang tạm
+hoãn theo quyết định của người dùng) là nhờ 1--2 giảng viên/trợ giảng chấm
+độc lập một mẫu con để tính hệ số Cohen's kappa / ICC giữa nhãn theo luật
+và nhãn con người thật.
+
+\section{Tóm tắt đóng góp phương pháp luận}
+
+Ba điểm đóng góp chính của phương pháp, tổng hợp lại:
+
+\begin{enumerate}
+  \item Phân rã rubric thành các kiểm tra nhỏ, độc lập, có đầu ra dạng
+    đóng (schema-constrained) thay vì một phán đoán toàn thể tự do —
+    được thực nghiệm hóa qua so sánh 3 nhánh (free-form, hybrid-freeform,
+    hybrid-decomposed) ở Pha 2.
+  \item Tách hoàn toàn correctness (thực thi thật, xác định) khỏi các tiêu
+    chí còn lại (LLM, có cấu trúc) — loại bỏ LLM khỏi con đường chấm điểm
+    quan trọng nhất về mặt xác định.
+  \item Đo tính nhất quán giữa các lần chạy như một đại lượng thực nghiệm
+    độc lập với tính hợp lệ (đồng thuận với nhãn tham chiếu), thay vì giả
+    định rằng cấu hình \texttt{temperature=0} + seed cố định là đủ để đảm
+    bảo tính xác định dưới serving có batching.
+\end{enumerate}
+
+% ============================================================
+% Các chương còn lại (Thực nghiệm, Kết quả, Hạn chế) sẽ được thêm vào khi
+% các mục T5.3, T5.4 trong docs/roadmap.md hoàn thành.
+
+% ============================================================
+% Tài liệu tham khảo — inline thebibliography (không cần bibtex/biber).
+% LƯU Ý: chỉ có tiêu đề + arXiv ID, chưa có tên tác giả/năm/hội nghị đầy đủ
+% (không có sẵn trong repo) — cần tra lại trên arxiv.org trước khi nộp.
+\begin{thebibliography}{9}
+
+\bibitem{survey_llm_judge}
+Survey on LLM-as-a-Judge. arXiv:2411.15594.
+
+\bibitem{rubric_decomposition}
+From Holistic Evaluation to Structured Criteria: Rubrics Across the
+Evolving LLM Landscape. arXiv:2606.08625.
+
+\bibitem{reliability_without_validity}
+Reliability without Validity: Systematic Evaluation of LLM-as-a-Judge.
+arXiv:2606.19544.
+
+\bibitem{codev}
+CodEv: Automated Grading Framework. arXiv:2501.10421.
+
+\bibitem{stepgrade}
+StepGrade: Grading Programming Assignments with Context-Aware LLMs.
+arXiv:2503.20851.
+
+\bibitem{autograding_test_suites}
+Automating Autograding: LLMs as Test Suite Generators. arXiv:2411.09261.
+
+\bibitem{multi_lang_sandbox}
+Multi-Programming Language Sandbox for LLMs. arXiv:2410.23074.
+
+\end{thebibliography}
+
+\end{document}
