@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import MDEditor from '@uiw/react-md-editor'
+import '@uiw/react-md-editor/markdown-editor.css'
 import { createExam, createProblem, previewTestCases } from '../api.js'
 import CodeEditor from '../components/CodeEditor.jsx'
 
@@ -45,6 +47,7 @@ export default function TeacherHomePage() {
     [paramNamesText],
   )
   const rubricTotal = RUBRIC_KEYS.reduce((sum, k) => sum + (Number(rubric[k]) || 0), 0)
+  const hasPreviewCaseErrors = previewResult?.status === 'ok' && previewResult.cases.some((c) => c.error)
 
   const setRowValue = (rowIndex, colIndex, value) => {
     setRows((prev) => {
@@ -106,6 +109,7 @@ export default function TeacherHomePage() {
   }
   const canSave =
     previewResult?.status === 'ok' &&
+    !hasPreviewCaseErrors &&
     currentSignatureMatchesPreview() &&
     paramNames.length > 0 &&
     rubricTotal === 100 &&
@@ -179,13 +183,15 @@ export default function TeacherHomePage() {
         <h2>1. Soạn đề</h2>
 
         <label>Đề bài</label>
-        <textarea
-          className="plain-textarea"
-          rows={3}
-          value={statement}
-          onChange={(e) => setStatement(e.target.value)}
-          placeholder="Viết hàm two_sum(nums, target) trả về..."
-        />
+        <div data-color-mode="dark" className="statement-editor">
+          <MDEditor
+            value={statement}
+            onChange={(v) => setStatement(v || '')}
+            preview="live"
+            height={260}
+            textareaProps={{ placeholder: 'Viết hàm two_sum(nums, target) trả về...' }}
+          />
+        </div>
 
         <div className="field-row">
           <div>
@@ -319,10 +325,31 @@ export default function TeacherHomePage() {
         {previewResult && previewResult.status === 'compile_error' && (
           <p className="status-error">Lời giải mẫu có lỗi cú pháp: {previewResult.message}</p>
         )}
+        {previewResult?.status === 'ok' && !hasPreviewCaseErrors && (
+          <p className="status-success">
+            ✓ Lời giải mẫu chạy thành công — đã tính được đáp án cho cả {previewResult.cases.length} test
+            case.
+          </p>
+        )}
+        {previewResult?.status === 'ok' && hasPreviewCaseErrors && (
+          <p className="status-error">
+            Lời giải mẫu chạy lỗi ở {previewResult.cases.filter((c) => c.error).length} test case (xem cột
+            "Expected" ở các dòng báo lỗi trong bảng) — sửa lại test case hoặc lời giải mẫu rồi "Chạy thử"
+            lại.
+          </p>
+        )}
         {previewResult?.wrong_solution_check?.still_passes_all && (
           <p className="status-error">
             Cảnh báo: lời giải sai vẫn pass {previewResult.wrong_solution_check.pass_count}/
             {previewResult.wrong_solution_check.total} test case — bộ test chưa phát hiện được lỗi này.
+          </p>
+        )}
+        {previewResult?.wrong_solution_check && !previewResult.wrong_solution_check.still_passes_all && (
+          <p className="status-success">
+            ✓ Bộ test đã phát hiện được lời giải sai
+            {previewResult.wrong_solution_check.status === 'ran'
+              ? ` (chỉ pass ${previewResult.wrong_solution_check.pass_count}/${previewResult.wrong_solution_check.total} test case).`
+              : ' (lời giải sai không chạy được — coi như bị phát hiện).'}
           </p>
         )}
         {saveError && <p className="status-error">{saveError}</p>}

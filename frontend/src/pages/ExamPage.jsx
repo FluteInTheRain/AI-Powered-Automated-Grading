@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { getExamByToken, runExamTests, submitExam } from '../api.js'
 import CodeEditor from '../components/CodeEditor.jsx'
 import Timer from '../components/Timer.jsx'
@@ -87,7 +88,9 @@ export default function ExamPage({ studentToken }) {
       </header>
 
       <div className="problem-header">
-        <p className="statement">{exam.statement}</p>
+        <div className="statement">
+          <ReactMarkdown>{exam.statement}</ReactMarkdown>
+        </div>
         <div className="rubric">
           {Object.entries(exam.rubric).map(([key, weight]) => (
             <span key={key} className="rubric-chip">

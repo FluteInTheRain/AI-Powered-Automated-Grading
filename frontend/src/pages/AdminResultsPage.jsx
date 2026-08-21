@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { exportUrl, getAdminResults, updateExamDeadline } from '../api.js'
 
 function toDatetimeLocalValue(iso) {
@@ -63,7 +64,9 @@ export default function AdminResultsPage({ adminToken }) {
       </header>
 
       <div className="problem-header">
-        <p className="statement">{data.problem.statement}</p>
+        <div className="statement">
+          <ReactMarkdown>{data.problem.statement}</ReactMarkdown>
+        </div>
         <p className="hidden-note">
           Link cho học viên: <code>{studentUrl}</code>
         </p>

@@ -48,6 +48,10 @@ body {
   color: var(--danger);
 }
 
+.status-success {
+  color: var(--good);
+}
+
 .timer {
   display: flex;
   flex-direction: column;
@@ -107,6 +111,14 @@ body {
 .problem-header .statement {
   line-height: 1.55;
   margin: 0 0 14px;
+}
+
+.problem-header .statement p {
+  margin: 0 0 10px;
+}
+
+.problem-header .statement p:last-child {
+  margin-bottom: 0;
 }
 
 .rubric {
@@ -412,6 +424,16 @@ body {
   padding: 8px 12px;
   font-family: inherit;
   font-size: 0.9rem;
+}
+
+.statement-editor {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+
+.statement-editor .w-md-editor {
+  background: #0f1115;
 }
 
 .field-hint {
