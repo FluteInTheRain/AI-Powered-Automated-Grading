@@ -10,3 +10,7 @@ results/**/*.json
 #   python3 data/build_dataset.py
 # (keeps data/problems.py, data/build_dataset.py, data/script.md tracked as code/docs)
 data/dataset.json
+
+# React frontend (frontend/) — reinstall locally with: npm install
+frontend/node_modules/
+frontend/dist/

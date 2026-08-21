@@ -2,3 +2,5 @@ openai>=1.30
 pydantic>=2.5
 scipy>=1.11
 streamlit>=1.35  # demo UI only (app.py), not part of the grading pipeline itself
+fastapi>=0.111  # REST API (server/main.py) for the React frontend (frontend/)
+uvicorn[standard]>=0.30  # ASGI server for server/main.py
