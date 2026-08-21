@@ -354,3 +354,201 @@ body {
   color: var(--danger);
   padding-left: 18px;
 }
+
+/* --- Teacher / exam / admin pages -------------------------------------- */
+
+.name-gate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.name-gate input {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  flex: 1;
+  max-width: 320px;
+}
+
+.teacher-section {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+}
+
+.teacher-section h2 {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.teacher-section label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: 14px 0 6px;
+}
+
+.teacher-section label:first-of-type {
+  margin-top: 0;
+}
+
+.plain-textarea,
+.teacher-section input[type='text'],
+.teacher-section input[type='number'],
+.teacher-section input[type='datetime-local'],
+.teacher-section select {
+  width: 100%;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.field-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.rubric-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.rubric-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: capitalize;
+}
+
+.rubric-editor-field input {
+  width: 80px;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.status-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.status-chip-open {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--good);
+  border: 1px solid rgba(63, 185, 80, 0.35);
+}
+
+.status-chip-closed {
+  background: rgba(229, 72, 77, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(229, 72, 77, 0.35);
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+.results-table th,
+.results-table td {
+  border: 1px solid var(--panel-border);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.results-table th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+
+.cell-input {
+  width: 100%;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+}
+
+.cell-expected {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.admin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-controls label {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.admin-controls input[type='datetime-local'] {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.exam-links {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.exam-link-row code {
+  background: #0f1115;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}

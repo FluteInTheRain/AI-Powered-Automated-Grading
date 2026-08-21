@@ -24,10 +24,9 @@ from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 from problems import PROBLEMS
 
-# Matches configs/model.yaml — kept as inline defaults here the same way
-# app.py's Streamlit sidebar does, rather than adding a yaml dependency.
-BASE_URL = "http://localhost:8080/v1"
-MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M"
+from .config import BASE_URL, MODEL
+from .exam import router as exam_router
+from .teacher import router as teacher_router
 
 # Hardcoded per current product requirement — every problem gets the same
 # fixed time limit for now. Move this to a per-problem field (data/problems.py)
@@ -69,6 +68,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(teacher_router)
+app.include_router(exam_router)
 
 
 def _problem_by_id(problem_id: str) -> dict:

@@ -7,6 +7,10 @@
 (input/expected/actual/passed) instead of an aggregate pass_count + string
 error list — used by server/main.py for the public test-run endpoint and
 for redacting hidden-test detail from the final grading response.
+`compute_reference_outputs` runs code against raw inputs with no expected
+value to compare against — used by server/teacher.py's problem-authoring
+preview to derive `expected` from a reference solution instead of having a
+teacher type it by hand.
 """
 from __future__ import annotations
 
@@ -93,3 +97,24 @@ def run_submission_cases(code_str: str, func_name: str, test_cases: List[Tuple[t
 
 def score_correctness(exec_result: dict) -> float:
     return exec_result["pass_rate"]
+
+
+def compute_reference_outputs(code_str: str, func_name: str, args_list: List[tuple]) -> dict:
+    """Run `code_str` against each entry in `args_list`, no expected value
+    involved — used to derive `expected` from a reference solution rather
+    than have a teacher type it by hand. Reuses `_execute` with a dummy
+    `expected=None` per case so there's still exactly one place that
+    actually runs code."""
+    result = _execute(code_str, func_name, [(args, None) for args in args_list])
+    if result["status"] != "ran":
+        message = (f"COMPILE_ERROR: {result['compile_error']}" if result["status"] == "compile_error"
+                    else f"FUNC_NOT_FOUND: {func_name}")
+        return {"status": result["status"], "message": message, "cases": []}
+    return {
+        "status": "ran",
+        "message": None,
+        "cases": [
+            {"args": c["args"], "output": c["actual"], "error": c["error"]}
+            for c in result["cases"]
+        ],
+    }

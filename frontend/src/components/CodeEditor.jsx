@@ -5,7 +5,7 @@ import { checkSyntax } from '../api.js'
 const DEBOUNCE_MS = 500
 const MARKER_OWNER = 'python-syntax'
 
-export default function CodeEditor({ value, onChange, readOnly }) {
+export default function CodeEditor({ value, onChange, readOnly, filename = 'solution.py' }) {
   const [syntaxError, setSyntaxError] = useState(null)
   const monacoRef = useRef(null)
   const editorRef = useRef(null)
@@ -60,7 +60,7 @@ export default function CodeEditor({ value, onChange, readOnly }) {
         <span className="editor-dot editor-dot-red" />
         <span className="editor-dot editor-dot-yellow" />
         <span className="editor-dot editor-dot-green" />
-        <span className="editor-filename">solution.py</span>
+        <span className="editor-filename">{filename}</span>
       </div>
       <Editor
         height="480px"
