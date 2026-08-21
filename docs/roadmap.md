@@ -162,11 +162,19 @@ source of truth for project status, not a one-off plan to read once.
   toolchain (XeLaTeX/LuaLaTeX + polyglossia) — not installed on this
   machine, so not yet compiled/verified to build.
 
-- [ ] **T5.3 — Experiments + results sections.**
-  `/thesis-section "experiments"` and `/thesis-section "results"`, pulling
-  numbers only from files that actually exist in `results/` — no invented
-  numbers.
-  ~1-2 days.
+- [x] **T5.3 — Experiments + results sections.**
+  Added as two new chapters in `docs/thesis/latex/main.tex`
+  (`\chapter{Thực nghiệm}`, `\chapter{Kết quả}`), replacing the placeholder
+  comment left by T5.2. `results/` is empty on this machine (gitignored,
+  raw JSON not present) — numbers were pulled from `docs/thesis/results.md`
+  instead, which was itself written from those JSON files and is the
+  source of truth checked into git; every table cites its underlying
+  `results/*.json` path for traceability once that data is available again.
+  Carried forward verbatim: the T1.x manual-testing inconsistency caveat,
+  the single-rater efficiency/code_style label caveat, and the "Open items"
+  note that ρ=0.88 predates the `pipeline.grade()` zero-credit-on-fail fix
+  (3/65 samples affected, not yet rerun). Not compiled/verified to build —
+  same missing XeLaTeX/LuaLaTeX+polyglossia toolchain issue as T5.2.
 
 - [ ] **T5.4 — Limitations section.**
   Must include the dataset caveat from `data/script.md` (single-rater

@@ -59,6 +59,7 @@ thực nghiệm cho luận điểm đó — dẫn chiếu tới kết quả tư�
 (\texttt{docs/thesis/results.md}).
 
 \section{Từ chấm điểm toàn thể (holistic) đến đánh giá có cấu trúc, phân rã}
+\label{sec:rubric-decomposition-lit}
 
 Vấn đề gốc của cách làm ``cứ hỏi thẳng LLM cho điểm'' là một lệnh gọi tự do
 (free-form) tạo ra một điểm số toàn thể duy nhất có phương sai (variance)
@@ -141,6 +142,7 @@ vẫn đạt 100\% test vì bộ test không bao phủ đúng lỗi đó, một 
 ``ground truth từ thực thi'' không tự động là ground truth đầy đủ.
 
 \section{Tính xác định dưới batched serving: một khoảng trống trong tài liệu}
+\label{sec:determinism-gap}
 
 Câu hỏi thực nghiệm khó hơn của yêu cầu về tính nhất quán — liệu dynamic
 batching trong một serving engine có thể phá vỡ tính xác định bit-chính-xác
@@ -356,6 +358,7 @@ cũ sẽ tính $1.0 - 0.25 \times 0 = 1.0$ — tức là âm thầm ghi đè ph�
 điểm'', nên điểm sàn được giữ ở 0.25 thay vì cho phép điểm tối đa.
 
 \section{Tổng hợp điểm cuối cùng}
+\label{sec:aggregation}
 
 Điểm cuối cùng được tính hoàn toàn ở phía code, không qua LLM
 (\texttt{aggregator.aggregate()}):
@@ -404,6 +407,7 @@ tương ứng (chi tiết và kết quả: \texttt{docs/thesis/results.md}, ngo�
 phạm vi chương Phương pháp này).
 
 \section{Thiết kế bộ dữ liệu thí điểm}
+\label{sec:pilot-dataset}
 
 Bộ dữ liệu thí điểm (\texttt{data/dataset.json}, sinh từ
 \texttt{data/problems.py} qua \texttt{data/build\_dataset.py}) gồm 65 mẫu
@@ -465,8 +469,290 @@ Ba điểm đóng góp chính của phương pháp, tổng hợp lại:
 \end{enumerate}
 
 % ============================================================
-% Các chương còn lại (Thực nghiệm, Kết quả, Hạn chế) sẽ được thêm vào khi
-% các mục T5.3, T5.4 trong docs/roadmap.md hoàn thành.
+\chapter{Thực nghiệm}
+\label{ch:experiments}
+
+Chương này mô tả phương pháp thực nghiệm cho hai thí nghiệm chính của đề
+tài (Pha 1 và Pha 2 trong \texttt{docs/roadmap.md}); số liệu và phân tích
+kết quả được trình bày ở Chương~\ref{ch:results}. Toàn bộ dữ liệu thô của
+các thí nghiệm được lưu dưới dạng JSON trong thư mục \texttt{results/}
+(không đưa vào kho mã nguồn git — xem \texttt{.gitignore}); bản tổng hợp
+đầy đủ, đã kiểm tra lại với các file JSON đó, nằm ở
+\texttt{docs/thesis/results.md}, là nguồn số liệu duy nhất được dùng cho
+chương này và Chương~\ref{ch:results}.
+
+\section{Cấu hình chung}
+
+Cả hai thí nghiệm dùng chung một cấu hình mô hình/serving:
+\textbf{Qwen2.5-Coder-7B-Instruct} (GGUF, lượng tử hóa Q4\_K\_M), phục vụ
+cục bộ qua \texttt{llama-server} của llama.cpp trên Apple Silicon (backend
+Metal), \texttt{temperature=0}, \texttt{seed=0} cố định (chi tiết:
+\texttt{configs/model.yaml}, đã trình bày ở
+Chương~\ref{ch:proposed-method}). Một lượt chạy trước đó của cùng hai thí
+nghiệm trên mô hình nhỏ hơn, \textbf{Qwen2.5-Coder-1.5B-Instruct} (Q8\_0) —
+mô hình dùng trong giai đoạn đầu của đề tài trước khi chuyển sang 7B — được
+lưu trữ tại \texttt{results/archive\_1.5b/} và dùng làm điểm so sánh kích
+thước mô hình ở Chương~\ref{ch:results}.
+
+\section{Thí nghiệm 1: Tính nhất quán giữa các lần chạy}
+\label{sec:exp-consistency}
+
+\textbf{Mục tiêu:} kiểm định thực nghiệm cho luận điểm trung tâm của đề
+tài — rằng pipeline tạo ra điểm số giống hệt nhau (exact-match) khi chấm
+lại cùng một bài nộp nhiều lần, kể cả dưới serving có batching — thay vì
+giả định điều đó chỉ từ cấu hình \texttt{temperature=0} + seed cố định
+(xem lý do ở Mục~\ref{sec:determinism-gap}).
+
+\textbf{Phương pháp} (\texttt{experiments/consistency\_test.py}): chọn một
+mẫu cố định (đề bài, rubric, code nộp bài), chấm qua toàn bộ pipeline
+(\texttt{src/grader/pipeline.py}) $N=100$ lần với cùng một đầu vào, đếm số
+giá trị điểm số duy nhất xuất hiện trong $N$ lần chạy. Tỉ lệ exact-match
+$=1.0$ nghĩa là cả 100 lần chạy cho ra đúng một giá trị điểm số. Ngoài điểm
+cuối cùng, script còn ghi lại số giá trị duy nhất của từng điểm thành phần
+riêng (\texttt{correctness}, \texttt{efficiency}, \texttt{code\_style},
+\texttt{edge\_case\_handling}) để xác định — nếu có phương sai — nó nằm ở
+tiêu chí nào.
+
+Hai điều kiện serving được so sánh, để tách phần phương sai gây ra bởi
+batching (tính không kết hợp của số học dấu phẩy động qua các tổ hợp batch
+khác nhau — xem Mục~\ref{sec:determinism-gap}) khỏi phương sai vốn có của
+bản thân mô hình:
+\begin{itemize}
+  \item \textbf{Không batching:} \texttt{llama-server} chạy với
+    \texttt{--parallel 1}, các request gửi tuần tự.
+  \item \textbf{Có batching (điển hình cho triển khai thực tế):}
+    \texttt{--parallel 4} phía server, 8 request đồng thời phía client
+    (\texttt{--concurrency 8}) — đã xác nhận có batching thật sự qua log
+    server cho thấy các slot ID xử lý đồng thời, không chỉ dựa vào cờ cấu
+    hình.
+\end{itemize}
+
+Thí nghiệm được chạy trên 4 mẫu (\texttt{P01\_two\_sum},
+\texttt{P02\_is\_prime}, \texttt{P04\_binary\_search},
+\texttt{P08\_fizzbuzz}), mỗi mẫu là bài nộp \texttt{S1\_correct\_clean}
+(đúng, code sạch) của bài toán đó. Vì đây là trường hợp dễ nhất đối với các
+kiểm tra rubric bằng LLM (code rõ ràng đúng), thí nghiệm được lặp lại thêm
+một lần trên 4 bài nộp \emph{khó hơn}, có lỗi tinh vi hoặc phán đoán mơ hồ
+hơn: lỗi logic tự-ghép-cặp (\texttt{P01\_two\_sum\_\_S3}), trường hợp biên
+với số âm (\texttt{P02\_is\_prime\_\_S3}), lời giải đúng nhưng có độ phức
+tạp mũ (\texttt{P05\_fibonacci\_\_S2}), và lỗi thiếu chuẩn hóa chữ thường
+(\texttt{P07\_palindrome\_check\_\_S2}) — nhằm loại trừ khả năng tỉ lệ
+exact-match cao chỉ vì mẫu kiểm tra quá dễ.
+
+\section{Thí nghiệm 2: Ablation — vai trò của phân rã rubric}
+\label{sec:exp-ablation}
+
+\textbf{Mục tiêu:} kiểm định thực nghiệm cho quyết định kiến trúc chính của
+đề tài (Mục~\ref{sec:rubric-decomposition-lit}) — rằng tách correctness ra
+khỏi LLM và phân rã các tiêu chí còn lại thành các lệnh gọi độc lập, có đầu
+ra ràng buộc schema, cải thiện độ đồng thuận với nhãn tham chiếu so với một
+lệnh gọi LLM toàn thể, tự do.
+
+\textbf{Phương pháp} (\texttt{experiments/ablation.py}): ba nhánh được so
+sánh trên cùng bộ dữ liệu thí điểm (\texttt{data/dataset.json}), mỗi nhánh
+sinh ra một điểm cuối cùng dự đoán, đối chiếu với nhãn tham chiếu theo luật
+của bộ dữ liệu bằng hệ số tương quan hạng Spearman ($\rho$):
+\begin{enumerate}
+  \item \textbf{free\_form} — một prompt duy nhất, một điểm 0--100 toàn
+    thể, không thực thi sandbox, không ràng buộc đầu ra (đường cơ sở
+    ``ngây thơ'': chỉ yêu cầu LLM chấm điểm trực tiếp).
+  \item \textbf{hybrid\_freeform} — correctness thực thi sandbox thật, kết
+    hợp với \emph{một} lệnh gọi LLM tự do bao trùm cả ba tiêu chí còn lại
+    (efficiency, code\_style, edge\_case\_handling gộp chung, chưa phân
+    rã).
+  \item \textbf{hybrid\_decomposed} — pipeline thực tế của đề tài:
+    correctness sandbox + ba lệnh gọi LLM độc lập, đầu ra có cấu trúc (một
+    lệnh gọi cho mỗi tiêu chí ngoài correctness) + tổng hợp điểm cố định ở
+    phía code (Mục~\ref{sec:aggregation}).
+\end{enumerate}
+
+Nhánh \texttt{free\_form} phân tích một dòng \texttt{FINAL\_SCORE: N} từ
+đầu ra tự do bằng regex; trường hợp không phân tích được ghi nhận là một
+thất bại thật sự của nhánh này (\texttt{n\_failed\_to\_parse}) thay vì bị
+loại bỏ âm thầm khỏi số liệu.
+
+Thí nghiệm ban đầu chạy trên bộ 33 mẫu / 8 bài toán (bộ thí điểm gốc), sau
+đó chạy lại trên bộ 65 mẫu / 16 bài toán mở rộng (T3.1 — thêm 8 bài toán
+thuộc các dạng trước đó chưa có: xử lý chuỗi, cấu trúc dữ liệu đơn giản, đệ
+quy ngoài fibonacci) để kiểm tra kết luận có ổn định khi bộ dữ liệu lớn hơn
+và đa dạng hơn hay không. Thí nghiệm cũng được chạy trên cả hai kích thước
+mô hình (1.5B và 7B) để xem kiến trúc phân rã có còn mang lại lợi ích khi
+mô hình lớn hơn hay không.
+
+% ============================================================
+\chapter{Kết quả}
+\label{ch:results}
+
+\section{Kết quả tính nhất quán (Pha 1)}
+\label{sec:results-consistency}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Điều kiện} & \textbf{Số lần chạy/mẫu} & \textbf{Exact-match (7B)} & \textbf{Exact-match (1.5B)} \\
+\midrule
+Không batching (\texttt{--parallel 1}) & 100 & 1.0 (cả 4 mẫu) & 1.0 (cả 4 mẫu) \\
+Có batching (\texttt{--parallel 4}, concurrency 8) & 100 & 1.0 (cả 4 mẫu) & 1.0 (cả 4 mẫu) \\
+\bottomrule
+\end{tabular}
+\caption{Tỉ lệ exact-match, 4 mẫu \texttt{S1\_correct\_clean}, hai điều
+kiện serving, hai kích thước mô hình. Nguồn: \texttt{results/consistency\_*.json},
+\texttt{results/archive\_1.5b/consistency\_*.json}.}
+\end{table}
+
+Phân rã theo từng tiêu chí (correctness, efficiency, code\_style,
+edge\_case\_handling) cũng cho đúng một giá trị duy nhất trên cả 100 lần
+chạy, ở cả hai điều kiện, cả hai kích thước mô hình — không có phương sai ở
+bất kỳ tiêu chí nào trong phép kiểm định hình thức này.
+
+Lặp lại thí nghiệm trên 4 bài nộp khó hơn (Mục~\ref{sec:exp-consistency}) —
+có lỗi tinh vi hoặc đòi hỏi phán đoán mơ hồ hơn, thay vì trường hợp
+\texttt{S1\_correct\_clean} dễ nhất — cho kết quả \textbf{vẫn 1.0
+exact-match trên cả 4 mẫu, ở cả hai điều kiện, không có phương sai ở bất kỳ
+tiêu chí nào}. Đáng chú ý, \texttt{P05\_fibonacci\_\_S2} (lời giải đúng
+nhưng có độ phức tạp mũ) luôn nhận điểm \texttt{efficiency=0.4} ở cả 100
+lần chạy — cho thấy mô hình không chỉ nhất quán mà còn phạt đúng lời giải
+kém hiệu quả một cách ổn định. Kết quả này loại trừ khả năng ``chỉ kiểm tra
+trên đầu vào dễ'' là nguyên nhân của tỉ lệ exact-match cao.
+
+\textbf{Một điểm cần lưu ý — có một trường hợp mất tính nhất quán thật sự
+được quan sát, nhưng không phải trong phép kiểm định hình thức trên:}
+trong quá trình kiểm thử thủ công qua giao diện demo (nằm ngoài giao thức
+$N=100$ của thí nghiệm này), hai lệnh gọi liên tiếp tới
+\texttt{check\_edge\_case\_handling} với cùng đầu vào, cùng seed=0, trên mô
+hình 7B trả về hai phán quyết \texttt{handled} khác nhau (\texttt{True} rồi
+\texttt{False}) cho cùng một bài nộp \texttt{two\_sum}. Điều này không mâu
+thuẫn với tỉ lệ exact-match 1.0 ở trên — nó cho thấy nếu hiện tượng mất
+nhất quán này có thật (không phải sự cố ngẫu nhiên một lần của phiên kiểm
+thử đó), tần suất của nó đủ thấp để không xuất hiện trong 100 lần chạy trên
+4 mẫu cụ thể này. Bảng kết quả trên nên được đọc là ``không phát hiện mất
+nhất quán ở $N$ này'', chứ không phải ``đã chứng minh luôn nhất quán'' —
+đây là một hạn chế cần được nêu lại ở chương Hạn chế (T5.4,
+\texttt{docs/roadmap.md}, chưa viết tại thời điểm này).
+
+\textbf{Phạm vi áp dụng của kết quả (không nên diễn giải rộng hơn):}
+\begin{itemize}
+  \item Kết quả đo riêng cho việc triển khai continuous-batching cụ thể của
+    llama.cpp; không chắc khái quát được sang batching của vLLM (engine mà
+    phần lớn tài liệu được trích dẫn và kế hoạch ban đầu của đề tài giả
+    định) hay mức độ đồng thời cao hơn mức đã kiểm định ở đây.
+  \item Không tìm thấy công trình nào trong phần tổng quan tài liệu đo trực
+    tiếp tính nhất quán exact-match của việc chấm điểm bằng LLM dưới
+    batched serving — đây vẫn là một khoảng trống của tài liệu mà đề tài
+    có thể góp phần lấp, với các giới hạn phạm vi nêu trên.
+\end{itemize}
+
+\section{Kết quả ablation (Pha 2)}
+\label{sec:results-ablation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Nhánh} & \textbf{$\rho$ (7B, n=65)} & \textbf{p-value} & \textbf{$\rho$ (7B, n=33)} & \textbf{$\rho$ (1.5B, n=33)} \\
+\midrule
+free\_form & 0.60 & 1.2$\times10^{-7}$ & 0.59 & 0.52 \\
+hybrid\_freeform & 0.85 & 2.3$\times10^{-19}$ & 0.88 & 0.75 \\
+hybrid\_decomposed & \textbf{0.88} & 2.1$\times10^{-22}$ & 0.89 & 0.87 \\
+\bottomrule
+\end{tabular}
+\caption{Tương quan hạng Spearman ($\rho$) với nhãn tham chiếu theo luật,
+ba nhánh, hai kích thước bộ dữ liệu, hai kích thước mô hình. Nguồn:
+\texttt{results/ablation.json} (7B, n=65, hiện tại),
+\texttt{results/ablation\_33samples\_7b.json} (7B, n=33, lưu trữ),
+\texttt{results/archive\_1.5b/ablation.json} (1.5B, n=33, lưu trữ).}
+\end{table}
+
+Không có trường hợp phân tích thất bại (\texttt{n\_failed\_to\_parse}) nào
+ở nhánh \texttt{free\_form} hay \texttt{hybrid\_freeform}, trên cả bộ 33 và
+65 mẫu.
+
+\textbf{Phát hiện chính:} độ đồng thuận với nhãn tham chiếu tăng đơn điệu
+qua từng bước phân rã, ở cả hai kích thước mô hình — thay ``yêu cầu LLM
+phán đoán mọi thứ trong một lần gọi'' bằng (a) thực thi sandbox thật cho
+correctness, rồi (b) các lệnh gọi có cấu trúc độc lập cho từng tiêu chí
+rubric, mỗi bước đều cải thiện độ đồng thuận một cách đo được. Đây là căn
+cứ thực nghiệm chính cho kiến trúc mô tả ở
+Chương~\ref{ch:proposed-method}, phù hợp với hướng nghiên cứu về phân rã
+rubric đã trích dẫn ở Chương~\ref{ch:lit-review}
+(\cite{rubric_decomposition}, \cite{survey_llm_judge}).
+
+\textbf{So sánh 7B với 1.5B:} mô hình lớn hơn cải thiện cả ba nhánh trên bộ
+33 mẫu gốc, nhưng chỉ \emph{thu hẹp} chứ không \emph{xóa bỏ} khoảng cách
+giữa nhánh free-form ngây thơ và các nhánh hybrid — \texttt{hybrid\_decomposed}
+vẫn là nhánh tốt nhất ở cả hai kích thước. Điều này gợi ý lợi ích của kiến
+trúc phân rã có thể lớn nhất với mô hình nhỏ và giảm dần khi mô hình lớn
+hơn — nhưng 7B vẫn là kích thước lớn nhất được kiểm định (do phạm vi dưới
+7 tỷ tham số của đề tài), nên xu hướng này không nên được ngoại suy vượt
+quá 7B.
+
+\textbf{So sánh 33 mẫu với 65 mẫu (cùng mô hình 7B):} kết luận ổn định khi
+bộ dữ liệu lớn hơn — thứ tự không đổi (free\_form < hybrid\_freeform <
+hybrid\_decomposed), p-value chặt hơn như kỳ vọng khi $n$ tăng.
+\texttt{hybrid\_freeform} và \texttt{hybrid\_decomposed} xích lại gần nhau
+hơn trên bộ lớn (0.85 so với 0.88, chênh lệch 3 điểm, so với 0.88 so với
+0.89 trên bộ nhỏ) — đáng theo dõi nếu bộ dữ liệu tiếp tục mở rộng, nhưng
+chưa phải là một sự đảo ngược có ý nghĩa.
+
+\textbf{Lưu ý quan trọng trước khi trích dẫn bảng này như ``độ chính
+xác'':} nhãn tham chiếu cho \texttt{efficiency} và \texttt{code\_style} là
+do một người tự gán nhãn (chính tác giả bộ dữ liệu), không phải ground
+truth độc lập từ con người — xem Mục~\ref{sec:pilot-dataset} và
+\texttt{data/script.md}. Bảng trên thể hiện độ đồng thuận với một nhãn
+tham chiếu theo luật, \emph{không phải} độ đồng thuận với giám khảo con
+người. Nhãn \texttt{correctness} và \texttt{edge\_case\_handling} là ground
+truth thực thi sandbox thật, nên độ đồng thuận riêng trên hai tiêu chí này
+có cơ sở vững hơn so với điểm tổng hợp.
+
+\section{Vấn đề còn mở}
+\label{sec:results-open-items}
+
+\begin{itemize}
+  \item Phép kiểm định tính nhất quán (Mục~\ref{sec:results-consistency})
+    và bảng ablation (Mục~\ref{sec:results-ablation}) được chạy trên các
+    mẫu thiên về đúng/sạch hoặc trên toàn bộ bộ thí điểm — một hướng tiếp
+    theo tự nhiên (chưa thực hiện đầy đủ, mới có 4 mẫu khó ở
+    Mục~\ref{sec:exp-consistency}) là lặp lại thí nghiệm tính nhất quán
+    trên một tập lớn hơn các bài nộp khó (nhiều lỗi, style kém), vì nhánh
+    free-form của ablation đã cho thấy các phán đoán khó hơn (không có
+    sandbox để neo) có thể làm điểm số dao động nhiều hơn — và đây cũng
+    chính là dạng đầu vào nơi hiện tượng mất nhất quán khi kiểm thử thủ
+    công (Mục~\ref{sec:results-consistency}) được quan sát.
+  \item Tính nhất quán exact-match chưa được so sánh giữa ba nhánh ablation
+    — Pha 1 mới chỉ kiểm định nhánh mặc định \texttt{hybrid\_decomposed}.
+  \item Lỗi công thức tính điểm trong \texttt{check\_edge\_case\_handling}
+    (danh sách \texttt{missing\_cases} rỗng cùng \texttt{handled=False}
+    trước đây bị tính điểm 1.0 — điểm tối đa — một cách âm thầm) được phát
+    hiện và sửa (\texttt{src/grader/rubric\_checks.py}) trong quá trình
+    chuyển mô hình mặc định sang 7B, \emph{sau khi} số liệu 1.5B đã được
+    lưu trữ. Số liệu 1.5B lưu trữ ở trên \textbf{chưa} được chạy lại với
+    bản sửa lỗi này — nên thận trọng khi so sánh điểm từng tiêu chí (không
+    chỉ điểm tổng hợp/$\rho$) giữa hai lần lưu trữ.
+  \item \texttt{pipeline.grade()} hiện không còn chạy ba kiểm tra rubric
+    bằng LLM khi bài nộp chưa từng chạy đúng được xác nhận (thay đổi thêm
+    sau khi xây dựng giao diện React ở \texttt{frontend/}, phát hiện hai
+    trường hợp: một bài nộp lỗi biên dịch vẫn được LLM chấm một phần điểm
+    \texttt{efficiency}/\texttt{code\_style}/\texttt{edge\_case\_handling};
+    một bài nộp chạy được nhưng không qua test case nào cũng vậy).
+    \texttt{src/grader/pipeline.py} giờ ép cả ba tiêu chí ngoài correctness
+    về 0 khi \texttt{status != "ran"} hoặc \texttt{pass\_rate == 0.0}, thay
+    vì để LLM tự phán đoán code chưa có hành vi đúng được xác nhận. Thay
+    đổi này \textbf{diễn ra sau} lần chạy ablation được báo cáo ở
+    Mục~\ref{sec:results-ablation} — 3/65 mẫu thí điểm
+    (\texttt{P01\_two\_sum::S5\_wrong\_completely},
+    \texttt{P06\_sum\_of\_digits::S4\_wrong\_completely},
+    \texttt{P16\_power::S3\_edge\_case\_bug\_no\_base\_case}) có
+    \texttt{pass\_rate == 0.0} và sẽ được chấm khác đi dưới
+    \texttt{hybrid\_decomposed} hiện tại. $\rho=0.88$ được báo cáo ở trên
+    được tính \emph{trước} bản sửa này; ảnh hưởng của 3/65 mẫu lên hệ số
+    tương quan nhiều khả năng nhỏ nhưng \textbf{chưa được xác minh lại} —
+    cần chạy lại \texttt{experiments/ablation.py} trước khi trích dẫn
+    $\rho=0.88$ như số liệu phản ánh đúng pipeline hiện tại.
+\end{itemize}
+
+% ============================================================
+% Chương Hạn chế (T5.4 trong docs/roadmap.md) sẽ được thêm vào tiếp theo.
 
 % ============================================================
 % Tài liệu tham khảo — inline thebibliography (không cần bibtex/biber).
