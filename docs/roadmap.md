@@ -175,6 +175,12 @@ source of truth for project status, not a one-off plan to read once.
 
 ## Notes
 
+- **Productionization ideas are tracked separately, not here.** See
+  `docs/productionization.md` for what it would take to move this from a
+  thesis prototype to something usable on real student submissions
+  (sandbox security, question import, editor UX, class-scale serving,
+  audit trail). Deliberately out of scope for Phases 0-5 — only pick it up
+  when explicitly asked.
 - **Project default model changed to Qwen2.5-Coder-7B-Instruct** (was 1.5B).
   Phase 1/2 rerun on 7B — 1.5B results archived in `results/archive_1.5b/`.
   Current (7B) numbers: consistency still 1.0 exact-match on all 4 samples,
