@@ -1,5 +1,19 @@
 # Model / serving config. Keep this the single source of truth for
 # determinism-relevant settings so experiments don't silently drift.
+#
+# Provider switch: everything below describes the "local" provider, which
+# is the project's default and the only one this thesis's consistency claim
+# has been empirically validated against. src/grader/llm_config.py also
+# supports an "openai" provider (real OpenAI API) for the product server /
+# exploratory use — switch via the LLM_PROVIDER env var:
+#
+#   LLM_PROVIDER=local                          # default, no change needed
+#   LLM_PROVIDER=openai OPENAI_API_KEY=sk-...   # OPENAI_MODEL optional, default gpt-4o-mini
+#
+# IMPORTANT: OpenAI's `seed` param is documented as best-effort, not a
+# bit-exact guarantee like llama-server run with --parallel 1. Don't use the
+# "openai" provider for experiments/consistency_test.py results without
+# re-validating that assumption first. See llm_config.py's docstring.
 model:
   name: Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M   # project default — largest model still inside the sub-7B scope
   base_url: http://localhost:8080/v1

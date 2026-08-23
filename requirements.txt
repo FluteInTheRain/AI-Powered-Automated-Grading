@@ -1,4 +1,5 @@
-openai>=1.30
+openai>=1.40  # >=1.40 needed for response_format json_schema (structured outputs) against the real OpenAI API
+python-dotenv>=1.0  # loads .env (OPENAI_API_KEY etc.) for local runs — see src/grader/llm_config.py
 pydantic>=2.5
 scipy>=1.11
 streamlit>=1.35  # demo UI only (app.py), not part of the grading pipeline itself

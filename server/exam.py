@@ -23,11 +23,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from grader.feedback import generate_feedback
-from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 
-from .config import BASE_URL, MODEL
+from .config import get_llm_client
 from .db import get_session
 from .models import Exam, GradingLog, Submission
 
@@ -112,7 +111,7 @@ def submit_exam(student_token: str, req: ExamSubmitRequest, session: Session = D
         "rubric": problem.rubric,
         "submission_code": req.code,
     }
-    client = LLMClient(base_url=BASE_URL, model=MODEL, seed=0)
+    client = get_llm_client(seed=0)
     try:
         result = grade(sample, client)
     except Exception as e:

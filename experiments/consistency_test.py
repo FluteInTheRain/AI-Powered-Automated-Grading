@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "data"))
 
 from grader.llm_client import LLMClient
+from grader.llm_config import build_llm_client
 from grader.pipeline import grade
 from metrics import exact_match_consistency_rate
 from problems import PROBLEMS
@@ -59,6 +60,13 @@ def main():
     parser.add_argument("--n", type=int, default=100)
     parser.add_argument("--base_url", default="http://localhost:8080/v1")
     parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
+    parser.add_argument(
+        "--provider", choices=["local", "openai"], default=None,
+        help="use grader.llm_config's provider switch instead of --base_url/--model "
+             "(env: LLM_PROVIDER, OPENAI_API_KEY, OPENAI_MODEL). NOTE: this project's "
+             "consistency claim is only validated for 'local' — OpenAI's seed param is "
+             "best-effort, not bit-exact. See grader/llm_config.py.",
+    )
     parser.add_argument("--tag", default="", help="suffix for the output filename, e.g. 'batched'")
     parser.add_argument(
         "--concurrency", type=int, default=1,
@@ -69,7 +77,10 @@ def main():
     sample = load_sample(args.sample_id)
     # One LLMClient (one underlying HTTP connection pool) shared across
     # threads is fine — each structured_call is a self-contained request.
-    client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
+    if args.provider:
+        client = build_llm_client(provider=args.provider, seed=0)
+    else:
+        client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
 
     scores = []
     sub_scores_log = []  # per-run sub_scores_0_to_1, so variance can be broken down by check (T1.3)

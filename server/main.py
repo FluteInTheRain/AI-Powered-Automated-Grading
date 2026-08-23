@@ -23,14 +23,13 @@ from pydantic import BaseModel
 import logging
 
 from grader.feedback import generate_feedback
-from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 from problems import PROBLEMS
 
 logger = logging.getLogger(__name__)
 
-from .config import BASE_URL, MODEL
+from .config import get_llm_client
 from .exam import router as exam_router
 from .teacher import router as teacher_router
 
@@ -206,7 +205,7 @@ def submit(req: SubmitRequest):
         "rubric": problem["rubric"],
         "submission_code": req.code,
     }
-    client = LLMClient(base_url=BASE_URL, model=MODEL, seed=0)
+    client = get_llm_client(seed=0)
     try:
         result = grade(sample, client)
     except Exception as e:

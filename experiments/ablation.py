@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "data"))
 
 from grader.aggregator import aggregate
 from grader.llm_client import LLMClient
+from grader.llm_config import build_llm_client
 from grader.pipeline import grade
 from grader.sandbox import run_submission, score_correctness
 from metrics import spearman_agreement
@@ -107,13 +108,21 @@ def main():
     parser.add_argument("--base_url", default="http://localhost:8080/v1")
     parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
     parser.add_argument(
+        "--provider", choices=["local", "openai"], default=None,
+        help="use grader.llm_config's provider switch instead of --base_url/--model "
+             "(env: LLM_PROVIDER, OPENAI_API_KEY, OPENAI_MODEL). See grader/llm_config.py.",
+    )
+    parser.add_argument(
         "--arm", choices=["free_form", "hybrid_freeform", "hybrid_decomposed", "all"], default="all",
     )
     args = parser.parse_args()
 
     dataset = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     reference = [s["final_score_0_to_100"] for s in dataset]
-    client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
+    if args.provider:
+        client = build_llm_client(provider=args.provider, seed=0)
+    else:
+        client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
 
     report = {"n_samples": len(dataset)}
 

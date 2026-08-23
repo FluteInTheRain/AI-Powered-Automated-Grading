@@ -20,7 +20,9 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class LLMClient:
-    def __init__(self, base_url: str, model: str, api_key: str = "not-needed", seed: int = 0):
+    def __init__(self, base_url: str | None, model: str, api_key: str = "not-needed", seed: int = 0):
+        # base_url=None lets the OpenAI SDK fall back to its own default
+        # (api.openai.com) — used by the "openai" provider in llm_config.py.
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.model = model
         self.seed = seed

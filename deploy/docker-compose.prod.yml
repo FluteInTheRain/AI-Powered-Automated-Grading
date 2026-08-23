@@ -29,6 +29,12 @@ services:
       # reaching the systemd-managed llama-server on the host.
       LLM_BASE_URL: http://host.docker.internal:8080/v1
       LLM_MODEL: ${LLM_MODEL:-Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M}
+      # Provider switch (src/grader/llm_config.py) — defaults to "local"
+      # (the two vars above). Set LLM_PROVIDER=openai in deploy/.env to
+      # route grading calls to the real OpenAI API instead.
+      LLM_PROVIDER: ${LLM_PROVIDER:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

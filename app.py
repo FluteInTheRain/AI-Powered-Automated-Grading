@@ -9,6 +9,7 @@ underlying grading. Run: streamlit run app.py
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -19,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "data"))
 
 from grader.feedback import generate_feedback
 from grader.llm_client import LLMClient
+from grader.llm_config import build_llm_client
 from grader.pipeline import grade
 from problems import PROBLEMS
 
@@ -33,19 +35,32 @@ st.caption(
 
 with st.sidebar:
     st.header("Server")
-    base_url = st.text_input("base_url", value="http://localhost:8080/v1")
-    model = st.text_input("model", value="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
-    st.caption(
-        "Note: Phase 0-2 experiments (results/*.json) all used the 1.5B "
-        "model — this UI's default follows whatever scripts/model_server.sh "
-        "is currently serving, which may differ."
-    )
-    try:
-        import urllib.request
-        with urllib.request.urlopen(base_url.replace("/v1", "/health"), timeout=2) as resp:
-            st.success("Server reachable") if resp.status == 200 else st.error("Server unreachable")
-    except Exception:
-        st.error("Server unreachable — start it with scripts/model_server.sh start")
+    provider = st.radio("Provider", ["local", "openai"], horizontal=True)
+
+    if provider == "local":
+        base_url = st.text_input("base_url", value="http://localhost:8080/v1")
+        model = st.text_input("model", value="Qwen/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M")
+        st.caption(
+            "Note: Phase 0-2 experiments (results/*.json) all used the 1.5B "
+            "model — this UI's default follows whatever scripts/model_server.sh "
+            "is currently serving, which may differ."
+        )
+        try:
+            import urllib.request
+            with urllib.request.urlopen(base_url.replace("/v1", "/health"), timeout=2) as resp:
+                st.success("Server reachable") if resp.status == 200 else st.error("Server unreachable")
+        except Exception:
+            st.error("Server unreachable — start it with scripts/model_server.sh start")
+    else:
+        model = st.text_input("model", value="gpt-4o-mini")
+        st.caption(
+            "Uses OPENAI_API_KEY from the environment (grader.llm_config). "
+            "Determinism caveat: OpenAI's seed param is best-effort, not "
+            "bit-exact — don't treat this arm's consistency as validated the "
+            "way the local llama-server path is (see grader/llm_config.py)."
+        )
+        if not os.environ.get("OPENAI_API_KEY"):
+            st.error("OPENAI_API_KEY not set in the environment")
 
 problem_ids = [p["id"] for p in PROBLEMS]
 selected_id = st.selectbox("Problem", problem_ids)
@@ -73,7 +88,15 @@ if st.button("Grade", type="primary"):
         "rubric": problem["rubric"],
         "submission_code": code,
     }
-    client = LLMClient(base_url=base_url, model=model, seed=0)
+    if provider == "local":
+        client = LLMClient(base_url=base_url, model=model, seed=0)
+    else:
+        try:
+            client = build_llm_client(provider="openai", seed=0)
+            client.model = model  # allow overriding OPENAI_MODEL from the sidebar input
+        except RuntimeError as e:
+            st.error(str(e))
+            st.stop()
     with st.spinner("Running sandbox + LLM rubric checks..."):
         try:
             result = grade(sample, client)
