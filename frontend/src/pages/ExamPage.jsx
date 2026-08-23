@@ -128,29 +128,29 @@ export default function ExamPage({ studentToken }) {
       )}
 
       {solving && (
-        <div className="solve-grid">
-          <div className="solve-left">
-            {problemPanel}
-            {phase === 'done' && <ResultPanel result={result} />}
-          </div>
-          <div className="solve-right">
-            <div className="submit-row">
-              {phase === 'error' && <span className="status-error">Grading failed: {errorMessage}</span>}
-              <button
-                className="btn btn-secondary"
-                onClick={handleRunTests}
-                disabled={phase !== 'in_progress' || isRunningTests}
-              >
-                {isRunningTests ? 'Running…' : 'Run Tests'}
-              </button>
-              <button className="btn btn-primary" onClick={handleSubmit} disabled={phase !== 'in_progress'}>
-                {phase === 'grading' ? 'Grading…' : 'Submit'}
-              </button>
+        <>
+          <div className="solve-grid">
+            <div className="solve-left">{problemPanel}</div>
+            <div className="solve-right">
+              <div className="submit-row">
+                {phase === 'error' && <span className="status-error">Grading failed: {errorMessage}</span>}
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleRunTests}
+                  disabled={phase !== 'in_progress' || isRunningTests}
+                >
+                  {isRunningTests ? 'Running…' : 'Run Tests'}
+                </button>
+                <button className="btn btn-primary" onClick={handleSubmit} disabled={phase !== 'in_progress'}>
+                  {phase === 'grading' ? 'Grading…' : 'Submit'}
+                </button>
+              </div>
+              <CodeEditor value={code} onChange={setCode} readOnly={phase !== 'in_progress'} />
+              <TestRunPanel runResult={runResult} />
             </div>
-            <CodeEditor value={code} onChange={setCode} readOnly={phase !== 'in_progress'} />
-            <TestRunPanel runResult={runResult} />
           </div>
-        </div>
+          {phase === 'done' && <ResultPanel result={result} />}
+        </>
       )}
     </div>
   )
