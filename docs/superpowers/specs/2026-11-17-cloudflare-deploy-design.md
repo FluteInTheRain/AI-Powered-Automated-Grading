@@ -113,6 +113,8 @@ Other findings:
 - Dynamic Workers (`globalOutbound: null`) would isolate student code, but they need Workers Paid.
 - A new `workers.dev` subdomain (`khangnguyen`) took about 30 s to get its TLS certificate.
 
+**Gate verdict at the time of the spike (superseded by "Decision after the spike" below): no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.
+
 ## Decision after the spike (2026-11-18, Khang)
 
 **Go with C on Workers Free, accepting the risks below** (option 3 of: C on
@@ -147,5 +149,3 @@ Accepted risks (Khang chose these knowingly):
    fix: Dynamic Workers need Paid, and Python-level guards are bypassable.
    Mitigated: the sandbox is outputs-only (ruling R4), so expected answers
    are never inside it and cannot be read.
-
-**Gate (as originally designed): no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.

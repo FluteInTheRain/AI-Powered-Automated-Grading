@@ -45,12 +45,12 @@ Results are in the spec. No further work.
 **Files:**
 - Modify: `frontend/src/api.js:1-13`, `frontend/vite.config.js`
 
-- [ ] **Step 1: Point the frontend at its own origin.** Set `API_BASE = ''` and add `server.proxy: { '/api': 'http://localhost:8001' }` to the Vite config.
-- [ ] **Step 2: Make non-JSON errors readable.** In `request()`, a `!res.ok` response with a non-JSON body throws `new Error('Your submission exceeded the time/resource limit or the server is busy. Please try again.')`. JSON bodies keep `body.detail`.
-- [ ] **Step 3: Verify.**
+- [x] **Step 1: Point the frontend at its own origin.** Set `API_BASE = ''` and add `server.proxy: { '/api': 'http://localhost:8001' }` to the Vite config.
+- [x] **Step 2: Make non-JSON errors readable.** In `request()`, a `!res.ok` response with a non-JSON body throws `new Error('Your submission exceeded the time/resource limit or the server is busy. Please try again.')`. JSON bodies keep `body.detail`.
+- [x] **Step 3: Verify.**
   - `cd frontend && npm run build && ! grep -r "localhost:8001" dist/` exits 0.
   - `npm run dev` against uvicorn on 8001: the teacher page creates a problem.
-- [ ] **Step 4: Commit:** `fix: relative API base + readable non-JSON errors in frontend`.
+- [x] **Step 4: Commit:** `fix: relative API base + readable non-JSON errors in frontend`.
 
 ### Task 2: Grader loadable in a Worker, runner injectable
 
@@ -62,7 +62,7 @@ Results are in the spec. No further work.
 **Interfaces:**
 - Produces: `grade(sample: dict, client, run_submission=sandbox.run_submission) -> dict`. Same output as today when the default is used.
 
-- [ ] **Step 1: Write failing tests:**
+- [x] **Step 1: Write failing tests:**
 ```python
 import importlib, sys
 
@@ -83,12 +83,12 @@ def test_grade_uses_injected_runner():
                  "statement": "s"}, client=None, run_submission=fake_run)
     assert calls == ["f"] and out["final_score_0_to_100"] == 0.0
 ```
-- [ ] **Step 2: Run** `python3 -m pytest tests/test_grader_worker_compat.py -v`. Expected: both FAIL.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run** `python3 -m pytest tests/test_grader_worker_compat.py -v`. Expected: both FAIL.
+- [x] **Step 3: Implement.**
   - Move each `from .llm_client import LLMClient` under `if TYPE_CHECKING:`. The files already use `from __future__ import annotations`.
   - Add the `run_submission` keyword parameter to `grade`, and call it instead of the module-level import.
-- [ ] **Step 4: Run** the tests. Then check that `python3 data/build_dataset.py` prints 65 samples with unchanged pass rates. Expected: PASS.
-- [ ] **Step 5: Commit:** `refactor(grader): loadable without openai, injectable sandbox runner`.
+- [x] **Step 4: Run** the tests. Then check that `python3 data/build_dataset.py` prints 65 samples with unchanged pass rates. Expected: PASS.
+- [x] **Step 5: Commit:** `refactor(grader): loadable without openai, injectable sandbox runner`.
 
 ### Task 3: Sandbox Worker
 
@@ -103,12 +103,12 @@ def test_grade_uses_injected_runner():
 - Produces `handler.execute(payload) -> dict`, pure and testable on CPython: `validate`, then `grader.sandbox.compute_reference_outputs(code, func_name, args_list)`. Each case's `output` is made JSON-safe: if `json.dumps(output, allow_nan=False)` fails, set `output: None` and `error: "return value is not JSON-serializable: <repr, max 200 chars>"`. Returns `{"status", "message", "cases": [{"args", "output", "error"}]}`.
 - Produces HTTP `POST /execute` on Worker `grading-sandbox`. It reads the raw body; invalid JSON, a non-object, or `BadPayload` → **400**; otherwise 200 with `execute`'s dict. Only `BadPayload` and JSON-decoding errors map to 400, never errors raised by running the code.
 
-- [ ] **Step 1: Write failing tests** (revised for R4): outputs match `compute_reference_outputs` on P01 S1; NaN and arbitrary-object outputs become errors (repr truncated to 200); bad payloads (non-dict, missing or mistyped keys, non-list `args_list` entry, old `mode` payload) raise `BadPayload`.
-- [ ] **Step 2: Run** them. Expected: FAIL.
-- [ ] **Step 3: Implement `handler.py`.** `main.py` is a minimal FastAPI app with `POST /execute`, followed by `Default = asgi.entrypoint(app)`.
-- [ ] **Step 4: Write `wrangler.jsonc`:** `"name": "grading-sandbox"`, `"main": "src/main.py"`, `"compatibility_flags": ["python_workers"]`, `"workers_dev": false`, `"preview_urls": false`, observability on, **no** other bindings. `pyproject.toml` needs only `fastapi` (dev: `workers-py`, `workers-runtime-sdk`). The build copies only `src/grader/sandbox.py` into `src/vendor/grader/` (with an empty `__init__.py`).
-- [ ] **Step 5: Run** the tests. Expected: PASS.
-- [ ] **Step 6: Commit:** `feat(sandbox-worker): isolated code-execution Worker`.
+- [x] **Step 1: Write failing tests** (revised for R4): outputs match `compute_reference_outputs` on P01 S1; NaN and arbitrary-object outputs become errors (repr truncated to 200); bad payloads (non-dict, missing or mistyped keys, non-list `args_list` entry, old `mode` payload) raise `BadPayload`.
+- [x] **Step 2: Run** them. Expected: FAIL.
+- [x] **Step 3: Implement `handler.py`.** `main.py` is a minimal FastAPI app with `POST /execute`, followed by `Default = asgi.entrypoint(app)`.
+- [x] **Step 4: Write `wrangler.jsonc`:** `"name": "grading-sandbox"`, `"main": "src/main.py"`, `"compatibility_flags": ["python_workers"]`, `"workers_dev": false`, `"preview_urls": false`, observability on, **no** other bindings. `pyproject.toml` needs only `fastapi` (dev: `workers-py`, `workers-runtime-sdk`). The build copies only `src/grader/sandbox.py` into `src/vendor/grader/` (with an empty `__init__.py`).
+- [x] **Step 5: Run** the tests. Expected: PASS.
+- [x] **Step 6: Commit:** `feat(sandbox-worker): isolated code-execution Worker`.
 
 ### Task 4: D1 schema and store
 
@@ -132,15 +132,15 @@ def test_grade_uses_injected_runner():
   - `add_submission(db, *, exam_id, student_name, code, result, logs) -> str` (one `db.batch`)
   - `list_submissions(db, exam_id) -> list[dict]` / `get_submission(db, submission_id) -> dict | None` / `get_logs(db, submission_id) -> list[dict]`
 
-- [ ] **Step 1: Write `0001_init.sql`** with the 4 tables of `server/models.py` (TEXT ids and JSON, UNIQUE tokens).
-- [ ] **Step 2: Write failing tests:**
+- [x] **Step 1: Write `0001_init.sql`** with the 4 tables of `server/models.py` (TEXT ids and JSON, UNIQUE tokens).
+- [x] **Step 2: Write failing tests:**
   - `test_problem_exam_submission_roundtrip`;
   - `test_add_submission_is_atomic` (FakeD1 fails the 2nd log insert, so 0 submissions and 0 logs remain);
   - `test_unicode_and_long_text_roundtrip`.
-- [ ] **Step 3: Run** them. Expected: FAIL.
-- [ ] **Step 4: Implement `store.py`** with `?` placeholders only.
-- [ ] **Step 5: Run** the tests. Expected: PASS.
-- [ ] **Step 6: Commit:** `feat(worker): D1 schema and store`.
+- [x] **Step 3: Run** them. Expected: FAIL.
+- [x] **Step 4: Implement `store.py`** with `?` placeholders only.
+- [x] **Step 5: Run** the tests. Expected: PASS.
+- [x] **Step 6: Commit:** `feat(worker): D1 schema and store`.
 
 ### Task 5: Bridges: Workers AI client and remote sandbox
 
@@ -162,7 +162,7 @@ def test_grade_uses_injected_runner():
   - A non-200 response raises `RuntimeError("sandbox failed: <status>")`.
 - `run_sync=None` means `pyodide.ffi.run_sync`; tests pass `lambda x: x` with fakes returning plain values.
 
-- [ ] **Step 1: Write failing tests:**
+- [x] **Step 1: Write failing tests:**
   - `test_ai_sends_bare_schema_seed_temperature`;
   - `test_ai_dict_response_logged_as_string`;
   - `test_ai_empty_response_raises`;
@@ -170,10 +170,10 @@ def test_grade_uses_injected_runner():
   - `test_remote_sandbox_never_sends_expected` (the fake binding asserts the posted JSON has no `expected` key or values);
   - `test_remote_matches_local_on_pilot` (for every submission in `data/problems.py`, `RemoteSandbox.run_submission` gives the same `pass_count` / `status` as `grader.sandbox.run_submission`);
   - `test_remote_sandbox_non_200_raises`.
-- [ ] **Step 2: Run** them. Expected: FAIL.
-- [ ] **Step 3: Implement.** Convert dicts with `to_js(..., dict_converter=Object.fromEntries)` only under Pyodide.
-- [ ] **Step 4: Run** the tests. Expected: PASS.
-- [ ] **Step 5: Commit:** `feat(worker): Workers AI and remote sandbox bridges`.
+- [x] **Step 2: Run** them. Expected: FAIL.
+- [x] **Step 3: Implement.** Convert dicts with `to_js(..., dict_converter=Object.fromEntries)` only under Pyodide.
+- [x] **Step 4: Run** the tests. Expected: PASS.
+- [x] **Step 5: Commit:** `feat(worker): Workers AI and remote sandbox bridges`.
 
 ### Task 6: Shared route rules + main Worker routes
 
@@ -194,27 +194,27 @@ def test_grade_uses_injected_runner():
   - Any exception before persistence → 502 `"Grading failed: ..."`, with nothing stored.
 - Consumes: Tasks 2, 4 and 5.
 
-- [ ] **Step 1: Write failing `tests/test_rules.py`:** the current validation messages (weights ≠ 100, no cases, all public, failing reference), `split_cases`, `starter_code`.
-- [ ] **Step 2: Move the helpers** and wire `server/` to them (`ValueError` → `HTTPException(400, detail)`). Run `python3 -m pytest tests/test_rules.py -v`. Expected: PASS.
-- [ ] **Step 3: Write failing `tests/worker/test_routes.py`** (`TestClient`, `FakeD1`, fake AI, in-process sandbox):
+- [x] **Step 1: Write failing `tests/test_rules.py`:** the current validation messages (weights ≠ 100, no cases, all public, failing reference), `split_cases`, `starter_code`.
+- [x] **Step 2: Move the helpers** and wire `server/` to them (`ValueError` → `HTTPException(400, detail)`). Run `python3 -m pytest tests/test_rules.py -v`. Expected: PASS.
+- [x] **Step 3: Write failing `tests/worker/test_routes.py`** (`TestClient`, `FakeD1`, fake AI, in-process sandbox):
   - `test_teacher_create_problem_exam_and_results`;
   - `test_exam_submit_persists_result_and_logs` (the audit endpoint returns 4 logs);
   - `test_closed_exam_rejects_run_and_submit`;
   - `test_submit_ai_failure_persists_nothing`;
   - `test_submit_sandbox_failure_persists_nothing`;
   - `test_export_has_header_and_rows`.
-- [ ] **Step 4: Run** them. Expected: FAIL.
-- [ ] **Step 5: Implement `routes.py`.**
-- [ ] **Step 6: Run** `python3 -m pytest tests -v`. Expected: all PASS.
-- [ ] **Step 7: Commit:** `feat(worker): routes mirroring server API`.
+- [x] **Step 4: Run** them. Expected: FAIL.
+- [x] **Step 5: Implement `routes.py`.**
+- [x] **Step 6: Run** `python3 -m pytest tests -v`. Expected: all PASS.
+- [x] **Step 7: Commit:** `feat(worker): routes mirroring server API`.
 
 ### Task 7: Main Worker entry, configs, build, local run
 
 **Files:**
 - Create: `worker/src/main.py`, `worker/wrangler.jsonc`, `worker/pyproject.toml`, `worker/build.sh`, `worker/.gitignore`, `sandbox-worker/build.sh`
 
-- [ ] **Step 1: Write `worker/src/main.py`.** It puts `src/vendor` on `sys.path`, creates the FastAPI app with `router`, and ends with `Default = asgi.entrypoint(app)`.
-- [ ] **Step 2: Write `worker/wrangler.jsonc`:**
+- [x] **Step 1: Write `worker/src/main.py`.** It puts `src/vendor` on `sys.path`, creates the FastAPI app with `router`, and ends with `Default = asgi.entrypoint(app)`.
+- [x] **Step 2: Write `worker/wrangler.jsonc`:**
   - `"name": "grading"`, `"main": "src/main.py"`, flag `python_workers`;
   - `"ai": {"binding": "AI"}`;
   - `"d1_databases": [{"binding": "DB", "database_name": "grading", "database_id": "<id>", "migrations_dir": "migrations"}]`;
@@ -222,10 +222,10 @@ def test_grade_uses_injected_runner():
   - `"assets": {"directory": "../frontend/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"]}`;
   - `"vars": {"LLM_MODEL": "@cf/qwen/qwen2.5-coder-32b-instruct"}`;
   - observability on.
-- [ ] **Step 3: Write `worker/build.sh`.** It refreshes `src/vendor/grader` (whole package), `src/prompts`, `src/server/rules.py` (+ empty `__init__.py`), then builds the frontend. `sandbox-worker/build.sh` refreshes `src/vendor/grader/sandbox.py` only. Both `.gitignore` files list the copies.
-- [ ] **Step 4: Verify locally.** Run both build scripts, then `uv run pywrangler d1 migrations apply grading --local`, then from `worker/`: `uv run pywrangler dev -c wrangler.jsonc -c ../sandbox-worker/wrangler.jsonc`. In the browser: create a problem, create an exam, open the student link, Run Tests, Submit, then open the admin results and the audit.
-- [ ] **Step 5: Check `git status`.** It shows no copied files.
-- [ ] **Step 6: Commit:** `feat(worker): entry points, configs, build scripts`.
+- [x] **Step 3: Write `worker/build.sh`.** It refreshes `src/vendor/grader` (whole package), `src/prompts`, `src/server/rules.py` (+ empty `__init__.py`), then builds the frontend. `sandbox-worker/build.sh` refreshes `src/vendor/grader/sandbox.py` only. Both `.gitignore` files list the copies.
+- [x] **Step 4: Verify locally.** Run both build scripts, then `uv run pywrangler d1 migrations apply grading --local`, then from `worker/`: `uv run pywrangler dev -c wrangler.jsonc -c ../sandbox-worker/wrangler.jsonc`. In the browser: create a problem, create an exam, open the student link, Run Tests, Submit, then open the admin results and the audit.
+- [x] **Step 5: Check `git status`.** It shows no copied files.
+- [x] **Step 6: Commit:** `feat(worker): entry points, configs, build scripts`.
 
 ### Task 8: Deploy, live checks, docs
 
@@ -233,12 +233,12 @@ def test_grade_uses_injected_runner():
 - Create: `worker/README.md` (deploy/redeploy, the accepted risks from the spec, the `/demo` page being unsupported, how to switch to Workers Paid)
 - Modify: `README.md` (one pointer to `worker/README.md`)
 
-- [ ] **Step 1: Create the remote database.** `uv run pywrangler d1 create grading`, put the id in the config, then `uv run pywrangler d1 migrations apply grading --remote`.
-- [ ] **Step 2: Deploy** `grading-sandbox` first, then `grading`. The URL is `https://grading.khangnguyen.workers.dev`.
-- [ ] **Step 3: Live checks:**
+- [x] **Step 1: Create the remote database.** `uv run pywrangler d1 create grading`, put the id in the config, then `uv run pywrangler d1 migrations apply grading --remote`.
+- [x] **Step 2: Deploy** `grading-sandbox` first, then `grading`. The URL is `https://grading.khangnguyen.workers.dev`.
+- [x] **Step 3: Live checks:**
   - the full teacher → student → admin flow;
   - submit a frame-walk probe (the spike's `traceback_walk_no_import` code): the result shows "not reached" or a failure, never `REACHED env`;
   - submit `while True: pass`: the readable limit message appears and no row is added;
   - `curl https://grading-sandbox.khangnguyen.workers.dev/execute` does not reach the Worker;
   - `wrangler tail grading` during a normal submit: record `cpuTime` for both Workers in `worker/README.md`.
-- [ ] **Step 4: Commit and push:** `docs: Cloudflare Worker deploy guide`.
+- [x] **Step 4: Commit and push:** `docs: Cloudflare Worker deploy guide`.

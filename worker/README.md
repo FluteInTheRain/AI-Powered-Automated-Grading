@@ -163,18 +163,43 @@ of the spec's accepted risks.
   `input=... expected=... got=...` (the student's return value). Nothing stops a
   student from submitting again under the same exam link, so hidden cases can be
   learned across attempts. Same behaviour as `server/exam.py`.
-- **Infinite loops in Run Tests and preview give a plain 500.** Only submit maps a
-  killed sandbox to the readable 502 message. `POST /api/exam/{token}/run` and
-  `POST /api/teacher/preview-test-cases` return `500 Internal Server Error`
-  (text/plain; checked live for `run`), which the frontend shows as its generic
-  "exceeded the time/resource limit or the server is busy" message.
+
+## Worker-specific behaviour (differs from `server/`)
+
+- **Error messages.** `server/` has no execution time limit at all; on the Worker
+  the runtime stops student code after about 2 s CPU. A stopped sandbox (the
+  fetch raises) and a failing sandbox (non-200 status) are told apart, and every
+  5xx is logged with the exam/problem ids (see `wrangler tail`). All are JSON
+  `502` with a fixed `detail`:
+
+  | Route | Code ran out of time | Sandbox or other service error |
+  |---|---|---|
+  | submit | `Grading failed: your submission exceeded the time/resource limit.` | `Grading service error, please try again.` (sandbox) / `Grading failed, please try again. If it keeps happening, contact your teacher.` (Workers AI etc.) |
+  | Run Tests | `Your code exceeded the time/resource limit.` | `Grading service error, please try again.` |
+  | preview | `Reference or wrong solution exceeded the time/resource limit.` | `Grading service error, please try again.` |
+  | create problem | `Reference solution exceeded the time/resource limit.` | `Grading service error, please try again.` |
+
+  If saving a graded submission fails: `Your submission was graded but could not
+  be saved. Please try again.` Nothing is stored in any of these cases.
+- **`exit()` / `sys.exit()` in student code** is a `COMPILE_ERROR: program exited
+  (SystemExit: ...)` result (correctness 0), not a crash. Return values over 64 KB
+  of JSON become a per-case error `return value too large (N bytes)`.
+- **Outputs are compared after a JSON round trip** (ruling R4): the sandbox sends
+  outputs back as JSON, so a function returning a tuple passes against a list
+  expected value. `server/` compares Python objects directly and fails it.
+- **Consistency is not established here.** The hosted demo runs a 32B model
+  (`@cf/qwen/qwen2.5-coder-32b-instruct`) on shared Workers AI, so the project's
+  sub-7B and exact-match-consistency claims do not carry over. In one check (n=2)
+  two identical submits gave the same score but different raw LLM text.
 
 ## What is not supported on Cloudflare
 
 - **The `/demo` page.** It uses the pilot-dataset endpoints of `server/main.py`
   (`/api/problems`, `/api/run`, `/api/submit`), which the Worker does not have, so
-  the page loads but its API calls return 404. The "Demo mode" button in the
-  teacher page header leads there. Use the local server (`uvicorn server.main:app`) for it.
+  the page loads but its API calls return 404. `worker/build.sh` builds the
+  frontend with `VITE_HIDE_DEMO=1`, which hides the "Demo mode" button in the
+  teacher page header; local and `deploy/` builds keep it. Use the local server
+  (`uvicorn server.main:app`) for the demo.
 - The thesis experiments (`experiments/`) still run locally against llama.cpp;
   the Worker only serves the exam app.
 
