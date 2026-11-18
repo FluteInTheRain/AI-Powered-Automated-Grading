@@ -15,8 +15,10 @@ browser ──> grading ──(service binding SANDBOX)──> grading-sandbox  
               └── Workers AI              (rubric checks + feedback, @cf/qwen/qwen2.5-coder-32b-instruct)
 ```
 
-Correctness is still scored only by executing the code (in `grading-sandbox`);
-expected values never leave `grading`. The design and the reasons for it are in
+Correctness is still scored only by executing the code (in `grading-sandbox`).
+Expected values never enter the sandbox Worker, so student code cannot read them
+while it runs; `grading` compares the outputs. They are not secret from students,
+though: the submit result lists failed hidden cases (see "Known limitations"). The design and the reasons for it are in
 `docs/superpowers/specs/2026-11-17-cloudflare-deploy-design.md`
 ("Decision after the spike").
 
@@ -115,6 +117,8 @@ All of these are far over the documented 10 ms Free-plan CPU limit, and all had
 `outcome: ok`, so that limit is not enforced today (accepted risk 1). There is a
 hard ceiling, though: an infinite loop in student code was stopped by the
 runtime after 1 864 ms and 1 951 ms CPU (`CpuLimitExceeded`, outcome `exception`).
+`export.xlsx` (1 408 ms for one row) is the request closest to that ceiling, so
+exporting a very large exam could fail.
 
 ## Accepted risks (Khang chose these knowingly)
 
@@ -134,7 +138,8 @@ runtime after 1 864 ms and 1 951 ms CPU (`CpuLimitExceeded`, outcome `exception`
    submissions on that isolate. There is no Free-plan fix (Dynamic Workers need
    Paid, and Python-level guards can be bypassed). Mitigation: the sandbox only
    returns outputs and `grading` compares them, so expected answers are never in
-   the sandbox to read or tamper with.
+   the sandbox for running code to read or tamper with. (They still reach the
+   student through the submit result; see "Known limitations".)
 
 What the live checks showed for the sandbox boundary (2026-11-18):
 
@@ -144,9 +149,25 @@ What the live checks showed for the sandbox boundary (2026-11-18):
   is empty.
 - `https://grading-sandbox.khangnguyen.workers.dev/execute` answers
   `404 error code: 1042` from Cloudflare and never reaches the Worker.
-- An infinite loop is stopped after about 2 s CPU. The student sees
+- An infinite loop is stopped after about 2 s CPU. On submit the student sees
   `502 Grading failed: your submission exceeded the time/resource limit.` and no
   submission row is saved.
+
+## Known limitations (pre-existing in `server/`, not Cloudflare-specific)
+
+These are product behaviours the Worker copies from `server/`; they are not part
+of the spec's accepted risks.
+
+- **Hidden test cases are visible after a wrong submit.** The submit response's
+  `execution_result.errors` lists each failed hidden case as
+  `input=... expected=... got=...` (the student's return value). Nothing stops a
+  student from submitting again under the same exam link, so hidden cases can be
+  learned across attempts. Same behaviour as `server/exam.py`.
+- **Infinite loops in Run Tests and preview give a plain 500.** Only submit maps a
+  killed sandbox to the readable 502 message. `POST /api/exam/{token}/run` and
+  `POST /api/teacher/preview-test-cases` return `500 Internal Server Error`
+  (text/plain; checked live for `run`), which the frontend shows as its generic
+  "exceeded the time/resource limit or the server is busy" message.
 
 ## What is not supported on Cloudflare
 
@@ -168,8 +189,9 @@ Do this if requests start failing with CPU-limit errors (tail shows
    request by default, far above what grading uses.
 
 Side effect: an infinite loop in student code may then run much longer than the
-~2 s seen on Free before it is stopped (not measured). Lower the ceiling with
-`"limits": { "cpu_ms": 5000 }` in `sandbox-worker/wrangler.jsonc` if that matters.
+~2 s seen on Free before it is stopped (not measured). Setting
+`"limits": { "cpu_ms": 5000 }` in `sandbox-worker/wrangler.jsonc` should lower
+that ceiling, but this is untested.
 
 Paid also makes the risk 4 fix possible (a fresh isolate per submission with
 Dynamic Workers), but that one does need code changes.
