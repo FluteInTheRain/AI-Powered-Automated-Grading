@@ -14,15 +14,18 @@ import io
 import logging
 import secrets
 from types import SimpleNamespace
-from typing import Any, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import Response
 
 from grader.feedback import generate_feedback
 from grader.pipeline import grade
 from server import rules
+from server.rules import (
+    CreateExamRequest, CreateProblemRequest, ExamRunRequest, ExamSubmitRequest,
+    PreviewRequest, SyntaxCheckRequest, UpdateExamRequest,
+)
 
 from . import store
 from .bridges import RemoteSandbox, WorkersAIClient
@@ -37,19 +40,21 @@ DEFAULT_TIME_LIMIT_SECONDS = 600
 
 
 # --- dependencies (tests override these via app.dependency_overrides) ---
+# async on purpose: FastAPI runs plain `def` dependencies in a thread pool,
+# and Pyodide has no threads.
 
-def get_db(request: Request):
+async def get_db(request: Request):
     return request.scope["env"].DB
 
 
-def get_llm_client(request: Request):
+async def get_llm_client(request: Request):
     # New client per request so call_log only holds this submission's calls.
     env = request.scope["env"]
     model = getattr(env, "LLM_MODEL", None) or DEFAULT_LLM_MODEL
     return WorkersAIClient(env.AI, model=model)
 
 
-def get_sandbox(request: Request):
+async def get_sandbox(request: Request):
     return RemoteSandbox(request.scope["env"].SANDBOX)
 
 
@@ -99,10 +104,6 @@ async def _exam_by_student_token(student_token: str, db) -> dict:
 
 # --- syntax check ---
 
-class SyntaxCheckRequest(BaseModel):
-    code: str
-
-
 @router.post("/api/syntax-check")
 async def syntax_check(req: SyntaxCheckRequest):
     # compile() only parses; it never runs the code, so it is safe here.
@@ -115,17 +116,6 @@ async def syntax_check(req: SyntaxCheckRequest):
 
 # --- teacher ---
 
-class PreviewCase(BaseModel):
-    args: List[Any]
-
-
-class PreviewRequest(BaseModel):
-    reference_solution: str
-    func_name: str
-    cases: List[PreviewCase]
-    wrong_solution: Optional[str] = None
-
-
 @router.post("/api/teacher/preview-test-cases")
 async def preview_test_cases(req: PreviewRequest, sandbox=Depends(get_sandbox)):
     args_list = [tuple(c.args) for c in req.cases]
@@ -134,28 +124,6 @@ async def preview_test_cases(req: PreviewRequest, sandbox=Depends(get_sandbox)):
         compute_reference_outputs=sandbox.compute_reference_outputs,
         run_submission=sandbox.run_submission,
     )
-
-
-class RubricIn(BaseModel):
-    correctness: int
-    efficiency: int
-    code_style: int
-    edge_case_handling: int
-
-
-class TestCaseIn(BaseModel):
-    args: List[Any]
-    expected: Any
-    is_public: bool = False
-
-
-class CreateProblemRequest(BaseModel):
-    statement: str
-    func_name: str
-    param_names: List[str]
-    rubric: RubricIn
-    reference_solution: str
-    test_cases: List[TestCaseIn]
 
 
 @router.post("/api/teacher/problems")
@@ -180,17 +148,11 @@ async def list_problems(db=Depends(get_db)):
     return [
         {
             "id": p["id"],
-            "statement_excerpt": p["statement"] if len(p["statement"]) <= 120 else p["statement"][:120] + "…",
+            "statement_excerpt": rules.statement_excerpt(p["statement"]),
             "created_at": p["created_at"],
         }
         for p in await store.list_problems(db)
     ]
-
-
-class CreateExamRequest(BaseModel):
-    problem_id: str
-    deadline: Optional[datetime.datetime] = None
-    time_limit_seconds: Optional[int] = None
 
 
 @router.post("/api/teacher/exams")
@@ -248,10 +210,6 @@ async def get_submission_audit(admin_token: str, submission_id: str, db=Depends(
     ]
 
 
-class UpdateExamRequest(BaseModel):
-    deadline: Optional[datetime.datetime] = None
-
-
 @router.patch("/api/teacher/exams/{admin_token}")
 async def update_exam(admin_token: str, req: UpdateExamRequest, db=Depends(get_db)):
     exam = await _exam_by_admin_token(admin_token, db)
@@ -270,28 +228,15 @@ async def export_exam_results(admin_token: str, db=Depends(get_db)):
     wb = Workbook()
     ws = wb.active
     ws.title = "Results"
-    ws.append([
-        "student_name", "final_score", "correctness", "efficiency",
-        "code_style", "edge_case_handling", "submitted_at",
-    ])
+    ws.append(rules.EXPORT_HEADER)
     for sub in submissions:
-        result = sub["result"] or {}
-        sub_scores = result.get("sub_scores_0_to_1") or {}
-        ws.append([
-            sub["student_name"],
-            result.get("final_score_0_to_100"),
-            sub_scores.get("correctness"),
-            sub_scores.get("efficiency"),
-            sub_scores.get("code_style"),
-            sub_scores.get("edge_case_handling"),
-            sub["submitted_at"],
-        ])
+        ws.append(rules.export_row(sub["student_name"], sub["result"], sub["submitted_at"]))
 
     buffer = io.BytesIO()
     wb.save(buffer)
-    buffer.seek(0)
-    return StreamingResponse(
-        buffer,
+    # Plain Response, not StreamingResponse: streaming would iterate in a thread pool.
+    return Response(
+        content=buffer.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=exam_{admin_token}_results.xlsx"},
     )
@@ -316,10 +261,6 @@ async def get_exam(student_token: str, db=Depends(get_db)):
     }
 
 
-class ExamRunRequest(BaseModel):
-    code: str
-
-
 @router.post("/api/exam/{student_token}/run")
 async def run_exam_public_tests(student_token: str, req: ExamRunRequest,
                                 db=Depends(get_db), sandbox=Depends(get_sandbox)):
@@ -330,18 +271,7 @@ async def run_exam_public_tests(student_token: str, req: ExamRunRequest,
     public_cases, _ = rules.split_cases(exam["problem"]["test_cases"])
     cases_for_sandbox = [(tuple(tc["args"]), tc["expected"]) for tc in public_cases]
     detailed = sandbox.run_submission_cases(req.code, exam["problem"]["func_name"], cases_for_sandbox)
-    if detailed["status"] != "ran":
-        return {"status": detailed["status"], "message": detailed["message"], "cases": []}
-    return {
-        "status": "ran",
-        "message": None,
-        "cases": [{"passed": c["passed"], "error": c["error"]} for c in detailed["cases"]],
-    }
-
-
-class ExamSubmitRequest(BaseModel):
-    student_name: str
-    code: str
+    return rules.run_response(detailed)
 
 
 @router.post("/api/exam/{student_token}/submit")
@@ -353,17 +283,18 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
 
     problem = exam["problem"]
     _, hidden_cases = rules.split_cases(problem["test_cases"])
-    sample = {
-        "statement": problem["statement"],
-        "func_name": problem["func_name"],
-        "test_cases": [(tuple(tc["args"]), tc["expected"]) for tc in hidden_cases],
-        "rubric": problem["rubric"],
-        "submission_code": req.code,
-    }
+    sample = rules.build_submit_sample(
+        problem["statement"], problem["func_name"], problem["rubric"], hidden_cases, req.code
+    )
     # grade() is sync; the bridges call run_sync internally, which is fine here.
     try:
         result = grade(sample, client, run_submission=sandbox.run_submission)
     except Exception as e:
+        if str(e).startswith("sandbox failed"):
+            raise HTTPException(
+                status_code=502,
+                detail="Grading failed: your submission exceeded the time/resource limit.",
+            )
         raise HTTPException(status_code=502, detail=f"Grading failed: {e}")
 
     # Explanatory only, generated after the score is fixed; best effort.

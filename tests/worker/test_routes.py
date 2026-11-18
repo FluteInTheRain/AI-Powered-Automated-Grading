@@ -1,3 +1,4 @@
+import inspect
 import io
 import json
 
@@ -161,8 +162,50 @@ def test_submit_sandbox_failure_persists_nothing(env):
     ex = new_exam(c)
     env.sandbox.status = 500
     r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    assert r.status_code == 502
+    assert r.json()["detail"] == "Grading failed: your submission exceeded the time/resource limit."
+    assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
+
+
+def test_submit_persistence_failure_persists_nothing(env):
+    c = make_client(env)
+    ex = new_exam(c)
+    env.db.fail_on_batch_statement(2)  # a grading_logs insert, after the submission row
+    r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
     assert r.status_code == 502 and r.json()["detail"].startswith("Grading failed: ")
     assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
+
+
+def test_dependencies_are_coroutines_and_export_returns_xlsx(env):
+    # Pyodide has no threads: sync deps/streaming responses would use the thread pool.
+    for dep in (routes.get_db, routes.get_llm_client, routes.get_sandbox):
+        assert inspect.iscoroutinefunction(dep), dep.__name__
+
+
+def test_all_execution_goes_through_sandbox_without_expected(env):
+    c = make_client(env)
+    code = "def f(a):\n    return a * 1000 + 7\n"
+    problem = {**PROBLEM, "func_name": "f", "param_names": ["a"], "reference_solution": code,
+               "test_cases": [{"args": [1], "expected": 1007, "is_public": True},
+                              {"args": [2], "expected": 2007, "is_public": False}]}
+    n = len(env.sandbox.posted)
+    c.post("/api/teacher/preview-test-cases", json={
+        "reference_solution": code, "func_name": "f", "cases": [{"args": [1]}], "wrong_solution": code})
+    assert len(env.sandbox.posted) > n  # preview ran in the sandbox
+    n = len(env.sandbox.posted)
+    pid = c.post("/api/teacher/problems", json=problem).json()["id"]
+    assert len(env.sandbox.posted) == n + 1  # reference check
+    ex = c.post("/api/teacher/exams", json={"problem_id": pid}).json()
+    n = len(env.sandbox.posted)
+    c.post(f"/api/exam/{ex['student_token']}/run", json={"code": code})
+    assert len(env.sandbox.posted) == n + 1
+    n = len(env.sandbox.posted)
+    assert c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "A", "code": code}).status_code == 200
+    assert len(env.sandbox.posted) == n + 1
+    for payload in env.sandbox.posted:
+        assert set(payload) == {"code", "func_name", "args_list"}
+        assert "expected" not in json.dumps(payload)
+        assert "1007" not in json.dumps(payload) and "2007" not in json.dumps(payload)
 
 
 def test_export_has_header_and_rows(env):
@@ -176,3 +219,4 @@ def test_export_has_header_and_rows(env):
     assert rows[0] == ("student_name", "final_score", "correctness", "efficiency",
                        "code_style", "edge_case_handling", "submitted_at")
     assert len(rows) == 2 and rows[1][0] == "An" and rows[1][1] == 100.0
+    assert r.headers["content-type"].startswith("application/vnd.openxmlformats")

@@ -10,26 +10,25 @@ used for grading, and the teacher reviews/saves the computed outputs.
 """
 from __future__ import annotations
 
-import datetime
 import io
-import json
 import secrets
 import sys
 from pathlib import Path
-from typing import Any, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from grader.sandbox import compute_reference_outputs, run_submission
 
 from . import rules
+from .rules import (
+    CreateExamRequest, CreateProblemRequest, PreviewRequest, UpdateExamRequest,
+)
 from .db import get_session
 from .models import Exam, Problem, Submission
 
@@ -40,22 +39,6 @@ router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 DEFAULT_TIME_LIMIT_SECONDS = 600
 
 
-class PreviewCase(BaseModel):
-    args: List[Any]
-
-
-class PreviewRequest(BaseModel):
-    reference_solution: str
-    func_name: str
-    cases: List[PreviewCase]
-    # Optional: a deliberately-wrong solution, checked against the same
-    # cases. If it still passes all of them, the test suite doesn't
-    # actually distinguish right from wrong — the exact failure mode
-    # documented in data/script.md ("Notable finding from running the real
-    # pipeline"). Purely advisory, never blocks saving.
-    wrong_solution: Optional[str] = None
-
-
 @router.post("/preview-test-cases")
 def preview_test_cases(req: PreviewRequest):
     args_list = [tuple(c.args) for c in req.cases]
@@ -63,28 +46,6 @@ def preview_test_cases(req: PreviewRequest):
         req.reference_solution, req.func_name, args_list, req.wrong_solution,
         compute_reference_outputs=compute_reference_outputs, run_submission=run_submission,
     )
-
-
-class RubricIn(BaseModel):
-    correctness: int
-    efficiency: int
-    code_style: int
-    edge_case_handling: int
-
-
-class TestCaseIn(BaseModel):
-    args: List[Any]
-    expected: Any
-    is_public: bool = False
-
-
-class CreateProblemRequest(BaseModel):
-    statement: str
-    func_name: str
-    param_names: List[str]
-    rubric: RubricIn
-    reference_solution: str
-    test_cases: List[TestCaseIn]
 
 
 @router.post("/problems")
@@ -119,7 +80,7 @@ def list_problems(session: Session = Depends(get_session)):
     return [
         {
             "id": str(p.id),
-            "statement_excerpt": p.statement if len(p.statement) <= 120 else p.statement[:120] + "…",
+            "statement_excerpt": rules.statement_excerpt(p.statement),
             "created_at": p.created_at.isoformat(),
         }
         for p in problems
@@ -128,12 +89,6 @@ def list_problems(session: Session = Depends(get_session)):
 
 def _new_token() -> str:
     return secrets.token_urlsafe(16)
-
-
-class CreateExamRequest(BaseModel):
-    problem_id: str
-    deadline: Optional[datetime.datetime] = None
-    time_limit_seconds: Optional[int] = None
 
 
 @router.post("/exams")
@@ -211,10 +166,6 @@ def get_submission_audit(admin_token: str, submission_id: str, session: Session 
     ]
 
 
-class UpdateExamRequest(BaseModel):
-    deadline: Optional[datetime.datetime] = None
-
-
 @router.patch("/exams/{admin_token}")
 def update_exam(admin_token: str, req: UpdateExamRequest, session: Session = Depends(get_session)):
     exam = _exam_by_admin_token(admin_token, session)
@@ -233,22 +184,9 @@ def export_exam_results(admin_token: str, session: Session = Depends(get_session
     wb = Workbook()
     ws = wb.active
     ws.title = "Results"
-    ws.append([
-        "student_name", "final_score", "correctness", "efficiency",
-        "code_style", "edge_case_handling", "submitted_at",
-    ])
+    ws.append(rules.EXPORT_HEADER)
     for sub in submissions:
-        result = sub.result or {}
-        sub_scores = result.get("sub_scores_0_to_1") or {}
-        ws.append([
-            sub.student_name,
-            result.get("final_score_0_to_100"),
-            sub_scores.get("correctness"),
-            sub_scores.get("efficiency"),
-            sub_scores.get("code_style"),
-            sub_scores.get("edge_case_handling"),
-            sub.submitted_at.isoformat(),
-        ])
+        ws.append(rules.export_row(sub.student_name, sub.result, sub.submitted_at.isoformat()))
 
     buffer = io.BytesIO()
     wb.save(buffer)

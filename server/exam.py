@@ -10,7 +10,6 @@ case (server/models.py) — no positional convention like server/main.py's
 """
 from __future__ import annotations
 
-import datetime
 import logging
 import sys
 from pathlib import Path
@@ -18,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,6 +26,7 @@ from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 
 from . import rules
+from .rules import ExamRunRequest, ExamSubmitRequest
 from .config import BASE_URL, MODEL
 from .db import get_session
 from .models import Exam, GradingLog, Submission
@@ -61,10 +60,6 @@ def get_exam(student_token: str, session: Session = Depends(get_session)):
     }
 
 
-class ExamRunRequest(BaseModel):
-    code: str
-
-
 @router.post("/{student_token}/run")
 def run_exam_public_tests(student_token: str, req: ExamRunRequest, session: Session = Depends(get_session)):
     exam = _exam_by_student_token(student_token, session)
@@ -74,18 +69,7 @@ def run_exam_public_tests(student_token: str, req: ExamRunRequest, session: Sess
     public_cases, _ = rules.split_cases(exam.problem.test_cases)
     cases_for_sandbox = [(tuple(tc["args"]), tc["expected"]) for tc in public_cases]
     detailed = run_submission_cases(req.code, exam.problem.func_name, cases_for_sandbox)
-    if detailed["status"] != "ran":
-        return {"status": detailed["status"], "message": detailed["message"], "cases": []}
-    return {
-        "status": "ran",
-        "message": None,
-        "cases": [{"passed": c["passed"], "error": c["error"]} for c in detailed["cases"]],
-    }
-
-
-class ExamSubmitRequest(BaseModel):
-    student_name: str
-    code: str
+    return rules.run_response(detailed)
 
 
 @router.post("/{student_token}/submit")
@@ -96,13 +80,9 @@ def submit_exam(student_token: str, req: ExamSubmitRequest, session: Session = D
 
     problem = exam.problem
     _, hidden_cases = rules.split_cases(problem.test_cases)
-    sample = {
-        "statement": problem.statement,
-        "func_name": problem.func_name,
-        "test_cases": [(tuple(tc["args"]), tc["expected"]) for tc in hidden_cases],
-        "rubric": problem.rubric,
-        "submission_code": req.code,
-    }
+    sample = rules.build_submit_sample(
+        problem.statement, problem.func_name, problem.rubric, hidden_cases, req.code
+    )
     client = LLMClient(base_url=BASE_URL, model=MODEL, seed=0)
     try:
         result = grade(sample, client)

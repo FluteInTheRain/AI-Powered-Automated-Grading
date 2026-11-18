@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import datetime
 import json
-from typing import Any, List
+from typing import Any, List, Optional
+
+from pydantic import BaseModel
 
 
 def json_normalize(value: Any) -> Any:
@@ -105,3 +107,114 @@ def submission_row(sub) -> dict:
         "sub_scores_0_to_1": result.get("sub_scores_0_to_1"),
         "submitted_at": sub.submitted_at.isoformat(),
     }
+
+
+# --- request models shared by server/ and worker/ (one API contract) ---
+
+class SyntaxCheckRequest(BaseModel):
+    code: str
+
+
+class PreviewCase(BaseModel):
+    args: List[Any]
+
+
+class PreviewRequest(BaseModel):
+    reference_solution: str
+    func_name: str
+    cases: List[PreviewCase]
+    # Optional: a deliberately-wrong solution, checked against the same
+    # cases. If it still passes all of them, the test suite doesn't
+    # actually distinguish right from wrong — the exact failure mode
+    # documented in data/script.md ("Notable finding from running the real
+    # pipeline"). Purely advisory, never blocks saving.
+    wrong_solution: Optional[str] = None
+
+
+class RubricIn(BaseModel):
+    correctness: int
+    efficiency: int
+    code_style: int
+    edge_case_handling: int
+
+
+class TestCaseIn(BaseModel):
+    args: List[Any]
+    expected: Any
+    is_public: bool = False
+
+
+class CreateProblemRequest(BaseModel):
+    statement: str
+    func_name: str
+    param_names: List[str]
+    rubric: RubricIn
+    reference_solution: str
+    test_cases: List[TestCaseIn]
+
+
+class CreateExamRequest(BaseModel):
+    problem_id: str
+    deadline: Optional[datetime.datetime] = None
+    time_limit_seconds: Optional[int] = None
+
+
+class UpdateExamRequest(BaseModel):
+    deadline: Optional[datetime.datetime] = None
+
+
+class ExamRunRequest(BaseModel):
+    code: str
+
+
+class ExamSubmitRequest(BaseModel):
+    student_name: str
+    code: str
+
+
+# --- pure response/sample helpers ---
+
+def statement_excerpt(statement: str) -> str:
+    return statement if len(statement) <= 120 else statement[:120] + "…"
+
+
+def run_response(detailed: dict) -> dict:
+    """Shape a sandbox run_submission_cases result for the public-run endpoint
+    (pass/fail per case only, never the values)."""
+    if detailed["status"] != "ran":
+        return {"status": detailed["status"], "message": detailed["message"], "cases": []}
+    return {
+        "status": "ran",
+        "message": None,
+        "cases": [{"passed": c["passed"], "error": c["error"]} for c in detailed["cases"]],
+    }
+
+
+def build_submit_sample(statement: str, func_name: str, rubric: dict, hidden_cases: list, code: str) -> dict:
+    return {
+        "statement": statement,
+        "func_name": func_name,
+        "test_cases": [(tuple(tc["args"]), tc["expected"]) for tc in hidden_cases],
+        "rubric": rubric,
+        "submission_code": code,
+    }
+
+
+EXPORT_HEADER = [
+    "student_name", "final_score", "correctness", "efficiency",
+    "code_style", "edge_case_handling", "submitted_at",
+]
+
+
+def export_row(student_name: str, result: dict | None, submitted_at_iso: str) -> list:
+    result = result or {}
+    sub_scores = result.get("sub_scores_0_to_1") or {}
+    return [
+        student_name,
+        result.get("final_score_0_to_100"),
+        sub_scores.get("correctness"),
+        sub_scores.get("efficiency"),
+        sub_scores.get("code_style"),
+        sub_scores.get("edge_case_handling"),
+        submitted_at_iso,
+    ]
