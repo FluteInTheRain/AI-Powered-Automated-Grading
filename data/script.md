@@ -2,7 +2,7 @@
 
 65 samples, 16 original problems, 4-5 solutions per problem simulating different kinds of errors.
 (The first 8 problems / 33 samples were the original pilot set, used for the
-Phase 1/2 experiments in `docs/thesis/results.md`; problems P09-P16 were
+Phase 1/2 experiments in `docs/report/results.md`; problems P09-P16 were
 added in T3.1 to cover string processing, simple data structures, and
 recursion beyond fibonacci — problem types not represented in the original 8.)
 
@@ -17,7 +17,7 @@ final_score_0_to_100,
 annotation_source: origin of each sub-score
 ```
 
-## Score origins — read carefully before using this for the thesis
+## Score origins — read carefully before using this for any write-up
 
 | Criterion | Source | Reliability |
 |---|---|---|
@@ -32,7 +32,7 @@ annotation_source: origin of each sub-score
 - Bootstrap before real data is available.
 
 It CANNOT be used to:
-- Report "the model achieves X% correlation with humans" in the thesis — because the "human" here is me self-labeling by rule, not an independent instructor grading.
+- Report "the model achieves X% correlation with humans" in any write-up — because the "human" here is me self-labeling by rule, not an independent instructor grading.
 
 **Next step needed:** take these 65 samples (or a further-expanded set), have 1-2 instructors/TAs grade them independently using the same rubric, and compute Cohen's kappa or ICC between these rule-based scores and the real human scores. If agreement is high, the rule-based labels can be used to scale the dataset to hundreds of samples without needing a human to grade everything. If agreement is low, the rubric needs to be rewritten more clearly before scaling.
 

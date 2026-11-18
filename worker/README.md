@@ -200,7 +200,7 @@ of the spec's accepted risks.
   frontend with `VITE_HIDE_DEMO=1`, which hides the "Demo mode" button in the
   teacher page header; local and `deploy/` builds keep it. Use the local server
   (`uvicorn server.main:app`) for the demo.
-- The thesis experiments (`experiments/`) still run locally against llama.cpp;
+- The research experiments (`experiments/`) still run locally against llama.cpp;
   the Worker only serves the exam app.
 
 ## Switching to Workers Paid

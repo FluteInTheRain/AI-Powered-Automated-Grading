@@ -40,7 +40,7 @@ link, submit as a student, then review scores and the full LLM audit trail.
 ## Results
 
 All numbers below come from `experiments/` runs. The full tables, method and caveats are
-in [`docs/thesis/results.md`](docs/thesis/results.md).
+in [`docs/report/results.md`](docs/report/results.md).
 
 **Consistency.** Model: Qwen2.5-Coder-7B-Instruct (Q4_K_M) served by llama.cpp; temp=0;
 fixed seed. Each sample was graded 100 times.
@@ -254,7 +254,7 @@ accepted for the Free plan are in
 | Doc | Read it for |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Why the design is hybrid and decomposed, with citations |
-| [`docs/thesis/results.md`](docs/thesis/results.md) | Full experiment tables and caveats |
+| [`docs/report/results.md`](docs/report/results.md) | Full experiment tables and caveats |
 | [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history of the project |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Engineering deep dive written for portfolio readers (also as PDF) |
 | [`docs/productionization.md`](docs/productionization.md) | Ideas and backlog for turning the pipeline into a real product |

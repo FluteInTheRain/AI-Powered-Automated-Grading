@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Database engine/session setup for the product DB (server/models.py —
-problems/exams/submissions). Entirely separate from the thesis pipeline
+problems/exams/submissions). Entirely separate from the grading pipeline
 (src/, experiments/, data/), which has no database dependency.
 """
 from __future__ import annotations

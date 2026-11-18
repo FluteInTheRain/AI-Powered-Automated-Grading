@@ -7,7 +7,7 @@ the fully decomposed arm.
 Run consistency_test.py against each arm's implementation to compare
 exact-match rates; run this script to compare aggregate agreement with the
 dataset's rule-based labels (subject to the single-rater caveat in
-data/script.md — do not report this as human-agreement in the thesis).
+data/script.md — do not report this as human-agreement anywhere).
 """
 from __future__ import annotations
 

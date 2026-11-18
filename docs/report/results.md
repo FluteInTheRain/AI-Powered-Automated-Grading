@@ -2,7 +2,7 @@
 
 Setup for all experiments below: `Qwen2.5-Coder-7B-Instruct` (GGUF, Q4_K_M
 quantization) — the project default, the largest model still inside the
-thesis's sub-7B scope — served locally via llama.cpp's `llama-server` on
+project's sub-7B scope — served locally via llama.cpp's `llama-server` on
 Apple Silicon (Metal backend), temperature=0, fixed seed=0. See
 `configs/model.yaml` for full serving configuration. An earlier pass of the
 same experiments on `Qwen2.5-Coder-1.5B-Instruct` (Q8_0) is archived in
@@ -54,7 +54,7 @@ consistent" — a formal repeat with larger n and/or harder submissions
   higher concurrency than tested here.
 - No paper found in the literature review specifically measures exact-match
   consistency of LLM grading under batched serving — this remains a gap the
-  thesis can note, with the caveat above about how far this particular
+  write-up can note, with the caveat above about how far this particular
   result can be stretched to fill it.
 
 Raw data: `results/consistency_*.json` (7B, current) and

@@ -2,7 +2,7 @@
 """ORM models for the product DB — problems authored by a teacher, exam
 links shared with students, and the submissions students turn in.
 
-Separate from the thesis pipeline's data shape (data/problems.py,
+Separate from the grading pipeline's data shape (data/problems.py,
 data/dataset.json) — this is live product data, not pilot/experiment data.
 """
 from __future__ import annotations

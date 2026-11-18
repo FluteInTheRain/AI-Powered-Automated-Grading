@@ -2,7 +2,7 @@
 
 A deep dive into the engineering decisions behind this project, written for
 readers evaluating the work as a portfolio piece (not the academic framing —
-see `docs/architecture.md` and `docs/thesis/` for that). Every claim below
+see `docs/architecture.md` and `docs/report/` for that). Every claim below
 is backed by a specific file or experiment result in this repo.
 
 ## The actual problem
@@ -38,7 +38,7 @@ same 65-sample dataset:
 
 Agreement rises monotonically with each decomposition step. This is the
 empirical justification for the architecture below, not just a design
-preference — see `docs/thesis/results.md` for the full table including a
+preference — see `docs/report/results.md` for the full table including a
 1.5B-vs-7B comparison and p-values.
 
 ## Architecture
@@ -127,7 +127,7 @@ easy (`S1_correct_clean`) and deliberately-hard submissions (a self-pairing
 logic bug, a negative-input edge case, an exponential-time-but-correct
 solution, a missing-lowercasing bug). Full detail and scope caveats (this
 tests llama.cpp's specific batching implementation, not vLLM's, at one
-concurrency level) in `docs/thesis/results.md`.
+concurrency level) in `docs/report/results.md`.
 
 ### 5. Deploying around a hardware constraint, not despite it
 
@@ -153,7 +153,7 @@ health-check with a readiness poll) around the raw `llama-server` binary.
 | Ablation (architecture justification) | 65 samples, 3 arms, Spearman ρ vs. reference labels | free_form 0.60 → hybrid_freeform 0.85 → hybrid_decomposed **0.88** |
 | Parse failures, free-form arms | 65 samples, both free-form conditions | 0/65 |
 
-Source data: `docs/thesis/results.md` (the numbers here are drawn from
+Source data: `docs/report/results.md` (the numbers here are drawn from
 there, not recomputed).
 
 ## Stack

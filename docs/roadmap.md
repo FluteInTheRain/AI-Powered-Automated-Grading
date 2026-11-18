@@ -37,7 +37,7 @@ source of truth for project status, not a one-off plan to read once.
   manually and sanity-check the output shape matches `dataset.json`.
   ~1-2h.
 
-## Phase 1 — Consistency experiment (the thesis's core claim)
+## Phase 1 — Consistency experiment (the project's core claim)
 
 - [x] **T1.1 — Baseline consistency, no batching.** 100/100 exact-match on
   all 4 samples tested (P01, P02, P04, P08) — see `results/consistency_*.json`.
@@ -55,7 +55,7 @@ source of truth for project status, not a one-off plan to read once.
   this is llama.cpp's continuous-batching implementation specifically, on
   a 1.5B model, n=100, concurrency=8 — does not necessarily generalize to
   vLLM's batching, larger models, or higher concurrency; worth
-  a note-not-a-headline in the thesis, and a candidate for revisiting with
+  a note-not-a-headline in the write-up, and a candidate for revisiting with
   higher concurrency/larger n if time allows.
 
 - [x] **T1.3 — Isolate which rubric dimension is least consistent.**
@@ -68,7 +68,7 @@ source of truth for project status, not a one-off plan to read once.
   negative-input edge case, `P05_fibonacci__S2` correct-but-exponential,
   `P07_palindrome_check__S2` missing lowercasing) — **still 1.0 exact-match,
   zero variance in every per-check breakdown**, both batched and unbatched.
-  See `docs/thesis/results.md` "harder submissions" section for detail.
+  See `docs/report/results.md` "harder submissions" section for detail.
   Not fully closed: this still doesn't explain the separate manual-testing
   inconsistency noted in `docs/architecture.md` — that remains open.
 
@@ -92,7 +92,7 @@ source of truth for project status, not a one-off plan to read once.
   purpose (agreement comparison) is answered.
 
 - [x] **T2.3 — Write up the ablation comparison.**
-  `docs/thesis/results.md` — consistency table (T1.1/T1.2) + ablation table
+  `docs/report/results.md` — consistency table (T1.1/T1.2) + ablation table
   (T2.2) + scope caveats for both, citing arXiv:2606.08625/2411.15594 from
   `docs/architecture.md`.
 
@@ -111,12 +111,12 @@ source of truth for project status, not a one-off plan to read once.
   ρ=0.85, hybrid_decomposed ρ=0.88 — same ordering as the original 33-sample
   run, conclusion holds on the larger, more varied set. 33-sample run
   archived at `results/ablation_33samples_7b.json`, 65-sample is the current
-  `results/ablation.json`. See `docs/thesis/results.md` for full table.
+  `results/ablation.json`. See `docs/report/results.md` for full table.
 
 - [x] **T3.2 — skipped for now (user decision).** Recruiting an
   instructor/TA to independently grade a subsample is deferred — not
   ruled out, just not being pursued at the moment. Revisit if there's time
-  before writing, since T3.3 and the "agreement with humans" thesis claim
+  before writing, since T3.3 and the "agreement with humans" claim
   both depend on it; until then, `data/script.md`'s single-rater caveat
   stands as-is and any agreement numbers (T2.2/ablation) stay framed as
   "agreement with rule-based labels," never "agreement with human graders."
@@ -132,7 +132,7 @@ source of truth for project status, not a one-off plan to read once.
   batched, 7B model, 65-sample dataset), and T2.2 shows
   **hybrid_decomposed ρ=0.88** agreement with rule-based labels, best of
   the three arms. Prompting + structured-output decoding alone clears the
-  bar without fine-tuning — recorded as a thesis finding in its own right
+  bar without fine-tuning — recorded as a project finding in its own right
   ("prompting + structured decoding is sufficient; LoRA fine-tuning was not
   necessary to hit the consistency target"), not a skipped step.
 
@@ -143,8 +143,8 @@ source of truth for project status, not a one-off plan to read once.
 ## Phase 5 — Writing
 
 - [x] **T5.1 — Literature review section.**
-  Written in Vietnamese, LaTeX: `docs/thesis/latex/main.tex` (single-file
-  thesis doc, per user request — superseded the earlier English Markdown
+  Written in Vietnamese, LaTeX: `docs/report/latex/main.tex` (single-file
+  report doc, per user request — superseded the earlier English Markdown
   draft and a short-lived multi-file `chapters/`+`.bib` split, both
   removed). Draws only on the citations already in `docs/architecture.md`
   (7 arXiv IDs) — bibliography is an inline `thebibliography` in
@@ -152,7 +152,7 @@ source of truth for project status, not a one-off plan to read once.
   metadata, flagged there as a to-do before submission.
 
 - [x] **T5.2 — Proposed method section.**
-  Written in Vietnamese, LaTeX, same single file: `docs/thesis/latex/main.tex`.
+  Written in Vietnamese, LaTeX, same single file: `docs/report/latex/main.tex`.
   Covers pipeline shape, the no-agent-framework rationale, sandbox
   correctness scoring, the three structured rubric checks (efficiency /
   code_style / edge_case_handling) with their exact scoring formulas from
@@ -163,10 +163,10 @@ source of truth for project status, not a one-off plan to read once.
   machine, so not yet compiled/verified to build.
 
 - [x] **T5.3 — Experiments + results sections.**
-  Added as two new chapters in `docs/thesis/latex/main.tex`
+  Added as two new chapters in `docs/report/latex/main.tex`
   (`\chapter{Thực nghiệm}`, `\chapter{Kết quả}`), replacing the placeholder
   comment left by T5.2. `results/` is empty on this machine (gitignored,
-  raw JSON not present) — numbers were pulled from `docs/thesis/results.md`
+  raw JSON not present) — numbers were pulled from `docs/report/results.md`
   instead, which was itself written from those JSON files and is the
   source of truth checked into git; every table cites its underlying
   `results/*.json` path for traceability once that data is available again.
@@ -185,7 +185,7 @@ source of truth for project status, not a one-off plan to read once.
 
 - **Productionization ideas are tracked separately, not here.** See
   `docs/productionization.md` for what it would take to move this from a
-  thesis prototype to something usable on real student submissions
+  research prototype to something usable on real student submissions
   (sandbox security, question import, editor UX, class-scale serving,
   audit trail). Deliberately out of scope for Phases 0-5 — only pick it up
   when explicitly asked.
@@ -199,10 +199,10 @@ source of truth for project status, not a one-off plan to read once.
   across the board: free_form 0.52→0.59, hybrid_freeform 0.75→0.88,
   hybrid_decomposed 0.87→0.89 (7B narrows the free-form-vs-hybrid gap
   without closing it — hybrid_decomposed is still best). See
-  `docs/thesis/results.md` for the full writeup.
+  `docs/report/results.md` for the full writeup.
 - Phases 1 and 2 are the load-bearing ones — everything else (dataset
   scale-up, fine-tuning, writing) depends on their numbers. Don't start
   Phase 3/4 work speculatively before Phase 1/2 numbers exist.
 - Phase 4 has a real chance of being skipped entirely — that's a valid,
-  even interesting, thesis outcome ("prompting + structured decoding alone
+  even interesting, outcome ("prompting + structured decoding alone
   achieves the consistency target"), not a failure to fine-tune.

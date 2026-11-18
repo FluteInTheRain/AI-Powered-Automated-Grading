@@ -1,16 +1,16 @@
 # Productionization ideas
 
-This is a separate track from `docs/roadmap.md` (the thesis task tracker).
-`docs/roadmap.md` Phases 0-5 are about producing the thesis (experiments,
+This is a separate track from `docs/roadmap.md` (the project task tracker).
+`docs/roadmap.md` Phases 0-5 are about producing the research write-up (experiments,
 writing). This file is about what it would take to turn the same pipeline
 into something a real instructor could actually use to grade real student
 submissions — captured here so it isn't lost, to implement later, not
-before Phase 1/2/5 thesis work is done.
+before Phase 1/2/5 write-up work is done.
 
 **Do not start on any of this speculatively** — it's out of scope for the
-thesis itself. Only pick an item up when the user explicitly asks to work
+project's research track itself. Only pick an item up when the user explicitly asks to work
 on productionization, and confirm which item first (they're independent,
-not a strict sequence like the thesis phases).
+not a strict sequence like the research phases).
 
 Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
 `[x]`) in the same turn it's actually implemented, don't leave it stale.
@@ -104,6 +104,6 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
 ## Where this came from
 
 Captured from a conversation on 2026-08-21 proposing concrete next steps
-to move the project from thesis-prototype to something usable in a real
-class. See `docs/roadmap.md` for the thesis track this is deliberately
+to move the project from research prototype to something usable in a real
+class. See `docs/roadmap.md` for the research track this is deliberately
 kept separate from.
