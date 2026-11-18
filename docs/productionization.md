@@ -12,6 +12,10 @@ project's research track itself. Only pick an item up when the user explicitly a
 on productionization, and confirm which item first (they're independent,
 not a strict sequence like the research phases).
 
+Who to sell to first and in what order (tutoring centers, then self-learners)
+is in [`commercialization-plan.md`](commercialization-plan.md); it references
+the PR-xx items below instead of repeating them.
+
 Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
 `[x]`) in the same turn it's actually implemented, don't leave it stale.
 
