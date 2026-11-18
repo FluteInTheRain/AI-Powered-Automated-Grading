@@ -1,5 +1,7 @@
 # AI-Powered Automated Grading
 
+**English** | [Tiếng Việt](README.vi.md)
+
 **Reproducible, auditable grading of programming assignments with small LLMs.**
 
 [![Live demo](https://img.shields.io/badge/demo-grading.khangnguyen.workers.dev-f38020?logo=cloudflare&logoColor=white)](https://grading.khangnguyen.workers.dev)
@@ -262,7 +264,7 @@ accepted for the Free plan are in
 | [`worker/README.md`](worker/README.md) | Deploying and operating the Cloudflare version |
 
 The repo also has a [`CLAUDE.md`](CLAUDE.md) and project slash commands in
-`.claude/commands/` (`/run-consistency`, `/run-ablation`, `/add-problem`) for working on it
+`.claude/commands/` (`/run-consistency`, `/run-ablation`, `/add-problem`, `/report-section`) for working on it
 with Claude Code.
 
 ## License
