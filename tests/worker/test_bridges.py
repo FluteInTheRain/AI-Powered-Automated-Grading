@@ -30,6 +30,7 @@ def test_ai_sends_bare_schema_seed_temperature():
     c.structured_call("sys", "usr", Out)
     model, p = ai.calls[0]
     assert model == "m1" and p["temperature"] == 0 and p["seed"] == 7
+    assert p["max_tokens"] == 2048  # Workers AI default (256) truncates feedback JSON
     assert p["response_format"] == {"type": "json_schema", "json_schema": Out.model_json_schema()}
     assert p["messages"][0] == {"role": "system", "content": "sys"}
 
@@ -71,7 +72,7 @@ class FakeBinding:
     def __init__(self, status=200):
         self.status, self.posted = status, []
 
-    def fetch(self, url, init):
+    def fetch(self, url, **init):
         assert url == "https://sandbox/execute" and init["method"] == "POST"
         payload = json.loads(init["body"])
         self.posted.append(payload)
@@ -151,7 +152,7 @@ def test_ai_both_levels_to_py():
 
 def test_remote_case_count_mismatch_raises():
     class Short(FakeBinding):
-        def fetch(self, url, init):
+        def fetch(self, url, **init):
             return _Resp(200, json.dumps({"status": "ran", "message": None, "cases": []}))
     with pytest.raises(RuntimeError, match="sandbox returned 0 cases for 1 inputs"):
         RemoteSandbox(Short(), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])

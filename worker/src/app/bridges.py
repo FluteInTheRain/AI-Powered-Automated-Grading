@@ -1,7 +1,9 @@
 """Adapters that let the synchronous grader run inside a Cloudflare Python Worker.
 
-`env.AI` and `env.SANDBOX` are async JS objects; `pyodide.ffi.run_sync` turns
-their awaitables into plain values. Tests inject fakes and `run_sync=lambda x: x`.
+`env.AI` and `env.SANDBOX` are async; `pyodide.ffi.run_sync` turns their
+awaitables into plain values. The Workers SDK wraps both bindings (workers.rpc):
+results already arrive as Python objects, and the service binding's fetch takes
+keyword arguments. Tests inject fakes and `run_sync=lambda x: x`.
 """
 from __future__ import annotations
 
@@ -14,6 +16,9 @@ from pydantic import BaseModel
 T = TypeVar("T", bound=BaseModel)
 
 SANDBOX_URL = "https://sandbox/execute"
+# Workers AI caps output at 256 tokens unless max_tokens is set, which cuts the
+# feedback JSON mid-string. 2048 leaves room for long feedback on 300-line code.
+MAX_TOKENS = 2048
 
 
 def _default_run_sync():
@@ -54,6 +59,7 @@ class WorkersAIClient:
             ],
             "temperature": 0,
             "seed": self.seed,
+            "max_tokens": MAX_TOKENS,
             # Workers AI reads json_schema as the bare schema itself.
             "response_format": {"type": "json_schema", "json_schema": schema.model_json_schema()},
         }
@@ -75,10 +81,15 @@ class WorkersAIClient:
 
 
 def _post_json(binding, url: str, payload: dict, run_sync) -> Tuple[int, str]:
-    """The only JS-facing call of the sandbox bridge."""
-    init = {"method": "POST", "headers": {"content-type": "application/json"},
-            "body": json.dumps(payload)}
-    resp = run_sync(binding.fetch(url, _to_js(init)))
+    """The only JS-facing call of the sandbox bridge.
+
+    The Python Workers SDK wraps service bindings in env (workers.rpc._FetcherWrapper):
+    fetch(url, **init) takes the init fields as keyword arguments and returns a
+    pyodide FetchResponse (.status, async .text()).
+    """
+    resp = run_sync(binding.fetch(url, method="POST",
+                                  headers={"content-type": "application/json"},
+                                  body=json.dumps(payload)))
     text = run_sync(resp.text())
     return resp.status, text
 
