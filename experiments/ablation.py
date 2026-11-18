@@ -7,7 +7,7 @@ the fully decomposed arm.
 Run consistency_test.py against each arm's implementation to compare
 exact-match rates; run this script to compare aggregate agreement with the
 dataset's rule-based labels (subject to the single-rater caveat in
-data/script.md — do not report this as human-agreement in the thesis).
+data/script.md — do not report this as human-agreement anywhere).
 """
 from __future__ import annotations
 
@@ -109,11 +109,15 @@ def main():
     parser.add_argument(
         "--arm", choices=["free_form", "hybrid_freeform", "hybrid_decomposed", "all"], default="all",
     )
+    parser.add_argument(
+        "--seed", type=int, default=0,
+        help="0 matches every documented result; Cloudflare Workers AI rejects seed < 1",
+    )
     args = parser.parse_args()
 
     dataset = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     reference = [s["final_score_0_to_100"] for s in dataset]
-    client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
+    client = LLMClient(base_url=args.base_url, model=args.model, seed=args.seed)
 
     report = {"n_samples": len(dataset)}
 
@@ -146,6 +150,7 @@ def main():
         }
         print(f"hybrid_decomposed: agreement={report['hybrid_decomposed']['spearman_agreement']}")
 
+    report.update(seed=args.seed, base_url=args.base_url, model=args.model)  # which backend/seed produced this file
     RESULTS_DIR.mkdir(exist_ok=True)
     out_path = RESULTS_DIR / "ablation.json"
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

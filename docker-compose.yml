@@ -1,5 +1,5 @@
 # Local Postgres for the product DB (server/models.py — problems/exams/
-# submissions). Not used by the thesis pipeline (src/, experiments/, data/),
+# submissions). Not used by the grading pipeline (src/, experiments/, data/),
 # which has no database dependency.
 #
 # Usage: docker compose up -d

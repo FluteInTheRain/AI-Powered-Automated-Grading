@@ -49,14 +49,14 @@
 
 \section{Phạm vi}
 
-Đề tài này nằm ở giao điểm của hai hướng nghiên cứu: chấm điểm tự động bài
+Dự án này nằm ở giao điểm của hai hướng nghiên cứu: chấm điểm tự động bài
 tập lập trình bằng LLM, và hướng nghiên cứu rộng hơn về LLM-as-a-judge —
 làm sao để lấy được một điểm số đáng tin cậy từ một mô hình ngôn ngữ. Các
 mục dưới đây được tổ chức theo từng quyết định thiết kế trong
 \texttt{docs/architecture.md}: mỗi mục nêu quyết định thiết kế, tài liệu
 tham khảo làm căn cứ, và — ở những chỗ có thực nghiệm trong repo kiểm chứng
 thực nghiệm cho luận điểm đó — dẫn chiếu tới kết quả tương ứng
-(\texttt{docs/thesis/results.md}).
+(\texttt{docs/report/results.md}).
 
 \section{Từ chấm điểm toàn thể (holistic) đến đánh giá có cấu trúc, phân rã}
 \label{sec:rubric-decomposition-lit}
@@ -74,7 +74,7 @@ the Evolving LLM Landscape}, arXiv:2606.08625
 phán đoán toàn thể thành các kiểm tra (check) nhỏ, độc lập, có cấu trúc, và
 tổng hợp kết quả bên ngoài mô hình thay vì để mô hình tự tạo ra hoặc tự
 điều chỉnh con số cuối cùng. Đây chính là động lực trực tiếp cho hình dạng
-pipeline của đề tài — chấm điểm đúng/sai (correctness) bằng thực thi trong
+pipeline của dự án — chấm điểm đúng/sai (correctness) bằng thực thi trong
 sandbox cộng với một lệnh gọi LLM hẹp, có cấu trúc theo schema, cho mỗi
 tiêu chí rubric còn lại (\texttt{src/grader/rubric\_checks.py}), tổng hợp
 bằng một tổng có trọng số cố định trong code thuần
@@ -86,16 +86,16 @@ without Validity: Systematic Evaluation of LLM-as-a-Judge}
 (arXiv:2606.19544 \cite{reliability_without_validity}): một ``giám khảo''
 (judge) có thể đáng tin cậy (reliable — nhất quán) mà không nhất thiết hợp
 lệ (valid — đúng, hoặc khớp với một chuẩn con người thực sự). Sự phân biệt
-này ánh xạ trực tiếp vào hai nhánh thực nghiệm riêng biệt của đề tài — Pha
+này ánh xạ trực tiếp vào hai nhánh thực nghiệm riêng biệt của dự án — Pha
 1 đo độ tin cậy (tỷ lệ khớp tuyệt đối — exact-match — qua nhiều lần chạy
-lặp lại, mục ``Consistency'' trong \texttt{docs/thesis/results.md}) và Pha
+lặp lại, mục ``Consistency'' trong \texttt{docs/report/results.md}) và Pha
 2 đo một đại lượng đại diện cho tính hợp lệ (độ tương quan Spearman với
 nhãn tham chiếu của bộ dữ liệu, mục ``Ablation'' trong
-\texttt{docs/thesis/results.md}) — và cũng là lý do đề tài luôn gọi cẩn
+\texttt{docs/report/results.md}) — và cũng là lý do dự án luôn gọi cẩn
 thận các con số tương quan ở Pha 2 là ``mức độ đồng thuận với nhãn dựa trên
 luật'' (agreement with rule-based labels), chứ không phải ``mức độ đồng
 thuận với giám khảo con người'': nhãn tham chiếu cho \texttt{efficiency}
-và \texttt{code\_style} do một người duy nhất (chính tác giả đề tài) tự gán
+và \texttt{code\_style} do một người duy nhất (chính tác giả dự án) tự gán
 nhãn, không phải nhãn chuẩn độc lập từ con người
 (\texttt{data/script.md}). Đáng tin cậy mà không hợp lệ là một cái bẫy dễ
 gặp ở đây — một pipeline luôn trả về cùng một điểm số \emph{sai} ở mọi lần
@@ -112,14 +112,14 @@ chấm điểm theo kiểu chuỗi suy luận (chain-of-thought) hoặc từng b
 một mâu thuẫn thực sự với yêu cầu về tính nhất quán ở trên: suy luận
 chain-of-thought bằng văn bản tự do chính là loại sinh văn bản không ràng
 buộc mà thực nghiệm về tính nhất quán ở Pha 1 được thiết kế để nhạy cảm với
-nó. Giải pháp của đề tài này là lấy lợi ích của ``từng bước'' mà hai bài
+nó. Giải pháp của dự án này là lấy lợi ích của ``từng bước'' mà hai bài
 báo trên báo cáo, nhưng không phải trả giá bằng phương sai của văn bản tự
 do — việc phân rã diễn ra dưới dạng các \emph{lệnh gọi} mô hình riêng biệt,
 mỗi lệnh gọi giới hạn trong đúng một tiêu chí rubric với đầu ra dạng đóng
 (enum hoặc boolean) nhỏ gọn thông qua giải mã ràng buộc theo văn phạm
 (grammar-constrained decoding), thay vì một chuỗi suy luận dài hướng tới
 một con số. Phần mô tả pipeline trong \texttt{docs/architecture.md} nêu rõ
-đây là câu trả lời của đề tài cho phát hiện của CodEv/StepGrade.
+đây là câu trả lời của dự án cho phát hiện của CodEv/StepGrade.
 
 \section{Đặt correctness bên ngoài mô hình}
 
@@ -129,7 +129,7 @@ Generators} (arXiv:2411.09261 \cite{autograding_test_suites}) và
 \textit{Multi-Programming Language Sandbox for LLMs} (arXiv:2410.23074
 \cite{multi_lang_sandbox}) đều làm việc với công cụ liên quan đến LLM xoay
 quanh việc thực thi code thật, thay vì để LLM đánh giá correctness bằng
-cách đọc code. Đề tài này giữ lập trường tương tự, vì lý do tính xác định
+cách đọc code. Dự án này giữ lập trường tương tự, vì lý do tính xác định
 (determinism) cũng nhiều như vì lý do độ chính xác: correctness được chấm
 hoàn toàn bằng cách chạy code nộp bài với các test case thật trong sandbox
 (\texttt{src/grader/sandbox.py}) — có tính xác định theo cấu trúc, không
@@ -153,17 +153,17 @@ số học dấu phẩy động qua các tổ hợp batch khác nhau — đượ
 tính nhất quán ở Pha 1. Tìm kiếm trong các tài liệu đã trích dẫn ở trên
 không thấy bài báo nào đo trực tiếp tỷ lệ khớp tuyệt đối (exact-match) của
 việc \emph{chấm điểm} bằng LLM dưới điều kiện batched serving;
-\texttt{docs/thesis/results.md} ghi nhận rõ đây là một khoảng trống mà
-chính thực nghiệm về tính nhất quán của đề tài (Pha 1, chạy trên
+\texttt{docs/report/results.md} ghi nhận rõ đây là một khoảng trống mà
+chính thực nghiệm về tính nhất quán của dự án (Pha 1, chạy trên
 continuous-batching của llama.cpp) phần nào giải quyết được, kèm lưu ý về
 phạm vi rằng một serving engine và một họ mô hình duy nhất ở một mức độ
 concurrency không thiết lập được kết luận tổng quát. Khoảng trống này là
-một cách đóng khung khả dĩ cho đóng góp của đề tài: một phép đo tính nhất
+một cách đóng khung khả dĩ cho đóng góp của dự án: một phép đo tính nhất
 quán thực nghiệm cho một pipeline chấm điểm hybrid-decomposed cụ thể, dưới
 một serving engine cụ thể, thay vì một tuyên bố tổng quát về tính xác định
 của serving LLM.
 
-\section{Tóm tắt: thiết kế của đề tài bám theo tài liệu như thế nào}
+\section{Tóm tắt: thiết kế của dự án bám theo tài liệu như thế nào}
 
 \begin{table}[h]
 \centering
@@ -178,7 +178,7 @@ Tách riêng độ tin cậy và tính hợp lệ như hai luận điểm không
   được cho nhau &
   \cite{reliability_without_validity} &
   Pha 1 (consistency) và Pha 2 (ablation agreement),
-  \texttt{docs/thesis/results.md} \\
+  \texttt{docs/report/results.md} \\
 Lấy lợi ích chấm điểm từng bước mà không có phương sai của CoT tự do &
   \cite{codev}, \cite{stepgrade} &
   Các lệnh gọi riêng cho từng tiêu chí thay vì một chuỗi CoT \\
@@ -207,7 +207,7 @@ của \texttt{docs/architecture.md} trước, để đường dẫn trích dẫn
 kiểm chứng được. Ngoài ra, danh mục tài liệu tham khảo ở cuối file này hiện
 \textbf{chưa có tên tác giả/năm xuất bản/hội nghị đầy đủ} cho 7 trích dẫn
 trên — cần tra lại từng arXiv ID trên arxiv.org và điền đầy đủ trước khi
-nộp luận văn chính thức.
+công bố bản chính thức.
 
 % ============================================================
 \chapter{Phương pháp đề xuất}
@@ -254,7 +254,7 @@ input: statement, rubric, submission_code, test_cases
 \section{Vì sao không dùng agent framework}
 
 Quyết định không dùng một khung điều phối đa tác tử (LangChain, CrewAI,
-v.v.) xuất phát trực tiếp từ yêu cầu cứng của đề tài — tính nhất quán
+v.v.) xuất phát trực tiếp từ yêu cầu cứng của dự án — tính nhất quán
 (consistency) giữa các lần chạy lặp lại trên cùng một đầu vào. Mỗi lớp điều
 phối thêm vào (lập kế hoạch từng bước, định tuyến gọi công cụ, giao tiếp
 giữa các tác tử) là một nơi có thể làm rò rỉ thêm phi-xác-định
@@ -386,11 +386,11 @@ thay đổi điểm số đó.
 
 \section{Lựa chọn mô hình và cấu hình phục vụ (serving)}
 
-Mô hình mặc định của đề tài là \textbf{Qwen2.5-Coder-7B-Instruct} (định
+Mô hình mặc định của dự án là \textbf{Qwen2.5-Coder-7B-Instruct} (định
 dạng GGUF, lượng tử hóa Q4\_K\_M) — mô hình lớn nhất còn nằm trong phạm vi
-dưới 7 tỷ tham số mà đề tài đặt ra. Ban đầu đề tài dự kiến dùng vLLM, nhưng
+dưới 7 tỷ tham số mà dự án đặt ra. Ban đầu dự án dự kiến dùng vLLM, nhưng
 máy phát triển là Apple Silicon (M1 Pro, không có CUDA) — vLLM không có
-backend GPU được hỗ trợ trên nền tảng này, nên đề tài chuyển sang
+backend GPU được hỗ trợ trên nền tảng này, nên dự án chuyển sang
 \texttt{llama-server} của llama.cpp: tương thích API kiểu OpenAI, tăng tốc
 bằng Metal, và hỗ trợ giải mã ràng buộc theo văn phạm GBNF cho đầu ra JSON.
 Cấu hình xác định (\texttt{configs/model.yaml}) cố định
@@ -400,10 +400,10 @@ Cấu hình xác định (\texttt{configs/model.yaml}) cố định
 Vì \texttt{temperature=0} + seed cố định + giải mã ràng buộc \emph{không}
 tự động đảm bảo lặp lại chính xác từng bit dưới một serving engine có
 batching (do tính không kết hợp của số học dấu phẩy động qua các tổ hợp
-batch khác nhau), đề tài coi đây là điều cần đo thực nghiệm chứ không phải
+batch khác nhau), dự án coi đây là điều cần đo thực nghiệm chứ không phải
 điều một cờ cấu hình (config flag) đảm bảo sẵn —
 \texttt{experiments/consistency\_test.py} là phép kiểm định thực nghiệm
-tương ứng (chi tiết và kết quả: \texttt{docs/thesis/results.md}, ngoài
+tương ứng (chi tiết và kết quả: \texttt{docs/report/results.md}, ngoài
 phạm vi chương Phương pháp này).
 
 \section{Thiết kế bộ dữ liệu thí điểm}
@@ -437,13 +437,13 @@ code\_style & Quy tắc 3 mức cố định (clean/medium/poor), tự gán & M�
 (\texttt{data/script.md})}
 \end{table}
 
-\textbf{Hạn chế quan trọng nhất, cần nhắc lại xuyên suốt luận văn:} dữ liệu
+\textbf{Hạn chế quan trọng nhất, cần nhắc lại xuyên suốt báo cáo:} dữ liệu
 này là code do chính tác giả viết với lỗi cố ý chèn vào, tự phân loại —
 không phải bài làm của sinh viên thật, và không có điểm số từ giảng viên
 thật. Do đó bộ dữ liệu này \emph{có thể} dùng để kiểm tra pipeline chạy
 đúng và đo tính nhất quán của LLM (không cần ground truth thật, chỉ cần đầu
 vào cố định), nhưng \emph{không thể} dùng để báo cáo ``mô hình đạt X\% độ
-tương quan với con người'' trong luận văn — vì ``con người'' ở đây là chính
+tương quan với con người'' trong bất kỳ báo cáo nào — vì ``con người'' ở đây là chính
 tác giả tự gán nhãn theo luật, không phải giảng viên chấm độc lập. Bước
 tiếp theo cần thiết (T3.2 trong \texttt{docs/roadmap.md}, hiện đang tạm
 hoãn theo quyết định của người dùng) là nhờ 1--2 giảng viên/trợ giảng chấm
@@ -478,7 +478,7 @@ kết quả được trình bày ở Chương~\ref{ch:results}. Toàn bộ dữ 
 các thí nghiệm được lưu dưới dạng JSON trong thư mục \texttt{results/}
 (không đưa vào kho mã nguồn git — xem \texttt{.gitignore}); bản tổng hợp
 đầy đủ, đã kiểm tra lại với các file JSON đó, nằm ở
-\texttt{docs/thesis/results.md}, là nguồn số liệu duy nhất được dùng cho
+\texttt{docs/report/results.md}, là nguồn số liệu duy nhất được dùng cho
 chương này và Chương~\ref{ch:results}.
 
 \section{Cấu hình chung}
@@ -490,7 +490,7 @@ Metal), \texttt{temperature=0}, \texttt{seed=0} cố định (chi tiết:
 \texttt{configs/model.yaml}, đã trình bày ở
 Chương~\ref{ch:proposed-method}). Một lượt chạy trước đó của cùng hai thí
 nghiệm trên mô hình nhỏ hơn, \textbf{Qwen2.5-Coder-1.5B-Instruct} (Q8\_0) —
-mô hình dùng trong giai đoạn đầu của đề tài trước khi chuyển sang 7B — được
+mô hình dùng trong giai đoạn đầu của dự án trước khi chuyển sang 7B — được
 lưu trữ tại \texttt{results/archive\_1.5b/} và dùng làm điểm so sánh kích
 thước mô hình ở Chương~\ref{ch:results}.
 
@@ -543,7 +543,7 @@ exact-match cao chỉ vì mẫu kiểm tra quá dễ.
 \label{sec:exp-ablation}
 
 \textbf{Mục tiêu:} kiểm định thực nghiệm cho quyết định kiến trúc chính của
-đề tài (Mục~\ref{sec:rubric-decomposition-lit}) — rằng tách correctness ra
+dự án (Mục~\ref{sec:rubric-decomposition-lit}) — rằng tách correctness ra
 khỏi LLM và phân rã các tiêu chí còn lại thành các lệnh gọi độc lập, có đầu
 ra ràng buộc schema, cải thiện độ đồng thuận với nhãn tham chiếu so với một
 lệnh gọi LLM toàn thể, tự do.
@@ -560,7 +560,7 @@ của bộ dữ liệu bằng hệ số tương quan hạng Spearman ($\rho$):
     hợp với \emph{một} lệnh gọi LLM tự do bao trùm cả ba tiêu chí còn lại
     (efficiency, code\_style, edge\_case\_handling gộp chung, chưa phân
     rã).
-  \item \textbf{hybrid\_decomposed} — pipeline thực tế của đề tài:
+  \item \textbf{hybrid\_decomposed} — pipeline thực tế của dự án:
     correctness sandbox + ba lệnh gọi LLM độc lập, đầu ra có cấu trúc (một
     lệnh gọi cho mỗi tiêu chí ngoài correctness) + tổng hợp điểm cố định ở
     phía code (Mục~\ref{sec:aggregation}).
@@ -635,11 +635,11 @@ nhất quán ở $N$ này'', chứ không phải ``đã chứng minh luôn nhấ
 \begin{itemize}
   \item Kết quả đo riêng cho việc triển khai continuous-batching cụ thể của
     llama.cpp; không chắc khái quát được sang batching của vLLM (engine mà
-    phần lớn tài liệu được trích dẫn và kế hoạch ban đầu của đề tài giả
+    phần lớn tài liệu được trích dẫn và kế hoạch ban đầu của dự án giả
     định) hay mức độ đồng thời cao hơn mức đã kiểm định ở đây.
   \item Không tìm thấy công trình nào trong phần tổng quan tài liệu đo trực
     tiếp tính nhất quán exact-match của việc chấm điểm bằng LLM dưới
-    batched serving — đây vẫn là một khoảng trống của tài liệu mà đề tài
+    batched serving — đây vẫn là một khoảng trống của tài liệu mà dự án
     có thể góp phần lấp, với các giới hạn phạm vi nêu trên.
 \end{itemize}
 
@@ -684,7 +684,7 @@ giữa nhánh free-form ngây thơ và các nhánh hybrid — \texttt{hybrid\_de
 vẫn là nhánh tốt nhất ở cả hai kích thước. Điều này gợi ý lợi ích của kiến
 trúc phân rã có thể lớn nhất với mô hình nhỏ và giảm dần khi mô hình lớn
 hơn — nhưng 7B vẫn là kích thước lớn nhất được kiểm định (do phạm vi dưới
-7 tỷ tham số của đề tài), nên xu hướng này không nên được ngoại suy vượt
+7 tỷ tham số của dự án), nên xu hướng này không nên được ngoại suy vượt
 quá 7B.
 
 \textbf{So sánh 33 mẫu với 65 mẫu (cùng mô hình 7B):} kết luận ổn định khi

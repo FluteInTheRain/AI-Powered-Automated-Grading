@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .llm_client import LLMClient
 from .schemas import CodeFeedback, FeedbackItem
+
+if TYPE_CHECKING:
+    from .llm_client import LLMClient  # annotation-only; keeps `openai` out of Worker startup
 
 PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "feedback.txt"
 

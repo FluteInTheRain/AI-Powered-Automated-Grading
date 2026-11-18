@@ -77,8 +77,8 @@ dựng quanh một yêu cầu cứng, có thể kiểm chứng: \emph{điểm s�
 dưới điều kiện serving có batching thật. Đây là bản mở rộng có sơ đồ của
 \texttt{docs/TECHNICAL\_OVERVIEW.md} trong repo dự án, viết cho mục đích
 portfolio/CV. Phần khung học thuật của cùng dự án (tổng quan tài liệu, mô
-tả phương pháp chính thức, kết quả kiểu luận văn) nằm riêng ở
-\texttt{docs/thesis/}.
+tả phương pháp chính thức, kết quả kiểu báo cáo) nằm riêng ở
+\texttt{docs/report/}.
 \end{abstract}
 
 \tableofcontents
@@ -146,7 +146,7 @@ phân rã: một lệnh gọi free-form
 $\rightarrow$ correctness từ sandbox + một lệnh gọi free-form cho phần còn
 lại
 $\rightarrow$ correctness từ sandbox + một lệnh gọi có cấu trúc cho mỗi
-tiêu chí rubric. Bảng đầy đủ kèm p-value trong \texttt{docs/thesis/results.md}.}
+tiêu chí rubric. Bảng đầy đủ kèm p-value trong \texttt{docs/report/results.md}.}
 \label{fig:ablation-bar}
 \end{figure}
 
@@ -313,7 +313,7 @@ mối lo lý thuyết. \texttt{experiments/consistency\_test.py} đo trực ti�
 lần dưới cả serving không batching và có batching. Kết quả trên 4 mẫu dễ
 và 4 mẫu cố tình khó (có lỗi / trường hợp biên): tỷ lệ exact-match = 1.0 ở
 mọi điều kiện, phương sai bằng 0 trên mọi breakdown theo từng check. Xem
-\texttt{docs/thesis/results.md} để biết các lưu ý về phạm vi (cơ chế
+\texttt{docs/report/results.md} để biết các lưu ý về phạm vi (cơ chế
 batching cụ thể của llama.cpp, một mức concurrency).}
 \label{fig:consistency}
 \end{figure}
@@ -365,7 +365,7 @@ Ablation (căn cứ kiến trúc) & 65 mẫu, 3 nhánh, Spearman $\rho$ so với
 Parse fail, các nhánh free-form & 65 mẫu, cả hai điều kiện free-form & 0/65 \\
 \bottomrule
 \end{tabular}
-\caption{Các con số chính, đều lấy từ \texttt{docs/thesis/results.md}
+\caption{Các con số chính, đều lấy từ \texttt{docs/report/results.md}
 (không tính lại ở đây).}
 \label{tab:results}
 \end{table}

@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 from .config import BASE_URL, MODEL
 from .exam import router as exam_router
+from .rules import SyntaxCheckRequest
 from .teacher import router as teacher_router
 
 # Hardcoded per current product requirement — every problem gets the same
@@ -140,10 +141,6 @@ def get_problem(problem_id: str):
         "public_test_case_count": n_public,
         "hidden_test_case_count": len(p["test_cases"]) - n_public,
     }
-
-
-class SyntaxCheckRequest(BaseModel):
-    code: str
 
 
 @app.post("/api/syntax-check")

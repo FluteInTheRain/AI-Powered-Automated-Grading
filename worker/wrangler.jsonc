@@ -1,0 +1,25 @@
+{
+  "name": "grading",
+  "main": "src/main.py",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["python_workers"],
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grading",
+      // The remote D1 database, created with `wrangler d1 create grading`.
+      "database_id": "55195641-a141-4a76-bd0b-858f35503fe2",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "services": [{ "binding": "SANDBOX", "service": "grading-sandbox" }],
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": { "LLM_MODEL": "@cf/qwen/qwen2.5-coder-32b-instruct" },
+  "observability": { "enabled": true }
+}

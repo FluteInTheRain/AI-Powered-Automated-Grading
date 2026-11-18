@@ -64,12 +64,16 @@ def main():
         "--concurrency", type=int, default=1,
         help="requests in flight at once; >1 actually exercises server-side batching",
     )
+    parser.add_argument(
+        "--seed", type=int, default=0,
+        help="0 matches every documented result; Cloudflare Workers AI rejects seed < 1",
+    )
     args = parser.parse_args()
 
     sample = load_sample(args.sample_id)
     # One LLMClient (one underlying HTTP connection pool) shared across
     # threads is fine — each structured_call is a self-contained request.
-    client = LLMClient(base_url=args.base_url, model=args.model, seed=0)
+    client = LLMClient(base_url=args.base_url, model=args.model, seed=args.seed)
 
     scores = []
     sub_scores_log = []  # per-run sub_scores_0_to_1, so variance can be broken down by check (T1.3)
@@ -95,6 +99,7 @@ def main():
         check: sorted({s[check] for s in sub_scores_log})
         for check in sub_scores_log[0]
     } if sub_scores_log else {}
+    report.update(seed=args.seed, base_url=args.base_url, model=args.model)  # which backend/seed produced this file
     RESULTS_DIR.mkdir(exist_ok=True)
     suffix = f"_{args.tag}" if args.tag else ""
     out_path = RESULTS_DIR / f"consistency_{args.sample_id}{suffix}.json"

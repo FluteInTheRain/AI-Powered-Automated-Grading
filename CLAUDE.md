@@ -1,6 +1,6 @@
 # AI-Powered-Automated-Grading — project memory
 
-Master's thesis: sub-7B LLM system for grading programming assignments.
+Personal research project: sub-7B LLM system for grading programming assignments.
 Hard requirement: exact-match score consistency across repeated runs on the
 same input (temp=0, greedy, fixed seed, non-batched inference).
 
@@ -36,7 +36,7 @@ exact protocol.
 (sandbox-executed). efficiency + code_style labels are single-rater
 (self-annotated by the author when writing `data/problems.py`) — NOT
 independent human ground truth. Never report agreement with these labels as
-"agreement with human graders" in thesis text; call it a pipeline sanity
+"agreement with human graders" in any write-up; call it a pipeline sanity
 check pending real instructor annotation. Full detail: `data/script.md`.
 
 ## Working style for this project

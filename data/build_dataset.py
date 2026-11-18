@@ -10,7 +10,7 @@ IMPORTANT (read README.md for the full limitation):
 - efficiency / code_style / edge_case_handling: assigned via a fixed rule based on
   the `expected_profile` that I (Claude) designed myself when writing each submission -
   this is single-rater annotation, NOT ground truth from a real instructor.
-  Usable for the pilot experiment, not a substitute for human annotation in the final thesis.
+  Usable for the pilot experiment, not a substitute for human annotation in any final write-up.
 """
 import importlib.util
 import json

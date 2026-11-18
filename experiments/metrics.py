@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Metrics for the two thesis claims: exact-match consistency, and agreement
+"""Metrics for the two central claims: exact-match consistency, and agreement
 with (rule-based, single-rater — see data/script.md caveat) labels."""
 from __future__ import annotations
 

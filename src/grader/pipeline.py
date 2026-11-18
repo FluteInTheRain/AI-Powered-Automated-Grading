@@ -10,14 +10,24 @@ orchestrator to buy you.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .aggregator import aggregate
-from .llm_client import LLMClient
 from .rubric_checks import check_code_style, check_edge_case_handling, check_efficiency
-from .sandbox import run_submission, score_correctness
+from .sandbox import run_submission as _default_run_submission, score_correctness
+
+if TYPE_CHECKING:
+    # Annotation-only; importing llm_client pulls in `openai`, which cannot be
+    # imported at Cloudflare Worker startup.
+    from .llm_client import LLMClient
 
 
-def grade(sample: dict, client: LLMClient) -> dict:
-    """`sample` follows the schema documented in data/README (script.md)."""
+def grade(sample: dict, client: LLMClient, run_submission=_default_run_submission) -> dict:
+    """`sample` follows the schema documented in data/README (script.md).
+
+    `run_submission` is injectable so a Worker can run student code in a
+    separate sandbox Worker; the default is the local sandbox.
+    """
     exec_result = run_submission(
         sample["submission_code"], sample["func_name"], sample["test_cases"]
     )

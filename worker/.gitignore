@@ -1,0 +1,9 @@
+# Build copies (refreshed by build.sh)
+src/vendor/
+src/prompts/
+src/server/
+# Tooling
+.venv/
+.venv-workers/
+.wrangler/
+python_modules/

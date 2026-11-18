@@ -6,9 +6,12 @@ replaces a single free-form "give me a score 0-100" prompt.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .llm_client import LLMClient
 from .schemas import CHECK_SCHEMAS, EdgeCaseCheck, EfficiencyCheck, OrdinalLevel, StyleCheck
+
+if TYPE_CHECKING:
+    from .llm_client import LLMClient  # annotation-only; keeps `openai` out of Worker startup
 
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
