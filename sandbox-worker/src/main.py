@@ -1,36 +1,31 @@
 """FastAPI entrypoint for the grading-sandbox Python Worker.
 
-This Worker has no bindings, no vars and no public URL: the only thing reachable
-from exec'd student code is nothing. The main Worker calls it via service binding.
+This Worker has no bindings, secrets or data for exec'd student code to reach.
+Outbound fetch is an accepted risk. Expected values are never sent here: the
+sandbox only returns outputs and the main Worker does the comparison.
 """
+import json
 import sys
 from pathlib import Path
 
 # In the deployed bundle src/ is the root; the grader copy lives at src/vendor/grader.
 sys.path.insert(0, str(Path(__file__).resolve().parent / "vendor"))
 
-from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi import FastAPI, HTTPException, Request  # noqa: E402
 
 import handler  # noqa: E402
 
 app = FastAPI()
 
-_MODES = {"run", "cases", "reference"}
-
 
 @app.post("/execute")
-async def execute(payload: dict):
-    if (
-        payload.get("mode") not in _MODES
-        or not isinstance(payload.get("code"), str)
-        or not isinstance(payload.get("func_name"), str)
-        or not isinstance(payload.get("cases"), list)
-    ):
-        raise HTTPException(status_code=400, detail="bad payload")
+async def execute(request: Request):
     try:
-        return handler.execute(payload)
-    except (ValueError, TypeError, KeyError) as e:
+        payload = json.loads(await request.body())
+        handler.validate(payload)
+    except (ValueError, handler.BadPayload) as e:  # json errors and BadPayload only
         raise HTTPException(status_code=400, detail=f"bad payload: {e}")
+    return handler.execute(payload)
 
 
 from workers import asgi  # noqa: E402
