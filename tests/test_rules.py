@@ -51,3 +51,12 @@ def test_is_closed():
     assert rules.is_closed(None) is False
     assert rules.is_closed(now - dt.timedelta(seconds=1)) is True
     assert rules.is_closed(now + dt.timedelta(hours=1)) is False
+
+
+def test_export_row_neutralises_formulas():
+    inj = '=HYPERLINK("http://x")'
+    assert rules.export_row(inj, {}, "t")[0] == "'" + inj
+    for bad in ("+1", "-1", "@SUM(A1)", "\tx", "\rx"):
+        assert rules.export_row(bad, {}, "t")[0] == "'" + bad
+    row = rules.export_row("An", {"final_score_0_to_100": -5.0}, "t")
+    assert row[0] == "An" and row[1] == -5.0 and row[2] is None

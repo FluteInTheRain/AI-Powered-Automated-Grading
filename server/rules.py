@@ -206,11 +206,22 @@ EXPORT_HEADER = [
 ]
 
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value):
+    """Neutralise spreadsheet formula injection: a string cell starting with a
+    formula trigger gets an apostrophe prefix so it is stored as text."""
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
 def export_row(student_name: str, result: dict | None, submitted_at_iso: str) -> list:
     result = result or {}
     sub_scores = result.get("sub_scores_0_to_1") or {}
     return [
-        student_name,
+        _safe_cell(student_name),
         result.get("final_score_0_to_100"),
         sub_scores.get("correctness"),
         sub_scores.get("efficiency"),

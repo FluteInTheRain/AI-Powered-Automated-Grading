@@ -220,3 +220,13 @@ def test_export_has_header_and_rows(env):
                        "code_style", "edge_case_handling", "submitted_at")
     assert len(rows) == 2 and rows[1][0] == "An" and rows[1][1] == 100.0
     assert r.headers["content-type"].startswith("application/vnd.openxmlformats")
+
+
+def test_export_injected_name_is_text_not_formula(env):
+    c = make_client(env)
+    ex = new_exam(c)
+    c.post(f"/api/exam/{ex['student_token']}/submit",
+           json={"student_name": '=HYPERLINK("http://x")', "code": REF})
+    r = c.get(f"/api/teacher/exams/{ex['admin_token']}/export.xlsx")
+    cell = load_workbook(io.BytesIO(r.content)).active["A2"]
+    assert cell.data_type == "s" and cell.value == "'=HYPERLINK(\"http://x\")"
