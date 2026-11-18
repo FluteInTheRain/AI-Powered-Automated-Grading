@@ -107,9 +107,53 @@ def test_remote_matches_local_on_pilot():
         for s in p["submissions"]:
             a = rs.run_submission(s["code"], p["func_name"], p["test_cases"])
             b = local.run_submission(s["code"], p["func_name"], p["test_cases"])
-            assert (a["pass_count"], a["status"], a["total"]) == (b["pass_count"], b["status"], b["total"]), s["sub_id"]
+            assert a == b, s["sub_id"]
 
 
 def test_remote_sandbox_non_200_raises():
     with pytest.raises(RuntimeError, match="sandbox failed: 500"):
         RemoteSandbox(FakeBinding(500), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
+
+
+class _Py:
+    """JS-proxy stand-in: only exposes to_py()."""
+    def __init__(self, value):
+        self._v = value
+
+    def to_py(self):
+        return self._v
+
+
+def test_ai_result_level_to_py():
+    class AI:
+        def run(self, m, p):
+            return _Py({"response": {"score": 5}})
+    assert WorkersAIClient(AI(), "m", run_sync=ident).structured_call("s", "u", Out).score == 5
+
+
+def test_ai_response_level_to_py():
+    class AI:
+        def run(self, m, p):
+            return {"response": _Py({"score": 6})}
+    c = WorkersAIClient(AI(), "m", run_sync=ident)
+    assert c.structured_call("s", "u", Out).score == 6
+    assert json.loads(c.call_log[0]["raw_response"]) == {"score": 6}
+
+
+def test_ai_both_levels_to_py():
+    class R:
+        response = _Py({"score": 7})
+    class AI:
+        def run(self, m, p):
+            return R()
+    assert WorkersAIClient(AI(), "m", run_sync=ident).structured_call("s", "u", Out).score == 7
+
+
+def test_remote_case_count_mismatch_raises():
+    class Short(FakeBinding):
+        def fetch(self, url, init):
+            return _Resp(200, json.dumps({"status": "ran", "message": None, "cases": []}))
+    with pytest.raises(RuntimeError, match="sandbox returned 0 cases for 1 inputs"):
+        RemoteSandbox(Short(), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
+    with pytest.raises(RuntimeError, match="sandbox returned 0 cases for 1 inputs"):
+        RemoteSandbox(Short(), run_sync=ident).compute_reference_outputs(CODE, "add", [(1, 2)])

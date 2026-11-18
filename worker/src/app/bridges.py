@@ -30,6 +30,12 @@ def _to_js(obj):
     return to_js(obj, dict_converter=js.Object.fromEntries)
 
 
+def _to_py(value):
+    """Convert a JS-backed proxy to Python; plain values pass through."""
+    to_py = getattr(value, "to_py", None)
+    return to_py() if callable(to_py) else value
+
+
 class WorkersAIClient:
     """Same interface and call_log keys as grader.llm_client.LLMClient."""
 
@@ -51,8 +57,9 @@ class WorkersAIClient:
             # Workers AI reads json_schema as the bare schema itself.
             "response_format": {"type": "json_schema", "json_schema": schema.model_json_schema()},
         }
-        result = self._run_sync(self.ai.run(self.model, _to_js(payload)))
+        result = _to_py(self._run_sync(self.ai.run(self.model, _to_js(payload))))
         content = result.get("response") if isinstance(result, dict) else getattr(result, "response", None)
+        content = _to_py(content)
         if content is None or content == "":
             raise RuntimeError(f"{self.model}: empty response from Workers AI")
         raw = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
@@ -90,13 +97,20 @@ class RemoteSandbox:
             raise RuntimeError(f"sandbox failed: {status}")
         return json.loads(text)
 
+    @staticmethod
+    def _check_len(res: dict, inputs) -> None:
+        if len(res["cases"]) != len(inputs):
+            raise RuntimeError(f"sandbox returned {len(res['cases'])} cases for {len(inputs)} inputs")
+
     def _run_compared(self, code: str, func_name: str, test_cases: List[Tuple[tuple, Any]]) -> dict:
         # Expected values stay here (R4); only args go to the sandbox.
         res = self._execute(code, func_name, [args for args, _ in test_cases])
         if res["status"] != "ran":
             return {"status": res["status"], "message": res["message"], "cases": []}
+        self._check_len(res, test_cases)
         cases = []
         for (args, expected), c in zip(test_cases, res["cases"]):
+            # JSON round trip on expected is intended (R4): a tuple expected equals a list output.
             passed = c["error"] is None and c["output"] == json.loads(json.dumps(expected))
             cases.append({"passed": passed, "args": args, "expected": expected,
                           "actual": c["output"], "error": c["error"]})
@@ -128,6 +142,7 @@ class RemoteSandbox:
         res = self._execute(code_str, func_name, args_list)
         if res["status"] != "ran":
             return {"status": res["status"], "message": res["message"], "cases": []}
+        self._check_len(res, args_list)
         return {"status": "ran", "message": None,
                 "cases": [{"args": a, "output": c["output"], "error": c["error"]}
                           for a, c in zip(args_list, res["cases"])]}
