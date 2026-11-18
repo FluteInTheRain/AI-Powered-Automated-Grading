@@ -94,6 +94,10 @@ To put this in front of other people instead of running it locally, see
 internal/trusted demo (**not** hardened for public, unknown-student use —
 that runbook says exactly what's still missing before it would be).
 
+The exam app is also deployed on Cloudflare Workers (Free plan) at
+https://grading.khangnguyen.workers.dev; how to deploy it, its known risks and
+limits are in [`worker/README.md`](worker/README.md).
+
 ## Working with Claude Code on this project
 
 This repo has a `CLAUDE.md` (project rules and conventions) and a few
