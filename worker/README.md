@@ -57,7 +57,8 @@ The current database id is `55195641-a141-4a76-bd0b-858f35503fe2` (region APAC).
 ## Redeploy after a code change
 
 ```bash
-./sandbox-worker/build.sh && ./worker/build.sh
+# Optional DEMO_EXAM_PATH shows a "try it" box on the home page linking to a sample exam.
+./sandbox-worker/build.sh && DEMO_EXAM_PATH=/exam/<student_token> ./worker/build.sh
 (cd sandbox-worker && uv run pywrangler deploy)   # only if src/grader/sandbox.py or sandbox-worker/ changed
 (cd worker && uv run pywrangler deploy)
 ```

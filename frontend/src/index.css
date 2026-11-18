@@ -734,3 +734,14 @@ body {
   overflow-y: auto;
   margin: 0;
 }
+
+.demo-banner {
+  border-left: 3px solid var(--accent);
+}
+.demo-banner ol {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  padding: 0;
+}
+.demo-banner a {
+  color: var(--accent);
+}

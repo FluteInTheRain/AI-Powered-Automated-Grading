@@ -1,7 +1,9 @@
 # Commercialization plan
 
-Status: **plan only, nothing scheduled.** Agreed with Khang on 2026-11-18. Nothing here
-starts until Khang asks for it. Feature-level backlog items already tracked in
+Status: **ideas only, not being pursued.** This project is a portfolio demo and is not
+being put in front of real users (Khang, 2026-11-18). The document records how it could be
+commercialized, as a reference for design discussions. Nothing here starts unless Khang
+asks for it. Feature-level backlog items already tracked in
 [`productionization.md`](productionization.md) are referenced by their IDs (PR-xx) and
 not repeated.
 

@@ -16,4 +16,7 @@ cp "$ROOT/server/rules.py" "$SRC/server/rules.py"
 find "$SRC/vendor" "$SRC/server" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # VITE_HIDE_DEMO hides the "Demo mode" link: the Worker has no /demo API routes.
-(cd "$ROOT/frontend" && { [ -d node_modules ] || npm install; } && VITE_HIDE_DEMO=1 npm run build)
+# VITE_DEMO_EXAM_PATH (optional) shows a "try it" box linking to a sample exam's
+# student path, e.g. DEMO_EXAM_PATH=/exam/<student_token> ./worker/build.sh
+(cd "$ROOT/frontend" && { [ -d node_modules ] || npm install; } && \
+  VITE_HIDE_DEMO=1 VITE_DEMO_EXAM_PATH="${DEMO_EXAM_PATH:-}" npm run build)

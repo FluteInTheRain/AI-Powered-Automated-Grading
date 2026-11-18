@@ -17,6 +17,9 @@ function parseArgs(row) {
   return row.values.map((v) => JSON.parse(v))
 }
 
+// Set by worker/build.sh (VITE_DEMO_EXAM_PATH); empty in the VM/dev build.
+const DEMO_EXAM_PATH = import.meta.env.VITE_DEMO_EXAM_PATH || ''
+
 export default function TeacherHomePage() {
   const [statement, setStatement] = useState('')
   const [funcName, setFuncName] = useState('')
@@ -181,6 +184,23 @@ export default function TeacherHomePage() {
           </a>
         )}
       </header>
+
+      {DEMO_EXAM_PATH && (
+        <section className="teacher-section demo-banner">
+          <h2>Thử nhanh trong 30 giây</h2>
+          <ol>
+            <li>
+              Mở <a href={DEMO_EXAM_PATH}>đề mẫu two_sum</a> với vai học viên.
+            </li>
+            <li>Dán lời giải (đúng hoặc sai) và bấm Nộp bài để xem điểm, nhận xét.</li>
+            <li>Muốn tự ra đề: kéo xuống mục 1 bên dưới, soạn đề rồi tạo link chia sẻ.</li>
+          </ol>
+          <p className="status-line">
+            Bản demo công khai: không có đăng nhập, dùng chung hạn mức AI miễn phí mỗi ngày. Đừng
+            nộp dữ liệu nhạy cảm.
+          </p>
+        </section>
+      )}
 
       <section className="teacher-section">
         <h2>1. Soạn đề</h2>
