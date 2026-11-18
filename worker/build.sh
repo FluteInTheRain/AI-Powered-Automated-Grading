@@ -15,4 +15,5 @@ cp "$ROOT/server/rules.py" "$SRC/server/rules.py"
 : > "$SRC/server/__init__.py"
 find "$SRC/vendor" "$SRC/server" -name __pycache__ -type d -prune -exec rm -rf {} +
 
-(cd "$ROOT/frontend" && { [ -d node_modules ] || npm install; } && npm run build)
+# VITE_HIDE_DEMO hides the "Demo mode" link: the Worker has no /demo API routes.
+(cd "$ROOT/frontend" && { [ -d node_modules ] || npm install; } && VITE_HIDE_DEMO=1 npm run build)

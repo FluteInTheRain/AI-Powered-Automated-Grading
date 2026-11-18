@@ -174,9 +174,12 @@ export default function TeacherHomePage() {
     <div className="app">
       <header className="app-header">
         <h1>Soạn đề &amp; tạo link chia sẻ</h1>
-        <a className="btn btn-secondary" href="/demo">
-          Demo mode
-        </a>
+        {/* The Cloudflare Worker build sets VITE_HIDE_DEMO: /demo's API only exists in server/. */}
+        {!import.meta.env.VITE_HIDE_DEMO && (
+          <a className="btn btn-secondary" href="/demo">
+            Demo mode
+          </a>
+        )}
       </header>
 
       <section className="teacher-section">
