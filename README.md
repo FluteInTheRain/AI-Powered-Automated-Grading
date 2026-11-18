@@ -1,120 +1,270 @@
 # AI-Powered Automated Grading
 
-A master's thesis project: a **sub-7B-parameter LLM system for automated
-grading of programming assignments**, built around one hard, testable
-requirement — **run-to-run score consistency**. Given the exact same
-problem statement, rubric, and submission, the system must return the exact
-same score every time it's run (temperature=0, greedy decoding, fixed seed,
-non-batched inference).
+**Reproducible, auditable grading of programming assignments with small LLMs.**
 
-This is a determinism requirement, not a semantic-robustness one:
-paraphrased-but-equivalent submissions scoring differently is a separate,
-out-of-scope question. What's in scope is that dynamic batching in serving
-engines can break *bit-exact* determinism even at temp=0, due to
-floating-point non-associativity — so this project treats consistency as
-something to measure empirically, not something a config flag guarantees.
+[![Live demo](https://img.shields.io/badge/demo-grading.khangnguyen.workers.dev-f38020?logo=cloudflare&logoColor=white)](https://grading.khangnguyen.workers.dev)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776ab?logo=python&logoColor=white)](requirements.txt)
+[![React 18](https://img.shields.io/badge/react-18-61dafb?logo=react&logoColor=black)](frontend/package.json)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-## Why hybrid, not "just ask an LLM to grade it"
+A personal research project. The question it answers: can a model with **at most
+7B parameters** grade code so that the **same submission always gets the same
+score**, and can a teacher see exactly why?
 
-A single LLM call producing one free-form holistic score has high
-run-to-run variance — the model reasons differently each time even at
-temp=0 under real serving conditions. Instead, this system:
+Most "LLM grader" demos ask one model for one holistic score. That score drifts from run
+to run, and nobody can audit it. This project takes a different design:
 
-1. **Scores correctness by running the code for real**, in a sandbox,
-   against test cases — deterministic by construction, no LLM involved.
-2. **Scores every other rubric dimension** (efficiency, code style,
-   edge-case handling) via **small, independent, structured-output LLM
-   calls** — one narrow prompt per dimension, each returning a
-   JSON-schema-constrained answer (a boolean or a short enum, not free
-   text) instead of one long reasoning trace toward a number.
-3. **Aggregates the final score in plain code** — a fixed weighted sum,
-   never computed or adjusted by the LLM.
+- **Correctness comes from running the code.** The student's function is executed against
+  test cases in a sandbox. No LLM is involved, so this part is deterministic by construction.
+- **Every other rubric dimension is a small, closed question.** Efficiency, code style and
+  edge-case handling each get one narrow prompt whose answer is constrained by a JSON
+  schema (a boolean or a short ordinal level), never free text.
+- **The final score is plain Python.** It is a fixed weighted sum of the parts. The LLM never
+  produces or adjusts a number.
 
-Decomposing the rubric into small, closed-form, independently-answerable
-checks — instead of one holistic judgment — is itself one of this thesis's
-candidate contributions, alongside the empirical consistency measurements.
-See [`docs/architecture.md`](docs/architecture.md) for the full design
-rationale and the literature it's grounded in.
+Try it: **https://grading.khangnguyen.workers.dev**. Create a problem, share the exam
+link, submit as a student, then review scores and the full LLM audit trail.
 
-## Project status
+## Contents
 
-See [`docs/roadmap.md`](docs/roadmap.md) for the phase-by-phase task plan
-and current progress (infrastructure → consistency experiments → ablation
-→ dataset validation → optional fine-tuning → writing).
+- [Results](#results)
+- [How grading works](#how-grading-works)
+- [What is in the repo](#what-is-in-the-repo)
+- [Getting started](#getting-started)
+- [Running the experiments](#running-the-experiments)
+- [Deployment](#deployment)
+- [Limitations](#limitations)
+- [Documentation](#documentation)
+- [License](#license)
 
-## Layout
+## Results
+
+All numbers below come from `experiments/` runs. The full tables, method and caveats are
+in [`docs/thesis/results.md`](docs/thesis/results.md).
+
+**Consistency.** Model: Qwen2.5-Coder-7B-Instruct (Q4_K_M) served by llama.cpp; temp=0;
+fixed seed. Each sample was graded 100 times.
+
+| Condition | Samples | Exact-match rate |
+|---|---|---|
+| Sequential requests, no batching | 4 clean-correct submissions | 1.0 on all 4 |
+| Batched serving (`--parallel 4`, 8 concurrent clients) | same 4 | 1.0 on all 4 |
+| Both conditions | 4 submissions with subtle bugs or exponential time | 1.0 on all 4 |
+
+Each individual rubric check also produced exactly one distinct value across all 100 runs.
+
+**Ablation.** Does decomposing the rubric help? The table shows Spearman ρ against the
+dataset's reference labels, over 65 samples (16 problems).
+
+| Arm | What the LLM does | ρ |
+|---|---|---|
+| `free_form` | One prompt, one holistic score | 0.60 |
+| `hybrid_freeform` | Sandbox scores correctness; one free-form prompt scores everything else | 0.85 |
+| `hybrid_decomposed` (this design) | Sandbox scores correctness; one schema-constrained prompt per dimension | **0.88** |
+
+Every decomposition step improved agreement. Because prompting plus structured decoding
+already met the targets (>98% exact-match, good agreement), the planned LoRA fine-tuning
+phase was **not needed**, and it was skipped by a recorded go/no-go check.
+
+> **Read these numbers with their caveats.**
+> - The reference labels for efficiency and code style were annotated by one person, the
+>   author, so the ρ values are a pipeline sanity check. They are not agreement with
+>   human graders. See [`data/script.md`](data/script.md).
+> - "1.0 at n=100" means no inconsistency was detected at that sample size. It does not
+>   prove the grader is deterministic: one manual test session did see a check flip
+>   between two identical calls.
+
+## How grading works
+
+```mermaid
+flowchart LR
+    S[Student submission] --> X[Sandbox: run test cases]
+    X -->|pass rate| C[correctness]
+    X -->|"0 tests passed or compile error"| Z[All dimensions = 0]
+    S --> E[LLM check: efficiency]
+    S --> T[LLM check: code style]
+    S --> H[LLM check: edge cases]
+    C --> A["aggregate()<br/>fixed weighted sum in Python"]
+    E --> A
+    T --> A
+    H --> A
+    A --> F[Final score 0-100]
+    F -.-> FB[LLM feedback text<br/>generated after scoring,<br/>never changes the score]
+```
+
+| Step | Code | Notes |
+|---|---|---|
+| Run tests | [`src/grader/sandbox.py`](src/grader/sandbox.py) | The only source of correctness. If the code fails to compile or passes 0 tests, every dimension scores 0, so the LLM cannot give partial credit to a stub. |
+| LLM checks | [`src/grader/rubric_checks.py`](src/grader/rubric_checks.py), [`prompts/`](prompts/) | One independent call per dimension. The output is validated against the pydantic models in [`src/grader/schemas.py`](src/grader/schemas.py). |
+| Determinism knobs | [`src/grader/llm_client.py`](src/grader/llm_client.py) | temperature=0, a fixed seed and JSON-schema-constrained decoding, set in one place. Every call is appended to a `call_log` for the audit trail. |
+| Score | [`src/grader/aggregator.py`](src/grader/aggregator.py) | A weighted sum with the rubric weights (for example 60/15/15/10). |
+| Orchestration | [`src/grader/pipeline.py`](src/grader/pipeline.py) | `grade()` is a single sequential function. It uses no agent framework, so there is no extra layer where non-determinism could leak in. |
+
+The design rationale and the literature behind it are in
+[`docs/architecture.md`](docs/architecture.md).
+
+## What is in the repo
+
+The repo has two layers: a **research pipeline** that measures the grader, and a
+**product app** that teachers and students use.
 
 ```
-src/grader/       grading pipeline (sandbox, LLM checks, aggregation)
-prompts/          one prompt per rubric dimension, scoped narrowly
-experiments/      consistency test, ablation, metrics
-configs/          model/serving config (determinism-relevant settings)
-data/             pilot dataset + generator (problems.py, build_dataset.py)
-docs/             architecture notes, roadmap, literature references
-results/          experiment outputs (gitignored, dir kept)
-server/, frontend/ product API + React app (see "Product server" below)
-deploy/           single-VM deployment for an internal demo (deploy/README.md)
-.claude/commands/ project-specific slash commands (see below)
+src/grader/        Grading pipeline: sandbox, LLM checks, schemas, aggregation, feedback
+prompts/           One narrowly scoped prompt per rubric dimension (+ ablation baselines)
+experiments/       Consistency test, ablation, metrics
+data/              Pilot dataset source (problems.py) and generator (build_dataset.py)
+configs/           Model and serving settings that affect determinism
+server/            Product API: FastAPI + SQLAlchemy + Postgres
+frontend/          Product UI: React + Vite (teacher authoring, exam page, results)
+worker/            The same product API as a Cloudflare Python Worker (D1 + Workers AI)
+sandbox-worker/    Isolated Cloudflare Worker that runs student code
+deploy/            Single-VM deployment (Docker Compose + nginx + llama-server)
+tests/             pytest suite (grader, rules, both Workers)
+docs/              Architecture, roadmap, results, deployment design
 ```
 
-## Quick start
+**Product flow:**
+1. A teacher writes a problem, a reference solution and test inputs. The expected outputs
+   are computed by running the reference solution.
+2. The teacher creates an exam and gets two links: one for students and a private one for
+   results.
+3. Students submit code and receive a score with feedback.
+4. The teacher reviews every submission, including the exact prompts and raw LLM
+   responses, and can export the results to Excel.
 
+## Getting started
+
+Prerequisites:
+- Python 3.12
+- Node.js 18+
+- Docker, for the local Postgres
+- An OpenAI-compatible LLM endpoint. The default is llama.cpp's `llama-server`, but any
+  endpoint that supports JSON-schema output works.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+python3 data/build_dataset.py      # generates data/dataset.json (not committed)
+pytest                             # needs no LLM or database
 ```
-pip install -r requirements.txt
-python3 data/build_dataset.py                 # regenerates data/dataset.json locally
-# start llama.cpp's llama-server (OpenAI-compatible); default model is Qwen2.5-Coder-7B-Instruct
-# (largest model still inside the project's sub-7B scope — see configs/model.yaml)
+
+### Start a model server
+
+```bash
+brew install llama.cpp
+scripts/model_server.sh start      # serves Qwen2.5-Coder-7B-Instruct on :8080
+```
+
+`scripts/model_server.sh start --parallel 4` turns on batched serving, the setup used for
+the batched-consistency experiment.
+
+To use a hosted endpoint instead, set `LLM_API_KEY` and pass `--base_url` and `--model`.
+Example for Cloudflare Workers AI:
+
+```bash
+export LLM_API_KEY=...             # read from the environment, never from CLI args
+python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clean --n 5 \
+  --base_url https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/ai/v1 \
+  --model @cf/qwen/qwen2.5-coder-32b-instruct --seed 1   # Workers AI rejects seed 0
+```
+
+### Run the product app locally
+
+```bash
+docker compose up -d                          # Postgres 16 on :5433
+alembic upgrade head                          # create the tables
+uvicorn server.main:app --reload --port 8001  # API
+cd frontend && npm install && npm run dev     # UI; proxies /api to :8001
+```
+
+`DATABASE_URL` defaults to `postgresql+psycopg://grading:grading@localhost:5433/grading`.
+This database is separate from the research dataset; the pipeline itself has no database.
+
+`streamlit run app.py` starts a small single-page demo of the pipeline alone.
+
+## Running the experiments
+
+```bash
+# Grade one sample N times and report how many distinct scores appear
 python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clean --n 100
+
+# Same, with overlapping requests to exercise server-side batching
+python3 experiments/consistency_test.py --sample_id P01_two_sum__S1_correct_clean --n 100 \
+  --concurrency 8 --tag batched
+
+# Compare the three arms on the whole dataset
+python3 experiments/ablation.py --arm all
 ```
 
-`data/dataset.json` is generated, not committed — always regenerate it
-locally from `data/problems.py` rather than expecting it in a fresh clone.
+Results are written to `results/` as JSON. That folder is gitignored. Sample ids follow the
+pattern `P<nn>_<problem>__S<n>_<variant>`; see `data/problems.py`.
 
-## Product server (exam links)
+The dataset has 16 problems and 65 submissions. Each problem has a correct solution plus
+variants with injected bugs, inefficiency or style issues. To add a problem, edit
+`data/problems.py` and rerun `python3 data/build_dataset.py`; never edit the JSON by hand.
 
-Separate from the thesis pipeline above: `server/` + `frontend/` are a
-product slice that lets a teacher author a problem and share an exam link
-with students (see `docs/productionization.md`). This needs a Postgres DB:
+## Deployment
 
+Two deployment targets exist. Each has its own runbook.
+
+| Target | Stack | Cost | Runbook |
+|---|---|---|---|
+| **Cloudflare (live demo)** | Python Worker (FastAPI on Pyodide) + D1 + Workers AI + a separate sandbox Worker | $0 (Workers Free) | [`worker/README.md`](worker/README.md) |
+| Single VM | Docker Compose: FastAPI, Postgres, nginx, a llama-server systemd unit | One GPU VM | [`deploy/README.md`](deploy/README.md) |
+
+On Cloudflare, student code never runs next to the database:
+
+```mermaid
+flowchart LR
+    U[Browser] --> G["grading Worker<br/>UI + API"]
+    G --> D[(D1)]
+    G --> AI[Workers AI]
+    G -- "service binding<br/>code + inputs only" --> SB["grading-sandbox Worker<br/>no bindings, no public URL"]
 ```
-docker compose up -d          # starts local Postgres (postgres:16)
-alembic upgrade head          # creates the problems/exams/submissions tables
-uvicorn server.main:app --reload --port 8001
-cd frontend && npm install && npm run dev
-```
 
-`DATABASE_URL` defaults to `postgresql+psycopg://grading:grading@localhost:5433/grading`
-(matching `docker-compose.yml`); override it in the environment to point at
-a different Postgres instance. This DB is entirely separate from
-`data/problems.py`/`data/dataset.json` — the thesis pipeline has no
-database dependency.
+The sandbox Worker receives only the code and the test inputs, and it returns only outputs.
+The main Worker compares those outputs with the expected answers, so hidden expected
+answers never enter the environment where student code runs. The design and the risks
+accepted for the Free plan are in
+[`docs/superpowers/specs/2026-11-17-cloudflare-deploy-design.md`](docs/superpowers/specs/2026-11-17-cloudflare-deploy-design.md).
 
-To put this in front of other people instead of running it locally, see
-[`deploy/README.md`](deploy/README.md) — a single-GPU-VM setup for an
-internal/trusted demo (**not** hardened for public, unknown-student use —
-that runbook says exactly what's still missing before it would be).
+## Limitations
 
-The exam app is also deployed on Cloudflare Workers (Free plan) at
-https://grading.khangnguyen.workers.dev; how to deploy it, its known risks and
-limits are in [`worker/README.md`](worker/README.md).
+- **Labels:** the efficiency and code-style labels come from a single rater, as described
+  under [Results](#results). Validating against independent instructor grading is still
+  open.
+- **Consistency scope:**
+  - The consistency results were measured with llama.cpp on 7B and 1.5B models at
+    concurrency 8. They may not carry over to vLLM, larger batches or other models.
+  - The live demo runs a 32B model on shared Cloudflare infrastructure. That is outside
+    the sub-7B scope, and its determinism has only been spot-checked.
+- **Product hardening:**
+  - The demo has no login or rate limiting.
+  - After a submission, the student can see which hidden test cases failed, including
+    their inputs.
+  - Resubmission is not blocked.
+- **Sandbox:**
+  - On Cloudflare, the sandbox isolate is reused between requests, and student code can
+    make outbound requests.
+  - The VM path runs code in-process.
+  - Neither setup is hardened for untrusted, high-stakes exams.
 
-## Working with Claude Code on this project
+## Documentation
 
-This repo has a `CLAUDE.md` (project rules and conventions) and a few
-project-specific slash commands for the repetitive parts of running this
-project:
-
-| Command | Does |
+| Doc | Read it for |
 |---|---|
-| `/run-consistency <sample_id> [n]` | Runs the consistency experiment, reports a terse summary |
-| `/run-ablation` | Runs the free-form vs. hybrid vs. decomposed comparison |
-| `/add-problem <spec>` | Scaffolds a new problem into `data/problems.py`, regenerates the dataset |
-| `/thesis-section <name>` | Drafts a report section from what's actually in `docs/` and `results/` |
+| [`docs/architecture.md`](docs/architecture.md) | Why the design is hybrid and decomposed, with citations |
+| [`docs/thesis/results.md`](docs/thesis/results.md) | Full experiment tables and caveats |
+| [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history of the project |
+| [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Engineering deep dive written for portfolio readers (also as PDF) |
+| [`docs/productionization.md`](docs/productionization.md) | Ideas and backlog for turning the pipeline into a real product |
+| [`data/script.md`](data/script.md) | Dataset schema, how labels were made, known limitations |
+| [`worker/README.md`](worker/README.md) | Deploying and operating the Cloudflare version |
 
-## Known dataset limitation
+The repo also has a [`CLAUDE.md`](CLAUDE.md) and project slash commands in
+`.claude/commands/` (`/run-consistency`, `/run-ablation`, `/add-problem`) for working on it
+with Claude Code.
 
-The 65-sample pilot dataset (16 problems) has real, sandbox-executed labels for
-correctness and edge-case handling, but efficiency/style labels are
-single-rater (self-annotated by the author), not independent human ground
-truth. Full detail and what's needed to fix it before making a
-correlation-with-humans claim: [`data/script.md`](data/script.md).
+## License
+
+[MIT](LICENSE) © 2026 Khang Nguyen
