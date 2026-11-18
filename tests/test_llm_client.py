@@ -74,3 +74,31 @@ def test_api_key_from_env_when_not_given(monkeypatch):
 def test_api_key_placeholder_without_env(monkeypatch):
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     assert LLMClient(LOCAL_URL, "m").client.api_key == "not-needed"
+
+
+GATEWAY_URL = "https://gateway.ai.cloudflare.com/v1/acct/gw/workers-ai/v1"
+
+
+def test_ai_gateway_url_warns_at_construction():
+    with pytest.warns(UserWarning, match="AI Gateway.*unverified"):
+        LLMClient(GATEWAY_URL, "m", api_key="k")
+
+
+@pytest.mark.parametrize("url", [CF_URL, LOCAL_URL, "https://example.com/gateway.ai.cloudflare.com/v1"])
+def test_no_gateway_warning_for_other_urls(url, recwarn):
+    LLMClient(url, "m", api_key="k")
+    assert [w for w in recwarn if "AI Gateway" in str(w.message)] == []
+
+
+def test_ai_gateway_request_shape_is_unchanged():
+    # Warn only: gateway URLs still get the standard {"name","schema"} wrapper
+    # and the strict non-string-content guard.
+    with pytest.warns(UserWarning):
+        c = LLMClient(GATEWAY_URL, "m", api_key="k")
+    calls = _fake(c, '{"score": 5}')
+    assert c.structured_call("sys", "usr", Out).score == 5
+    assert calls[0]["response_format"] == {
+        "type": "json_schema", "json_schema": {"name": "Out", "schema": Out.model_json_schema()}}
+    _fake(c, {"score": 5})
+    with pytest.raises(RuntimeError, match="non-string"):
+        c.structured_call("sys", "usr", Out)

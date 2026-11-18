@@ -191,6 +191,7 @@ of the spec's accepted risks.
   (`@cf/qwen/qwen2.5-coder-32b-instruct`) on shared Workers AI, so the project's
   sub-7B and exact-match-consistency claims do not carry over. In one check (n=2)
   two identical submits gave the same score but different raw LLM text.
+- **Cloudflare AI Gateway is unverified.** `grader.llm_client.LLMClient` warns when `base_url` is `gateway.ai.cloudflare.com`: how Workers AI handles `json_schema` behind the gateway is untested, so structured calls may fail or come back unconstrained. The Worker itself uses the AI binding, not this client.
 
 ## What is not supported on Cloudflare
 

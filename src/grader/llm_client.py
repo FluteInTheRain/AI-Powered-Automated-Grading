@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from typing import Type, TypeVar
+from urllib.parse import urlparse
 
 from openai import OpenAI
 from pydantic import BaseModel
@@ -34,6 +36,18 @@ class LLMClient:
         # the output unconstrained), and it returns message.content as an
         # already-parsed JSON object instead of a string.
         self._cloudflare = "api.cloudflare.com" in base_url
+        if urlparse(base_url).hostname == "gateway.ai.cloudflare.com":
+            # Not treated as Cloudflare above: how Workers AI behind AI
+            # Gateway handles response_format.json_schema is unverified, so
+            # the request shape is left as for any other OpenAI-compatible
+            # endpoint. A warning (not logging) so it shows once at the
+            # construction site even with no logging configured.
+            warnings.warn(
+                "base_url is Cloudflare AI Gateway: json_schema shape handling for "
+                "Workers AI behind AI Gateway is unverified; structured_call may fail "
+                "(non-string content) or return unconstrained output.",
+                UserWarning, stacklevel=2,
+            )
         self.model = model
         self.seed = seed
         # Every call this instance makes, in order — purely additive
