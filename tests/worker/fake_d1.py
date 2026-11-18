@@ -37,7 +37,7 @@ class _Stmt:
 
 class FakeD1:
     def __init__(self):
-        self._conn = sqlite3.connect(":memory:", isolation_level=None)
+        self._conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(MIGRATION.read_text())
         self._fail_at = None

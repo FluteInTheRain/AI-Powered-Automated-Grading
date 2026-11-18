@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from grader.sandbox import compute_reference_outputs, run_submission
 
+from . import rules
 from .db import get_session
 from .models import Exam, Problem, Submission
 
@@ -37,19 +38,6 @@ router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 # Matches server/main.py's TIME_LIMIT_SECONDS default — used when an exam
 # is created without an explicit time_limit_seconds override.
 DEFAULT_TIME_LIMIT_SECONDS = 600
-
-
-def _json_normalize(value: Any) -> Any:
-    """Round-trip a Python value (e.g. a tuple returned by a reference
-    solution) through JSON so what gets stored/compared is always a plain
-    JSON value (list, not tuple) — matches how test_cases are persisted and
-    later re-loaded from the DB."""
-    return json.loads(json.dumps(value))
-
-
-def _starter_code(func_name: str, param_names: List[str]) -> str:
-    args = ", ".join(param_names)
-    return f"def {func_name}({args}):\n    # TODO: your solution here\n    pass\n"
 
 
 class PreviewCase(BaseModel):
@@ -71,34 +59,10 @@ class PreviewRequest(BaseModel):
 @router.post("/preview-test-cases")
 def preview_test_cases(req: PreviewRequest):
     args_list = [tuple(c.args) for c in req.cases]
-    result = compute_reference_outputs(req.reference_solution, req.func_name, args_list)
-    if result["status"] != "ran":
-        return {"status": result["status"], "message": result["message"], "cases": [], "wrong_solution_check": None}
-
-    cases = []
-    normalized_expected: List[Any] = []
-    for c in result["cases"]:
-        expected = _json_normalize(c["output"]) if c["error"] is None else None
-        normalized_expected.append(expected)
-        cases.append({"args": c["args"], "expected": expected, "error": c["error"]})
-
-    wrong_solution_check = None
-    if req.wrong_solution:
-        checkable = [
-            (tuple(c["args"]), normalized_expected[i])
-            for i, c in enumerate(result["cases"])
-            if c["error"] is None
-        ]
-        wrong_result = run_submission(req.wrong_solution, req.func_name, checkable)
-        wrong_solution_check = {
-            "status": wrong_result["status"],
-            "pass_count": wrong_result["pass_count"],
-            "total": wrong_result["total"],
-            "pass_rate": wrong_result["pass_rate"],
-            "still_passes_all": wrong_result["status"] == "ran" and wrong_result["pass_rate"] == 1.0,
-        }
-
-    return {"status": "ok", "message": None, "cases": cases, "wrong_solution_check": wrong_solution_check}
+    return rules.preview(
+        req.reference_solution, req.func_name, args_list, req.wrong_solution,
+        compute_reference_outputs=compute_reference_outputs, run_submission=run_submission,
+    )
 
 
 class RubricIn(BaseModel):
@@ -126,35 +90,13 @@ class CreateProblemRequest(BaseModel):
 @router.post("/problems")
 def create_problem(req: CreateProblemRequest, session: Session = Depends(get_session)):
     rubric = req.rubric.model_dump()
-    total_weight = sum(rubric.values())
-    if total_weight != 100:
-        raise HTTPException(status_code=400, detail=f"Rubric weights must sum to 100, got {total_weight}")
-    if not req.test_cases:
-        raise HTTPException(status_code=400, detail="At least one test case is required")
-    if all(tc.is_public for tc in req.test_cases):
-        # pipeline.grade() scores every submission 0 when there are no
-        # hidden test cases to run (pass_rate == 0.0 on an empty list reads
-        # as "no verified correct behavior") — caught via manual browser
-        # testing of this exact form. Block it here instead of letting a
-        # teacher silently zero every submission.
-        raise HTTPException(
-            status_code=400,
-            detail="At least one test case must be hidden (not public) — grading requires a hidden case to run.",
+    try:
+        rules.validate_new_problem(
+            rubric, [tc.model_dump() for tc in req.test_cases],
+            run_submission, req.reference_solution, req.func_name,
         )
-
-    # Authoritative re-check — the frontend already ran preview-test-cases,
-    # but this is the one check that actually gates persistence.
-    test_cases_for_check = [(tuple(tc.args), tc.expected) for tc in req.test_cases]
-    check = run_submission(req.reference_solution, req.func_name, test_cases_for_check)
-    if check["status"] != "ran" or check["pass_rate"] != 1.0:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Reference solution does not pass all test cases "
-                f"(status={check['status']}, pass_rate={check.get('pass_rate')}). "
-                f"Fix the reference solution or test cases before saving."
-            ),
-        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     problem = Problem(
         statement=req.statement,
@@ -163,7 +105,7 @@ def create_problem(req: CreateProblemRequest, session: Session = Depends(get_ses
         rubric=rubric,
         reference_solution=req.reference_solution,
         test_cases=[tc.model_dump() for tc in req.test_cases],
-        starter_code=_starter_code(req.func_name, req.param_names),
+        starter_code=rules.starter_code(req.func_name, req.param_names),
     )
     session.add(problem)
     session.commit()
@@ -225,31 +167,20 @@ def _exam_by_admin_token(admin_token: str, session: Session) -> Exam:
     return exam
 
 
-def _submission_row(sub: Submission) -> dict:
-    result = sub.result or {}
-    return {
-        "id": str(sub.id),
-        "student_name": sub.student_name,
-        "final_score_0_to_100": result.get("final_score_0_to_100"),
-        "sub_scores_0_to_1": result.get("sub_scores_0_to_1"),
-        "submitted_at": sub.submitted_at.isoformat(),
-    }
-
-
 @router.get("/exams/{admin_token}")
 def get_exam_results(admin_token: str, session: Session = Depends(get_session)):
     exam = _exam_by_admin_token(admin_token, session)
     submissions = session.execute(
         select(Submission).where(Submission.exam_id == exam.id).order_by(Submission.submitted_at)
     ).scalars().all()
-    is_closed = exam.deadline is not None and exam.deadline <= datetime.datetime.now(datetime.timezone.utc)
+    is_closed = rules.is_closed(exam.deadline)
     return {
         "student_path": f"/exam/{exam.student_token}",
         "deadline": exam.deadline.isoformat() if exam.deadline else None,
         "is_closed": is_closed,
         "time_limit_seconds": exam.time_limit_seconds,
         "problem": {"id": str(exam.problem.id), "statement": exam.problem.statement},
-        "submissions": [_submission_row(s) for s in submissions],
+        "submissions": [rules.submission_row(s) for s in submissions],
     }
 
 

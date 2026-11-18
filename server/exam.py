@@ -27,6 +27,7 @@ from grader.llm_client import LLMClient
 from grader.pipeline import grade
 from grader.sandbox import run_submission_cases
 
+from . import rules
 from .config import BASE_URL, MODEL
 from .db import get_session
 from .models import Exam, GradingLog, Submission
@@ -43,28 +44,18 @@ def _exam_by_student_token(student_token: str, session: Session) -> Exam:
     return exam
 
 
-def _is_closed(exam: Exam) -> bool:
-    return exam.deadline is not None and exam.deadline <= datetime.datetime.now(datetime.timezone.utc)
-
-
-def _split_cases(test_cases: list) -> tuple[list, list]:
-    public = [tc for tc in test_cases if tc["is_public"]]
-    hidden = [tc for tc in test_cases if not tc["is_public"]]
-    return public, hidden
-
-
 @router.get("/{student_token}")
 def get_exam(student_token: str, session: Session = Depends(get_session)):
     exam = _exam_by_student_token(student_token, session)
     problem = exam.problem
-    public_cases, hidden_cases = _split_cases(problem.test_cases)
+    public_cases, hidden_cases = rules.split_cases(problem.test_cases)
     return {
         "statement": problem.statement,
         "rubric": problem.rubric,
         "starter_code": problem.starter_code,
         "time_limit_seconds": exam.time_limit_seconds,
         "deadline": exam.deadline.isoformat() if exam.deadline else None,
-        "is_closed": _is_closed(exam),
+        "is_closed": rules.is_closed(exam.deadline),
         "public_test_case_count": len(public_cases),
         "hidden_test_case_count": len(hidden_cases),
     }
@@ -77,10 +68,10 @@ class ExamRunRequest(BaseModel):
 @router.post("/{student_token}/run")
 def run_exam_public_tests(student_token: str, req: ExamRunRequest, session: Session = Depends(get_session)):
     exam = _exam_by_student_token(student_token, session)
-    if _is_closed(exam):
+    if rules.is_closed(exam.deadline):
         raise HTTPException(status_code=403, detail="This exam is closed")
 
-    public_cases, _ = _split_cases(exam.problem.test_cases)
+    public_cases, _ = rules.split_cases(exam.problem.test_cases)
     cases_for_sandbox = [(tuple(tc["args"]), tc["expected"]) for tc in public_cases]
     detailed = run_submission_cases(req.code, exam.problem.func_name, cases_for_sandbox)
     if detailed["status"] != "ran":
@@ -100,11 +91,11 @@ class ExamSubmitRequest(BaseModel):
 @router.post("/{student_token}/submit")
 def submit_exam(student_token: str, req: ExamSubmitRequest, session: Session = Depends(get_session)):
     exam = _exam_by_student_token(student_token, session)
-    if _is_closed(exam):
+    if rules.is_closed(exam.deadline):
         raise HTTPException(status_code=403, detail="This exam is closed")
 
     problem = exam.problem
-    _, hidden_cases = _split_cases(problem.test_cases)
+    _, hidden_cases = rules.split_cases(problem.test_cases)
     sample = {
         "statement": problem.statement,
         "func_name": problem.func_name,
