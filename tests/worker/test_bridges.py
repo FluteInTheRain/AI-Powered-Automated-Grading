@@ -116,6 +116,16 @@ def test_remote_sandbox_non_200_raises():
         RemoteSandbox(FakeBinding(500), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
 
 
+def test_remote_sandbox_fetch_exception_raises_sandbox_failed():
+    # Live: when the sandbox Worker hits its CPU limit, the service-binding fetch
+    # raises (runtime "code had hung" error) instead of returning a non-200.
+    class Killed(FakeBinding):
+        def fetch(self, url, **init):
+            raise Exception("The Workers runtime canceled this request")
+    with pytest.raises(RuntimeError, match="sandbox failed: .*canceled this request"):
+        RemoteSandbox(Killed(), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
+
+
 class _Py:
     """JS-proxy stand-in: only exposes to_py()."""
     def __init__(self, value):

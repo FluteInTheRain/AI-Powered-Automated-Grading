@@ -103,7 +103,12 @@ class RemoteSandbox:
 
     def _execute(self, code: str, func_name: str, args_list: List[tuple]) -> dict:
         payload = {"code": code, "func_name": func_name, "args_list": [list(a) for a in args_list]}
-        status, text = _post_json(self.binding, SANDBOX_URL, payload, self._run_sync)
+        try:
+            status, text = _post_json(self.binding, SANDBOX_URL, payload, self._run_sync)
+        except Exception as e:
+            # When the sandbox Worker hits its CPU limit (e.g. an infinite loop), the
+            # runtime cancels it and the fetch raises instead of returning a status.
+            raise RuntimeError(f"sandbox failed: {e}") from e
         if status != 200:
             raise RuntimeError(f"sandbox failed: {status}")
         return json.loads(text)
