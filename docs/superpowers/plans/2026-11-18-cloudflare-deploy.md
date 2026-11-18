@@ -103,11 +103,7 @@ def test_grade_uses_injected_runner():
 - Produces `handler.execute(payload) -> dict`, pure and testable on CPython: `validate`, then `grader.sandbox.compute_reference_outputs(code, func_name, args_list)`. Each case's `output` is made JSON-safe: if `json.dumps(output, allow_nan=False)` fails, set `output: None` and `error: "return value is not JSON-serializable: <repr, max 200 chars>"`. Returns `{"status", "message", "cases": [{"args", "output", "error"}]}`.
 - Produces HTTP `POST /execute` on Worker `grading-sandbox`. It reads the raw body; invalid JSON, a non-object, or `BadPayload` → **400**; otherwise 200 with `execute`'s dict. Only `BadPayload` and JSON-decoding errors map to 400, never errors raised by running the code.
 
-- [ ] **Step 1: Write failing tests:**
-  - `test_run_mode_matches_local_sandbox`: P01 S1 from `data/problems.py` through `execute` equals `run_submission` directly;
-  - `test_cases_mode_returns_per_case_detail`;
-  - `test_reference_mode_returns_outputs`;
-  - `test_unknown_mode_raises`.
+- [ ] **Step 1: Write failing tests** (revised for R4): outputs match `compute_reference_outputs` on P01 S1; NaN and arbitrary-object outputs become errors (repr truncated to 200); bad payloads (non-dict, missing or mistyped keys, non-list `args_list` entry, old `mode` payload) raise `BadPayload`.
 - [ ] **Step 2: Run** them. Expected: FAIL.
 - [ ] **Step 3: Implement `handler.py`.** `main.py` is a minimal FastAPI app with `POST /execute`, followed by `Default = asgi.entrypoint(app)`.
 - [ ] **Step 4: Write `wrangler.jsonc`:** `"name": "grading-sandbox"`, `"main": "src/main.py"`, `"compatibility_flags": ["python_workers"]`, `"workers_dev": false`, `"preview_urls": false`, observability on, **no** other bindings. `pyproject.toml` needs only `fastapi` (dev: `workers-py`, `workers-runtime-sdk`). The build copies only `src/grader/sandbox.py` into `src/vendor/grader/` (with an empty `__init__.py`).
