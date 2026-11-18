@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8001'
+const API_BASE = ''
 
 async function request(path, options) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -6,7 +6,13 @@ async function request(path, options) {
     ...options,
   })
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
+    // Non-JSON bodies (e.g. platform limit pages from the edge) get a plain message.
+    const body = await res.json().catch(() => null)
+    if (body === null) {
+      throw new Error(
+        'Your submission exceeded the time/resource limit or the server is busy. Please try again.',
+      )
+    }
     throw new Error(body.detail || `Request failed: ${res.status}`)
   }
   return res.json()
