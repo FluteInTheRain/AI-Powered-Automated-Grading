@@ -75,6 +75,10 @@ phase was **not needed**, and it was skipped by a recorded go/no-go check.
 > - "1.0 at n=100" means no inconsistency was detected at that sample size. It does not
 >   prove the grader is deterministic: one manual test session did see a check flip
 >   between two identical calls.
+> - The ablation ran before the current zero-credit rule (code that does not run, or
+>   passes no test, scores 0 on every dimension). The rule changes 3 of the 65 samples,
+>   and the ablation has not been rerun since. The difference is likely small, but it has
+>   not been measured.
 
 ## How grading works
 
@@ -236,8 +240,9 @@ accepted for the Free plan are in
   under [Results](#results). Validating against independent instructor grading is still
   open.
 - **Consistency scope:**
-  - The consistency results were measured with llama.cpp on 7B and 1.5B models at
-    concurrency 8. They may not carry over to vLLM, larger batches or other models.
+  - The consistency results were measured with llama.cpp at concurrency 8. The clean
+    samples were run on both 7B and 1.5B models; the harder samples on 7B only. The
+    results may not carry over to vLLM, larger batches or other models.
   - The live demo runs a 32B model on shared Cloudflare infrastructure. That is outside
     the sub-7B scope, and its determinism has only been spot-checked.
 - **Product hardening:**

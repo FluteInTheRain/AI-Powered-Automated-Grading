@@ -75,6 +75,9 @@ cần làm nữa**. Quyết định bỏ qua được ghi lại qua một bướ
 > - "1.0 ở n=100" nghĩa là chưa phát hiện lệch điểm ở cỡ mẫu đó. Nó không chứng minh bộ chấm
 >   luôn cho cùng kết quả: trong một lần test thủ công, đã có một tiêu chí đổi kết quả giữa
 >   hai lần gọi giống hệt nhau.
+> - Ablation được chạy trước khi có quy tắc hiện tại: code không chạy được, hoặc không qua
+>   test nào, thì mọi tiêu chí đều 0 điểm. Quy tắc này làm thay đổi 3 trong 65 bài, và
+>   ablation chưa được chạy lại. Chênh lệch có lẽ nhỏ nhưng chưa được đo.
 
 ## Cách chấm điểm
 
@@ -234,8 +237,9 @@ sinh. Thiết kế và các rủi ro đã chấp nhận khi dùng gói Free nằ
 - **Nhãn:** nhãn hiệu năng và phong cách code chỉ do một người gán, như đã nói ở
   [Kết quả](#kết-quả). Việc đối chiếu với điểm của giáo viên độc lập vẫn chưa làm.
 - **Phạm vi của độ ổn định:**
-  - Kết quả độ ổn định được đo bằng llama.cpp, với model 7B và 1.5B, ở 8 request đồng thời.
-    Kết quả có thể không đúng với vLLM, mức gom request lớn hơn hay model khác.
+  - Kết quả độ ổn định được đo bằng llama.cpp, ở 8 request đồng thời. Các bài code sạch được
+    chạy trên cả model 7B và 1.5B; các bài khó chỉ chạy trên 7B. Kết quả có thể không đúng
+    với vLLM, mức gom request lớn hơn hay model khác.
   - Bản demo dùng model 32B trên hạ tầng dùng chung của Cloudflare. Model này nằm ngoài phạm
     vi dưới 7B, và mới chỉ được kiểm tra độ ổn định vài lần.
 - **App chưa được gia cố:**
