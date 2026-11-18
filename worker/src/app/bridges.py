@@ -80,6 +80,15 @@ class WorkersAIClient:
         return schema.model_validate(json.loads(raw))
 
 
+class SandboxKilled(RuntimeError):
+    """The sandbox fetch raised: live, the runtime cancels the sandbox Worker when
+    the code it runs hits the CPU limit (e.g. an infinite loop)."""
+
+
+class SandboxError(RuntimeError):
+    """The sandbox Worker answered with a non-200 status (a bug or an outage)."""
+
+
 def _post_json(binding, url: str, payload: dict, run_sync) -> Tuple[int, str]:
     """The only JS-facing call of the sandbox bridge.
 
@@ -108,9 +117,9 @@ class RemoteSandbox:
         except Exception as e:
             # When the sandbox Worker hits its CPU limit (e.g. an infinite loop), the
             # runtime cancels it and the fetch raises instead of returning a status.
-            raise RuntimeError(f"sandbox failed: {e}") from e
+            raise SandboxKilled(f"sandbox failed: {e}") from e
         if status != 200:
-            raise RuntimeError(f"sandbox failed: {status}")
+            raise SandboxError(f"sandbox failed: {status}")
         return json.loads(text)
 
     @staticmethod

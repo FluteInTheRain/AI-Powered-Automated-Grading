@@ -4,7 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 import handler
-from app.bridges import RemoteSandbox, WorkersAIClient
+from app.bridges import RemoteSandbox, SandboxError, SandboxKilled, WorkersAIClient
 from grader import sandbox as local
 from problems import PROBLEMS
 
@@ -112,8 +112,9 @@ def test_remote_matches_local_on_pilot():
 
 
 def test_remote_sandbox_non_200_raises():
-    with pytest.raises(RuntimeError, match="sandbox failed: 500"):
+    with pytest.raises(SandboxError, match="sandbox failed: 500") as ei:
         RemoteSandbox(FakeBinding(500), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
+    assert isinstance(ei.value, RuntimeError) and not isinstance(ei.value, SandboxKilled)
 
 
 def test_remote_sandbox_fetch_exception_raises_sandbox_failed():
@@ -122,8 +123,9 @@ def test_remote_sandbox_fetch_exception_raises_sandbox_failed():
     class Killed(FakeBinding):
         def fetch(self, url, **init):
             raise Exception("The Workers runtime canceled this request")
-    with pytest.raises(RuntimeError, match="sandbox failed: .*canceled this request"):
+    with pytest.raises(SandboxKilled, match="sandbox failed: .*canceled this request") as ei:
         RemoteSandbox(Killed(), run_sync=ident).run_submission(CODE, "add", [((1, 2), 3)])
+    assert isinstance(ei.value, RuntimeError) and not isinstance(ei.value, SandboxError)
 
 
 class _Py:

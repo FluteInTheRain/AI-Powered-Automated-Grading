@@ -1,13 +1,15 @@
 import inspect
 import io
 import json
+import logging
+from types import SimpleNamespace
 
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
-from app import routes
+from app import bridges, routes
 from app.bridges import RemoteSandbox, WorkersAIClient
 from tests.worker.fake_d1 import FakeD1
 from tests.worker.test_bridges import FakeBinding
@@ -35,20 +37,34 @@ ANSWERS = {
 
 
 class FakeAI:
-    def __init__(self, fail=False):
-        self.fail = fail
+    def __init__(self, fail=False, fail_schema=None):
+        self.fail, self.fail_schema = fail, fail_schema
 
     def run(self, model, payload):
-        if self.fail:
+        title = payload["response_format"]["json_schema"]["title"]
+        if self.fail or title == self.fail_schema:
             raise RuntimeError("ai down")
-        return {"response": ANSWERS[payload["response_format"]["json_schema"]["title"]]}
+        return {"response": ANSWERS[title]}
+
+
+class SwitchBinding(FakeBinding):
+    """FakeBinding whose fetch can be made to raise, like a CPU-killed sandbox live."""
+
+    def __init__(self):
+        super().__init__()
+        self.killed = False
+
+    def fetch(self, url, **init):
+        if self.killed:
+            raise Exception("The Workers runtime canceled this request")
+        return super().fetch(url, **init)
 
 
 class Env:
     def __init__(self, ai=None, sandbox=None):
         self.db = FakeD1()
         self.ai = ai or FakeAI()
-        self.sandbox = sandbox or FakeBinding()
+        self.sandbox = sandbox or SwitchBinding()
 
 
 @pytest.fixture
@@ -148,32 +164,125 @@ def _count(env, table):
     return env.db._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
 
+GRADING_FAILED = "Grading failed, please try again. If it keeps happening, contact your teacher."
+
+
+def _logged_with_context(caplog, env):
+    """A routes log record with traceback that names the exam and problem ids."""
+    exam_id, problem_id = env.db._conn.execute("SELECT id, problem_id FROM exams").fetchone()
+    return any(rec.exc_info and exam_id in rec.getMessage() and problem_id in rec.getMessage()
+               for rec in caplog.records if rec.name == routes.logger.name)
+
+
 def test_submit_ai_failure_persists_nothing(env):
     c = make_client(env)
     ex = new_exam(c)
     env.ai.fail = True
     r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
-    assert r.status_code == 502 and r.json()["detail"].startswith("Grading failed: ")
+    # Fixed text: raw exception text (SQL, model names, pydantic dumps) never reaches students.
+    assert r.status_code == 502 and r.json()["detail"] == GRADING_FAILED
+    assert "ai down" not in r.text
     assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
 
 
-def test_submit_sandbox_failure_persists_nothing(env):
+def test_submit_killed_sandbox_is_time_limit_and_persists_nothing(env, caplog):
     c = make_client(env)
     ex = new_exam(c)
-    env.sandbox.status = 500
-    r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    env.sandbox.killed = True
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
     assert r.status_code == 502
     assert r.json()["detail"] == "Grading failed: your submission exceeded the time/resource limit."
     assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
+    assert _logged_with_context(caplog, env)
 
 
-def test_submit_persistence_failure_persists_nothing(env):
+def test_submit_sandbox_error_status_is_service_error_and_persists_nothing(env, caplog):
+    c = make_client(env)
+    ex = new_exam(c)
+    env.sandbox.status = 500
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    assert r.status_code == 502 and r.json()["detail"] == "Grading service error, please try again."
+    assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
+    assert _logged_with_context(caplog, env)
+
+
+def test_submit_persistence_failure_persists_nothing(env, caplog):
     c = make_client(env)
     ex = new_exam(c)
     env.db.fail_on_batch_statement(2)  # a grading_logs insert, after the submission row
-    r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
-    assert r.status_code == 502 and r.json()["detail"].startswith("Grading failed: ")
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    assert r.status_code == 502
+    assert r.json()["detail"] == "Your submission was graded but could not be saved. Please try again."
     assert _count(env, "submissions") == 0 and _count(env, "grading_logs") == 0
+    assert _logged_with_context(caplog, env)
+
+
+def test_submit_feedback_failure_still_stores_score(env, caplog):
+    c = make_client(env)
+    ex = new_exam(c)
+    env.ai.fail_schema = "CodeFeedback"
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["feedback"] is None and body["final_score_0_to_100"] == 100.0
+    assert _count(env, "submissions") == 1 and _count(env, "grading_logs") == 3
+    res = c.get(f"/api/teacher/exams/{ex['admin_token']}").json()
+    assert res["submissions"][0]["final_score_0_to_100"] == 100.0
+    # The log names the exam id, never the student token (the exam-link secret).
+    assert _logged_with_context(caplog, env)
+    assert ex["student_token"] not in caplog.text
+
+
+def test_run_killed_sandbox_is_json_502(env, caplog):
+    c = make_client(env)
+    ex = new_exam(c)
+    env.sandbox.killed = True
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post(f"/api/exam/{ex['student_token']}/run", json={"code": "def add(a, b):\n    while True: pass\n"})
+    assert r.status_code == 502 and r.headers["content-type"].startswith("application/json")
+    assert r.json()["detail"] == "Your code exceeded the time/resource limit."
+    assert _logged_with_context(caplog, env)
+
+
+def test_run_sandbox_error_is_service_error(env):
+    c = make_client(env)
+    ex = new_exam(c)
+    env.sandbox.status = 503
+    r = c.post(f"/api/exam/{ex['student_token']}/run", json={"code": REF})
+    assert r.status_code == 502 and r.json()["detail"] == "Grading service error, please try again."
+
+
+PREVIEW = {"reference_solution": REF, "func_name": "add", "cases": [{"args": [1, 2]}]}
+
+
+def test_preview_sandbox_failures_are_json_502(env, caplog):
+    c = make_client(env)
+    env.sandbox.status = 500
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post("/api/teacher/preview-test-cases", json=PREVIEW)
+    assert r.status_code == 502 and r.json()["detail"] == "Grading service error, please try again."
+    assert "func_name=add" in caplog.text
+    env.sandbox.status, env.sandbox.killed = 200, True
+    r = c.post("/api/teacher/preview-test-cases", json=PREVIEW)
+    assert r.status_code == 502
+    assert r.json()["detail"] == "Reference or wrong solution exceeded the time/resource limit."
+
+
+def test_create_problem_sandbox_failures_are_json_502(env, caplog):
+    c = make_client(env)
+    env.sandbox.killed = True
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        r = c.post("/api/teacher/problems", json=PROBLEM)
+    assert r.status_code == 502 and r.json()["detail"] == "Reference solution exceeded the time/resource limit."
+    assert "func_name=add" in caplog.text
+    env.sandbox.killed, env.sandbox.status = False, 500
+    r = c.post("/api/teacher/problems", json=PROBLEM)
+    assert r.status_code == 502 and r.json()["detail"] == "Grading service error, please try again."
+    assert _count(env, "problems") == 0
 
 
 def test_dependencies_are_coroutines_and_export_returns_xlsx(env):
@@ -230,3 +339,49 @@ def test_export_injected_name_is_text_not_formula(env):
     r = c.get(f"/api/teacher/exams/{ex['admin_token']}/export.xlsx")
     cell = load_workbook(io.BytesIO(r.content)).active["A2"]
     assert cell.data_type == "s" and cell.value == "'=HYPERLINK(\"http://x\")"
+
+
+# --- real dependencies (no dependency_overrides), env injected like the Worker entry ---
+
+class _EnvMiddleware:
+    """Puts a fake Workers env into the ASGI scope, as worker/src/main.py's entry does."""
+
+    def __init__(self, app, env):
+        self.app, self.env = app, env
+
+    async def __call__(self, scope, receive, send):
+        scope["env"] = self.env
+        await self.app(scope, receive, send)
+
+
+def test_real_dependencies_read_the_worker_env(monkeypatch, caplog):
+    monkeypatch.setattr(bridges, "_default_run_sync", lambda: ident)
+    worker_env = SimpleNamespace(DB=FakeD1(), AI=FakeAI(), SANDBOX=SwitchBinding(), LLM_MODEL=None)
+    seen = []
+    app = FastAPI()
+    app.include_router(routes.router)
+
+    @app.get("/probe")
+    async def probe(db=Depends(routes.get_db), client=Depends(routes.get_llm_client),
+                    sandbox=Depends(routes.get_sandbox)):
+        seen.append((db, client, sandbox))
+        return {}
+
+    c = TestClient(_EnvMiddleware(app, worker_env))
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        c.get("/probe")
+    assert "LLM_MODEL is not set" in caplog.text
+    worker_env.LLM_MODEL = "@cf/some/model"
+    c.get("/probe")
+
+    (db1, cl1, sb1), (db2, cl2, sb2) = seen
+    assert db1 is worker_env.DB and db2 is worker_env.DB
+    assert cl1.model == routes.DEFAULT_LLM_MODEL and cl2.model == "@cf/some/model"
+    assert cl1.ai is worker_env.AI and cl1 is not cl2 and cl1.call_log is not cl2.call_log
+    assert sb1.binding is worker_env.SANDBOX
+
+    # And a real submit runs end to end through those dependencies.
+    pid = c.post("/api/teacher/problems", json=PROBLEM).json()["id"]
+    ex = c.post("/api/teacher/exams", json={"problem_id": pid}).json()
+    r = c.post(f"/api/exam/{ex['student_token']}/submit", json={"student_name": "An", "code": REF})
+    assert r.status_code == 200 and r.json()["final_score_0_to_100"] == 100.0

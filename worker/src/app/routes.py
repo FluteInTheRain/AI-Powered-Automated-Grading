@@ -28,7 +28,7 @@ from server.rules import (
 )
 
 from . import store
-from .bridges import RemoteSandbox, WorkersAIClient
+from .bridges import RemoteSandbox, SandboxError, SandboxKilled, WorkersAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,12 @@ router = APIRouter()
 DEFAULT_LLM_MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
 # Matches server/teacher.py's default time limit.
 DEFAULT_TIME_LIMIT_SECONDS = 600
+
+# Fixed client-facing error texts: raw exception text (D1 SQL, model names,
+# pydantic dumps) is logged, never sent to the browser.
+SERVICE_ERROR = "Grading service error, please try again."
+GRADING_FAILED = "Grading failed, please try again. If it keeps happening, contact your teacher."
+NOT_SAVED = "Your submission was graded but could not be saved. Please try again."
 
 
 # --- dependencies (tests override these via app.dependency_overrides) ---
@@ -50,7 +56,10 @@ async def get_db(request: Request):
 async def get_llm_client(request: Request):
     # New client per request so call_log only holds this submission's calls.
     env = request.scope["env"]
-    model = getattr(env, "LLM_MODEL", None) or DEFAULT_LLM_MODEL
+    model = getattr(env, "LLM_MODEL", None)
+    if not model:
+        logger.warning("LLM_MODEL is not set in the Worker env; using %s", DEFAULT_LLM_MODEL)
+        model = DEFAULT_LLM_MODEL
     return WorkersAIClient(env.AI, model=model)
 
 
@@ -78,6 +87,17 @@ def _iso(dt: Optional[datetime.datetime]) -> Optional[str]:
 
 def _new_token() -> str:
     return secrets.token_urlsafe(16)
+
+
+def _sandbox_http_error(e: Exception, killed_detail: str, context: str) -> HTTPException:
+    """Log a failed sandbox call with its context and pick the client message.
+
+    Only a killed sandbox (SandboxKilled) is the student's or teacher's code
+    running out of time; anything else is our service failing.
+    """
+    logger.exception("sandbox call failed (%s)", context)
+    return HTTPException(status_code=502,
+                         detail=killed_detail if isinstance(e, SandboxKilled) else SERVICE_ERROR)
 
 
 def _row_view(sub: dict) -> SimpleNamespace:
@@ -119,11 +139,15 @@ async def syntax_check(req: SyntaxCheckRequest):
 @router.post("/api/teacher/preview-test-cases")
 async def preview_test_cases(req: PreviewRequest, sandbox=Depends(get_sandbox)):
     args_list = [tuple(c.args) for c in req.cases]
-    return rules.preview(
-        req.reference_solution, req.func_name, args_list, req.wrong_solution,
-        compute_reference_outputs=sandbox.compute_reference_outputs,
-        run_submission=sandbox.run_submission,
-    )
+    try:
+        return rules.preview(
+            req.reference_solution, req.func_name, args_list, req.wrong_solution,
+            compute_reference_outputs=sandbox.compute_reference_outputs,
+            run_submission=sandbox.run_submission,
+        )
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Reference or wrong solution exceeded the time/resource limit.",
+                                  f"preview func_name={req.func_name}")
 
 
 @router.post("/api/teacher/problems")
@@ -135,6 +159,9 @@ async def create_problem(req: CreateProblemRequest, db=Depends(get_db), sandbox=
                                    req.reference_solution, req.func_name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Reference solution exceeded the time/resource limit.",
+                                  f"create_problem func_name={req.func_name}")
     pid = await store.create_problem(
         db, statement=req.statement, func_name=req.func_name, param_names=req.param_names,
         rubric=rubric, reference_solution=req.reference_solution, test_cases=test_cases,
@@ -270,7 +297,11 @@ async def run_exam_public_tests(student_token: str, req: ExamRunRequest,
 
     public_cases, _ = rules.split_cases(exam["problem"]["test_cases"])
     cases_for_sandbox = [(tuple(tc["args"]), tc["expected"]) for tc in public_cases]
-    detailed = sandbox.run_submission_cases(req.code, exam["problem"]["func_name"], cases_for_sandbox)
+    try:
+        detailed = sandbox.run_submission_cases(req.code, exam["problem"]["func_name"], cases_for_sandbox)
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Your code exceeded the time/resource limit.",
+                                  f"run exam_id={exam['id']} problem_id={exam['problem']['id']}")
     return rules.run_response(detailed)
 
 
@@ -282,6 +313,7 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
         raise HTTPException(status_code=403, detail="This exam is closed")
 
     problem = exam["problem"]
+    context = f"exam_id={exam['id']} problem_id={problem['id']}"
     _, hidden_cases = rules.split_cases(problem["test_cases"])
     sample = rules.build_submit_sample(
         problem["statement"], problem["func_name"], problem["rubric"], hidden_cases, req.code
@@ -289,13 +321,12 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
     # grade() is sync; the bridges call run_sync internally, which is fine here.
     try:
         result = grade(sample, client, run_submission=sandbox.run_submission)
-    except Exception as e:
-        if str(e).startswith("sandbox failed"):
-            raise HTTPException(
-                status_code=502,
-                detail="Grading failed: your submission exceeded the time/resource limit.",
-            )
-        raise HTTPException(status_code=502, detail=f"Grading failed: {e}")
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Grading failed: your submission exceeded the time/resource limit.",
+                                  f"submit {context}")
+    except Exception:
+        logger.exception("grading failed (submit %s)", context)
+        raise HTTPException(status_code=502, detail=GRADING_FAILED)
 
     # Explanatory only, generated after the score is fixed; best effort.
     try:
@@ -305,7 +336,7 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
         )
         result["feedback"] = feedback.model_dump()
     except Exception:
-        logger.exception("generate_feedback failed for student_token=%s", student_token)
+        logger.exception("generate_feedback failed (submit %s)", context)
         result["feedback"] = None
 
     try:
@@ -313,6 +344,7 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
             db, exam_id=exam["id"], student_name=req.student_name, code=req.code,
             result=result, logs=client.call_log,
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Grading failed: {e}")
+    except Exception:
+        logger.exception("saving the graded submission failed (submit %s)", context)
+        raise HTTPException(status_code=502, detail=NOT_SAVED)
     return result
