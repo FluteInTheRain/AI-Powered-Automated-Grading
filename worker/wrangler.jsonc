@@ -1,0 +1,25 @@
+{
+  "name": "grading",
+  "main": "src/main.py",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["python_workers"],
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grading",
+      // Placeholder for local dev; Task 8 puts the real id here after `d1 create`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "services": [{ "binding": "SANDBOX", "service": "grading-sandbox" }],
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": { "LLM_MODEL": "@cf/qwen/qwen2.5-coder-32b-instruct" },
+  "observability": { "enabled": true }
+}

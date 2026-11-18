@@ -2,3 +2,4 @@ src/vendor/
 .venv/
 .wrangler/
 python_modules/
+.venv-workers/
