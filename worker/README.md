@@ -120,6 +120,28 @@ runtime after 1 864 ms and 1 951 ms CPU (`CpuLimitExceeded`, outcome `exception`
 `export.xlsx` (1 408 ms for one row) is the request closest to that ceiling, so
 exporting a very large exam could fail.
 
+## Workers AI usage per submit (measured 2026-11-18)
+
+A graded submit makes 4 Workers AI calls: 3 rubric checks plus 1 feedback call.
+The calls were replayed through the REST API with the same model and
+`max_tokens=2048`, and the token counts were converted at the published rate for
+`@cf/qwen/qwen2.5-coder-32b-instruct`: 60,000 Neurons per M input tokens and
+90,909 per M output tokens.
+
+| Sample | Input tokens | Output tokens | Neurons |
+|---|---|---|---|
+| `P01_two_sum__S1_correct_clean` | 1,034 | 439 | 102 |
+| `P02_is_prime__S3_edge_case_bug_negative` | 1,008 | 376 | 95 |
+| `P05_fibonacci__S2_correct_but_exponential` | 877 | 445 | 93 |
+
+That is about **100 Neurons per submit**, so the free 10,000 Neurons per day
+cover roughly **100 graded submits per day**.
+- A submit that passes no test skips the 3 checks. It costs only the feedback
+  call, roughly a quarter of the above.
+- `run`, preview and syntax-check use no Workers AI.
+- These figures come from token counts × the published rate, not from the
+  billing dashboard. Longer statements or code cost proportionally more.
+
 ## Accepted risks (Khang chose these knowingly)
 
 1. **CPU limit.** Grading uses well over the documented 10 ms Free-plan CPU
