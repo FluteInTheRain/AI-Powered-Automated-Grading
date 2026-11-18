@@ -96,13 +96,12 @@ def test_grade_uses_injected_runner():
 - Create: `sandbox-worker/src/handler.py`, `sandbox-worker/src/main.py`, `sandbox-worker/wrangler.jsonc`, `sandbox-worker/pyproject.toml`, `sandbox-worker/.gitignore`
 - Test: `tests/sandbox_worker/test_handler.py`
 
-**Interfaces:**
-- Produces `handler.execute(payload: dict) -> dict`, a pure function that is testable on CPython:
-  - `payload = {"mode": "run" | "cases" | "reference", "code": str, "func_name": str, "cases": list}`.
-  - For `run` / `cases`, `cases` is `[[args_list, expected], ...]`; for `reference` it is `[args_list, ...]`.
-  - It converts `args_list` to a tuple and returns exactly `run_submission(...)`, `run_submission_cases(...)` or `compute_reference_outputs(...)` from `grader.sandbox`.
-  - An unknown mode raises `ValueError`.
-- Produces HTTP `POST /execute` (JSON in, JSON out) on Worker `grading-sandbox`. It answers 400 on a bad payload.
+**Interfaces (revised by ruling R4, 2026-11-18: outputs-only sandbox, so expected values never enter the process that runs untrusted code):**
+- Produces `handler.BadPayload(ValueError)` and `handler.validate(payload) -> tuple[str, str, list[tuple]]`:
+  - `payload = {"code": str, "func_name": str, "args_list": [list, ...]}`;
+  - anything else raises `BadPayload`: non-dict, missing key, wrong type, or an `args_list` entry that is not a list.
+- Produces `handler.execute(payload) -> dict`, pure and testable on CPython: `validate`, then `grader.sandbox.compute_reference_outputs(code, func_name, args_list)`. Each case's `output` is made JSON-safe: if `json.dumps(output, allow_nan=False)` fails, set `output: None` and `error: "return value is not JSON-serializable: <repr, max 200 chars>"`. Returns `{"status", "message", "cases": [{"args", "output", "error"}]}`.
+- Produces HTTP `POST /execute` on Worker `grading-sandbox`. It reads the raw body; invalid JSON, a non-object, or `BadPayload` → **400**; otherwise 200 with `execute`'s dict. Only `BadPayload` and JSON-decoding errors map to 400, never errors raised by running the code.
 
 - [ ] **Step 1: Write failing tests:**
   - `test_run_mode_matches_local_sandbox`: P01 S1 from `data/problems.py` through `execute` equals `run_submission` directly;
@@ -160,7 +159,11 @@ def test_grade_uses_injected_runner():
   - reads `result["response"]`, which may be a dict or a str;
   - `raw_response` is always a str;
   - `None`/empty → `RuntimeError`, with nothing logged.
-- Produces `RemoteSandbox(sandbox_binding, run_sync=None)` with sync methods `run_submission(code, func_name, cases)`, `run_submission_cases(code, func_name, cases)` and `compute_reference_outputs(code, func_name, args_list)`. Each POSTs to `https://sandbox/execute` via `binding.fetch`. A non-200 response raises `RuntimeError("sandbox failed: <status>")`.
+- Produces `RemoteSandbox(sandbox_binding, run_sync=None)` with sync methods `run_submission(code, func_name, cases)`, `run_submission_cases(code, func_name, cases)` and `compute_reference_outputs(code, func_name, args_list)`. All three return the same dict shapes as their `grader.sandbox` namesakes (ruling R4):
+  - Each method POSTs **only** `{"code", "func_name", "args_list"}` to `https://sandbox/execute` via `binding.fetch`. **Expected values are never sent.**
+  - Comparison happens here: a case passes iff `error is None` and `output == json.loads(json.dumps(expected))`.
+  - `run_submission`'s error strings use the same formats as `grader.sandbox.run_submission`, and `pass_rate` is rounded to 4 places.
+  - A non-200 response raises `RuntimeError("sandbox failed: <status>")`.
 - `run_sync=None` means `pyodide.ffi.run_sync`; tests pass `lambda x: x` with fakes returning plain values.
 
 - [ ] **Step 1: Write failing tests:**
@@ -168,6 +171,8 @@ def test_grade_uses_injected_runner():
   - `test_ai_dict_response_logged_as_string`;
   - `test_ai_empty_response_raises`;
   - `test_remote_sandbox_roundtrip` (the fake binding calls `handler.execute`);
+  - `test_remote_sandbox_never_sends_expected` (the fake binding asserts the posted JSON has no `expected` key or values);
+  - `test_remote_matches_local_on_pilot` (for every submission in `data/problems.py`, `RemoteSandbox.run_submission` gives the same `pass_count` / `status` as `grader.sandbox.run_submission`);
   - `test_remote_sandbox_non_200_raises`.
 - [ ] **Step 2: Run** them. Expected: FAIL.
 - [ ] **Step 3: Implement.** Convert dicts with `to_js(..., dict_converter=Object.fromEntries)` only under Pyodide.

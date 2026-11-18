@@ -141,5 +141,11 @@ Accepted risks (Khang chose these knowingly):
 3. Teacher pages have no login, so anyone with the URL can create problems
    and use up the 10,000 Neurons/day. That costs no money, but grading can
    be unavailable until the 00:00 UTC reset.
+4. (Added 2026-11-18, found in review.) The sandbox isolate is reused across
+   requests, so student code can tamper with module or builtins state and
+   affect later submissions on the same warm isolate. There is no Free-plan
+   fix: Dynamic Workers need Paid, and Python-level guards are bypassable.
+   Mitigated: the sandbox is outputs-only (ruling R4), so expected answers
+   are never inside it and cannot be read.
 
 **Gate (as originally designed): no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.
