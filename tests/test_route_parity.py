@@ -116,8 +116,11 @@ def backend(request, monkeypatch):
     return request.param, (server_client if request.param == "server" else worker_client)(monkeypatch)
 
 
-MASKED = {"id", "student_token", "admin_token", "student_path", "admin_path",
-          "created_at", "submitted_at", "deadline"}
+# Only values that are random or clock-dependent are masked. Tokens are
+# replaced by placeholders wherever they appear (so student_path/admin_path
+# still compare structurally), ids keep their type, and deadlines are compared
+# as exact strings: the teacher sets them to fixed instants below.
+TIMESTAMPS = {"created_at", "submitted_at"}
 
 
 def mask(value, key=None):
@@ -125,17 +128,47 @@ def mask(value, key=None):
         return {k: mask(v, k) for k, v in value.items()}
     if isinstance(value, list):
         return [mask(v) for v in value]
-    if key in MASKED and value is not None:
-        return "<masked>"
+    if value is None:
+        return None
+    if key == "id":
+        return f"<id:{type(value).__name__}>"
+    if key in TIMESTAMPS:
+        return "<timestamp>"
     return value
+
+
+def _replace_tokens(value, tokens):
+    if isinstance(value, dict):
+        return {k: _replace_tokens(v, tokens) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_replace_tokens(v, tokens) for v in value]
+    if isinstance(value, str):
+        for token, placeholder in tokens.items():
+            value = value.replace(token, placeholder)
+    return value
+
+
+def _all_args(value):
+    """Every `args` list anywhere in a JSON body."""
+    if isinstance(value, dict):
+        found = [value["args"]] if "args" in value else []
+        return found + [a for v in value.values() for a in _all_args(v)]
+    if isinstance(value, list):
+        return [a for v in value for a in _all_args(v)]
+    return []
+
+
+HIDDEN_ARGS = [c["args"] for c in PROBLEM["test_cases"] if not c["is_public"]]
 
 
 def scenario(c, deadline=None):
     """Run the full flow; return [(label, status, masked json)]."""
     trace = []
+    tokens = {}
 
     def rec(label, r, body=True):
-        trace.append((label, r.status_code, mask(r.json()) if body else None))
+        trace.append((label, r.status_code,
+                      mask(_replace_tokens(r.json(), tokens)) if body else None))
         return r
 
     rec("syntax_bad", c.post("/api/syntax-check", json={"code": "def ("}))
@@ -148,11 +181,20 @@ def scenario(c, deadline=None):
     pid = rec("create_problem", c.post("/api/teacher/problems", json=PROBLEM)).json()["id"]
     rec("list_problems", c.get("/api/teacher/problems"))
     rec("exam_unknown_problem", c.post("/api/teacher/exams", json={"problem_id": "nope"}))
-    ex = rec("create_exam", c.post("/api/teacher/exams", json={"problem_id": pid})).json()
-    st, ad = ex["student_token"], ex["admin_token"]
-    rec("get_exam", c.get(f"/api/exam/{st}"))
+    r = c.post("/api/teacher/exams", json={"problem_id": pid})
+    st, ad = r.json()["student_token"], r.json()["admin_token"]
+    tokens.update({st: "<student_token>", ad: "<admin_token>"})
+    rec("create_exam", r)
+    # Student-facing, before any submit: must not reveal hidden test cases.
+    # (submit itself does show failed hidden cases, a known limitation.)
+    for label, resp in (("get_exam", c.get(f"/api/exam/{st}")),
+                        ("run", c.post(f"/api/exam/{st}/run", json={"code": REF}))):
+        body = resp.json()
+        for hidden in HIDDEN_ARGS:
+            assert hidden not in _all_args(body), label
+        assert "expected" not in json.dumps(body), label
+        rec(label, resp)
     rec("get_exam_unknown", c.get("/api/exam/unknown"))
-    rec("run", c.post(f"/api/exam/{st}/run", json={"code": REF}))
     rec("submit", c.post(f"/api/exam/{st}/submit", json={"student_name": "An", "code": REF}))
     rec("submit_wrong", c.post(f"/api/exam/{st}/submit",
                                json={"student_name": "Bo", "code": "def add(a, b):\n    return 0\n"}))
@@ -187,6 +229,9 @@ def test_scenario_runs_on_both_backends(traces):
         statuses = {label: status for label, status, _ in t}
         assert statuses["submit"] == 200 and statuses["submit_closed"] == 403, name
         assert statuses["export"] == 200 and statuses["audit"] == 200, name
+        bodies = {label: body for label, _, body in t}
+        assert bodies["create_exam"]["student_path"] == "/exam/<student_token>", name
+        assert bodies["create_exam"]["admin_path"] == "/admin/<admin_token>", name
 
 
 def test_status_codes_match(traces):
