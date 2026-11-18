@@ -93,4 +93,24 @@ strings (English, matching existing UI tone).
 
 ## Spike results
 
-_(filled in by Task 0)_
+Run 2026-11-18 on `grading-spike.khangnguyen.workers.dev` (deleted afterwards
+together with its D1). Account assumed on Workers Free; the plan could not be
+read through the API with the wrangler OAuth token. CPU from `wrangler tail`
+(`cpuTime`).
+
+| Q | Question | Result |
+|---|---|---|
+| Q1 | FastAPI app deploys and serves | Pass, after adding `Default = asgi.entrypoint(app)` |
+| Q2 | CPU per graded request ≤ 10 ms | **Fail.** Over 32 requests, `/grade-fake` (sandbox, scoring, pydantic; LLM faked) had median **91 ms**, min 18 ms, max 201 ms. Over 8 requests, `/grade-ai` (real Workers AI) had median **95 ms**, max 281 ms. Even an empty `GET /` had median 17.5 ms. Pyodide was about **45×** slower than CPython (1.95 ms). Every request still returned `outcome: ok`: the 10 ms limit was **not enforced** in practice, but it is the documented limit |
+| Q3 | Sync code can call the AI binding | Pass. `pyodide.ffi.run_sync(env.AI.run(...))` works, and the result is already a Python object (no `.to_py()`). A real grade of `P01_two_sum__S1` gave 94.0, the same as the REST API run |
+| Q4 | D1 from Python | Pass. Vietnamese text plus 300 lines round-trip identical. `db.batch(python_list)` works, while `Array.push` and `to_js(create_pyproxies=False)` do not |
+| Q5 | `openpyxl` on Pyodide | Pass (1476 ms CPU on the first, cold call) |
+| Q6 | `prompts/*.txt` readable | Pass **if** `grader` sits in `src/vendor/grader` with prompts in `src/prompts`, which keeps `parents[2]/prompts` valid. With `src/grader` it fails |
+| Q7 | Student code reaching out | **Fail, serious.** `run_sync(js.fetch(...))` from exec'd code got HTTP 200. Walking `sys._getframe()`, or **a traceback with no import at all**, reached `request.scope["env"]` with `DB`, so student code can read and modify all data and spend the AI quota. `urllib.request` is refused |
+
+Other findings:
+- `src/grader/{pipeline,rubric_checks,feedback}.py` import `llm_client`, which imports `openai` at module load. `openai` cannot load in a Worker ("Randomness is not allowed while a Worker is starting"). Fix: import `LLMClient` under `TYPE_CHECKING` only.
+- Dynamic Workers (`globalOutbound: null`) would isolate student code, but they need Workers Paid.
+- A new `workers.dev` subdomain (`khangnguyen`) took about 30 s to get its TLS certificate.
+
+**Gate: no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.
