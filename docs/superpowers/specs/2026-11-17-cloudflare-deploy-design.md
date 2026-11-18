@@ -113,4 +113,33 @@ Other findings:
 - Dynamic Workers (`globalOutbound: null`) would isolate student code, but they need Workers Paid.
 - A new `workers.dev` subdomain (`khangnguyen`) took about 30 s to get its TLS certificate.
 
-**Gate: no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.
+## Decision after the spike (2026-11-18, Khang)
+
+**Go with C on Workers Free, accepting the risks below** (option 3 of: C on
+Workers Paid, A on Containers, C on Free).
+
+Changes to the design above:
+- **Sandbox isolation:** student code runs in a second Worker,
+  `grading-sandbox`, which has **no bindings** and **no public URL**
+  (`workers_dev: false`). It is reachable only through a service binding
+  `SANDBOX` from the main Worker. Frame-walking there finds no DB or AI. The
+  `js`/`pyodide` import guard is dropped (`sys.modules["js"]` bypasses it).
+- **`src/grader` changes allowed, both behavior-preserving:**
+  (1) import `LLMClient` under `TYPE_CHECKING` in `pipeline.py`,
+  `rubric_checks.py` and `feedback.py`;
+  (2) `grade(sample, client, run_submission=run_submission)`, so the Worker
+  can pass a remote runner.
+- **Bundle layout:** `src/vendor/grader` plus `src/prompts`.
+- **LLM calls:** sync via `pyodide.ffi.run_sync`.
+
+Accepted risks (Khang chose these knowingly):
+1. Grading uses about 90 ms CPU against a documented 10 ms Free limit that
+   is not enforced today. If Cloudflare starts enforcing it, grading
+   requests fail. The fix then is Workers Paid ($5/mo) with no code change.
+2. Student code in `grading-sandbox` can still make outbound HTTP requests
+   (no egress control on Free). It has no secrets or data to send.
+3. Teacher pages have no login, so anyone with the URL can create problems
+   and use up the 10,000 Neurons/day. That costs no money, but grading can
+   be unavailable until the 00:00 UTC reset.
+
+**Gate (as originally designed): no-go for C as designed.** It works today only because the Free CPU limit is not being enforced; at about 90 ms per grade that is ~9× over the documented limit, too fragile for a long-term demo. The in-process sandbox also exposes the DB to student code (Q7). Next step: Khang decides between A (Containers, $5/mo), C on Workers Paid ($5/mo, 30 s CPU), or C on Free accepting the risk.
