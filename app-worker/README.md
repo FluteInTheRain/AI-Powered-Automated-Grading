@@ -102,6 +102,6 @@ bypass Access). Verified on the live deployment:
 Cloudflare API with a scoped API token (Access: Apps and Policies edit). Verified live: unauthenticated
 `/api/teacher/me` -> 302 to the Access login; student routes and `/health` stay open.
 
-**Not yet verified:** a real browser login (one-time PIN) followed by `/api/teacher/me` returning the
-teacher JSON, which proves the Worker accepts the real Access JWT. The Free plan user cap is still
-unconfirmed from the docs.
+**Real login verified (2026-11-25, by the author):** browser sign-in with a one-time PIN, then
+`/api/teacher/me` returned the teacher JSON, so the Worker accepts a real Access JWT. The Free plan
+user cap is still unconfirmed from the docs.
