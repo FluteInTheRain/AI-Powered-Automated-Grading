@@ -9,9 +9,10 @@ const CASES = JSON.stringify([
 ]);
 
 let mode: "ok" | "killed" = "ok";
-const grader = fakeGrader(async (_n, body) => {
+const grader = fakeGrader(async (name, body) => {
   await Promise.resolve();
   if (mode === "killed") return jsonRes({ detail: "Grading failed: your submission exceeded the time/resource limit." }, 502);
+  if (name === "run") return jsonRes({ status: "ran", message: null, cases: body.cases.map(() => ({ passed: true, error: null })) });
   const score = body.statement.includes("ST_A") ? 80 : 60;
   return jsonRes({
     result: {
@@ -47,14 +48,18 @@ const submit = (token: string, attempt: string, problem: string, code = "def f(x
 const count = async (table: string) => (await env.DB.prepare(`SELECT count(*) AS n FROM ${table}`).first<any>()).n;
 
 describe("student flow", () => {
-  it("exam view has no hidden cases or reference", async () => {
+  it("exam view follows the UI contract and hides every test value", async () => {
     const { token } = await newExam("s1@x.com");
     const r = await call("GET", `/api/exam/${token}`);
     expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ title: "T", time_limit_seconds: 600, is_closed: false });
     expect(r.json.questions).toHaveLength(2);
-    expect(r.json.questions[0].public_cases).toEqual([{ args: [1], expected: "PUBEXP" }]);
-    expect(r.text).not.toContain("HIDDENEXP");
-    expect(r.text).not.toContain("SECRET REF");
+    expect(r.json.questions[0]).toMatchObject({
+      problem_id: "bank:sa", position: 0, weight: 1, statement: "ST_A", starter_code: "def f(x): pass",
+      rubric: { correctness: 100 }, public_case_count: 1, hidden_case_count: 1,
+    });
+    expect(r.json.questions[0]).not.toHaveProperty("public_cases");
+    for (const secret of ["PUBEXP", "HIDDENEXP", "SECRET REF"]) expect(r.text).not.toContain(secret);
   });
 
   it("attempt then submit stores submission, revision 0 and logs", async () => {
@@ -200,5 +205,52 @@ describe("student flow", () => {
     expect(r.status).toBe(200);
     expect(r.json).toHaveLength(60);
     expect(c.count()).toBeLessThanOrEqual(6);
+  });
+
+  const runPath = (token: string, attempt: string, problem = "bank:sa") => `/api/exam/${token}/attempts/${attempt}/questions/${problem}/run`;
+
+  it("run sends only public cases and returns the grader body", async () => {
+    const { token } = await newExam("r1@x.com");
+    const a = await start(token);
+    const r = await call("POST", runPath(token, a.json.attempt_id), { body: { code: "def f(x): return 3" } });
+    expect(r.status).toBe(200);
+    expect(r.json).toEqual({ status: "ran", message: null, cases: [{ passed: true, error: null }] });
+    const sent = grader.calls.at(-1)!;
+    expect(sent.name).toBe("run");
+    expect(sent.body.cases).toEqual([{ args: [1], expected: "PUBEXP", is_public: true }]);
+  });
+
+  it("run after the time limit is 403", async () => {
+    const { token } = await newExam("r2@x.com");
+    const a = await start(token);
+    const late = client(grader.binding, () => new Date(Date.now() + 700_000));
+    const r = await late("POST", runPath(token, a.json.attempt_id), { body: { code: "x" } });
+    expect(r.status).toBe(403);
+    expect(r.json.detail).toBe("Time limit exceeded");
+  });
+
+  it("run on a closed exam is 403", async () => {
+    const e = await newExam("r3@x.com");
+    const a = await start(e.token);
+    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "r3@x.com", body: { deadline: "2000-01-01T00:00:00Z" } });
+    expect((await call("POST", runPath(e.token, a.json.attempt_id), { body: { code: "x" } })).status).toBe(403);
+  });
+
+  it("run with an unknown attempt or question is 404, bad code is 400", async () => {
+    const { token } = await newExam("r4@x.com");
+    const a = await start(token);
+    expect((await call("POST", runPath(token, "nope"), { body: { code: "x" } })).status).toBe(404);
+    expect((await call("POST", runPath(token, a.json.attempt_id, "bank:zzz"), { body: { code: "x" } })).status).toBe(404);
+    expect((await call("POST", runPath(token, a.json.attempt_id), { body: { code: "" } })).status).toBe(400);
+  });
+
+  it("run grader failure is a 502 with the grader's fixed text", async () => {
+    const { token } = await newExam("r5@x.com");
+    const a = await start(token);
+    mode = "killed";
+    const r = await call("POST", runPath(token, a.json.attempt_id), { body: { code: "x" } });
+    mode = "ok";
+    expect(r.status).toBe(502);
+    expect(r.json.detail).toContain("time/resource");
   });
 });

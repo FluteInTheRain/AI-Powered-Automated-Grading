@@ -5,6 +5,13 @@
   "observability": { "enabled": true },
   // Preview URLs would bypass the Cloudflare Access policy on the main hostname.
   "preview_urls": false,
+  // The React UI (app-ui/) is built to static files; only /api/* and /health run Worker code.
+  "assets": {
+    "directory": "../app-ui/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/health"]
+  },
   "d1_databases": [
     {
       "binding": "DB",
