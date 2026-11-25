@@ -77,6 +77,9 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
   counts, not the per-case error strings.
 - The time limit (`started_at` + `time_limit_seconds` + 10 s) is checked on submit; the Durable Object
   timer replaces this in Phase 2. Resubmitting a question is rejected (409).
+  It is **not** cheat-proof: students have no identity, so a new attempt resets the clock, and the
+  questions are visible before an attempt starts. Phase 2 moves questions behind the attempt and adds
+  Rate Limiting; real per-student limits would need invited or authenticated students.
 - Teacher results use one D1 query (the Free plan caps queries per Worker invocation).
 
 ## Status
