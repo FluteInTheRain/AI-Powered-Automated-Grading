@@ -62,6 +62,7 @@ export default function CodeEditor({ value, onChange, readOnly, filename = 'solu
       <Editor
         height="480px"
         defaultLanguage="python"
+        path={filename} // one editor model per file name, so undo history never crosses questions
         theme="vs-dark"
         value={value}
         onChange={(v) => onChange(v ?? '')}

@@ -8,8 +8,8 @@ vi.mock('../src/api.js')
 vi.mock('@monaco-editor/react', async () => {
   const React = await import('react')
   return {
-    default: ({ value, onChange }) =>
-      React.createElement('textarea', { 'aria-label': 'editor', value, onChange: (e) => onChange(e.target.value) }),
+    default: ({ value, onChange, path }) =>
+      React.createElement('textarea', { 'aria-label': 'editor', 'data-path': path, value, onChange: (e) => onChange(e.target.value) }),
   }
 })
 
@@ -98,6 +98,24 @@ describe('student ExamPage', () => {
     expect(editor()).toHaveValue('CODE-ONE')
     fireEvent.click(screen.getByRole('button', { name: 'Câu 2' }))
     expect(editor()).toHaveValue('CODE-TWO')
+  })
+
+  it('gives each question its own editor model so undo cannot cross questions', async () => {
+    renderPage()
+    await startExam()
+    const first = editor().getAttribute('data-path')
+    fireEvent.click(screen.getByRole('button', { name: 'Câu 2' }))
+    const second = editor().getAttribute('data-path')
+    expect(first).toBeTruthy()
+    expect(second).toBeTruthy()
+    expect(second).not.toBe(first)
+  })
+
+  it('shows whole seconds when the deadline is sooner than the time limit', async () => {
+    api.getExam.mockResolvedValue(exam({ deadline: new Date(Date.now() + 270_700).toISOString() }))
+    renderPage()
+    await startExam()
+    expect(screen.getByText('04:30')).toBeInTheDocument()
   })
 
   it('timer expiry submits each unsubmitted question exactly once and treats 409 as done', async () => {

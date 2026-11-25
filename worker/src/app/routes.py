@@ -432,4 +432,10 @@ async def internal_run(req: InternalRunRequest, sandbox=Depends(get_sandbox)):
     except (SandboxKilled, SandboxError) as e:
         raise _sandbox_http_error(e, "Your code exceeded the time/resource limit.",
                                   f"internal run func_name={req.func_name}")
-    return rules.run_response(detailed)
+    response = rules.run_response(detailed)
+    # A raised error's text can echo the case args or expected value (repr in the message, a custom
+    # __eq__), so students only learn that the case errored.
+    for case in response["cases"]:
+        if case["error"] is not None:
+            case["error"] = "Your code raised an error on this test case."
+    return response

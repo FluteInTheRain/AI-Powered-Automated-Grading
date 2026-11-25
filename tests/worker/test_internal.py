@@ -173,3 +173,12 @@ def test_run_killed_sandbox_is_502(env):
     r = make_client(env, real_auth=False).post("/api/internal/run", json=RUN_BODY)
     assert r.status_code == 502
     assert "time/resource" in r.json()["detail"]
+
+
+def test_run_never_returns_error_text_that_can_carry_case_values(env):
+    leaky = {**RUN_BODY, "code": "def add(a, b):\n    raise ValueError(repr((a, b)))\n"}
+    r = make_client(env, real_auth=False).post("/api/internal/run", json=leaky)
+    assert r.status_code == 200
+    case = r.json()["cases"][0]
+    assert case["passed"] is False and case["error"]
+    assert "(1, 2)" not in r.text

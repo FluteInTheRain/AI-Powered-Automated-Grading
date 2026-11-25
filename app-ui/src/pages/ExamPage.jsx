@@ -11,7 +11,7 @@ import Timer from '../components/Timer.jsx'
 
 function secondsUntil(isoDeadline) {
   if (!isoDeadline) return Infinity
-  return Math.max(0, (new Date(isoDeadline).getTime() - Date.now()) / 1000)
+  return Math.max(0, Math.floor((new Date(isoDeadline).getTime() - Date.now()) / 1000))
 }
 
 const blankQuestion = (q) => ({ code: q.starter_code, result: null, runResult: null, submitted: false, submitting: false, running: false, error: null })
@@ -214,7 +214,7 @@ export default function ExamPage() {
                   {state.submitting ? 'Grading…' : 'Submit'}
                 </button>
               </div>
-              <CodeEditor value={state.code} onChange={(code) => patch(question.problem_id, { code })} readOnly={state.submitted || state.submitting} />
+              <CodeEditor filename={`solution_${active + 1}.py`} value={state.code} onChange={(code) => patch(question.problem_id, { code })} readOnly={state.submitted || state.submitting} />
               <TestRunPanel runResult={state.runResult} />
             </div>
           </div>
