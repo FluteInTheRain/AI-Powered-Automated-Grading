@@ -126,3 +126,15 @@ API redirects to the login). Student paths `/exam/*` and `/api/exam/*` stay publ
 Cloudflare API (`PUT /accounts/<id>/access/apps/<app id>` with `destinations`).
 
 Not in the UI yet: authoring your own question, Excel export, the AI audit trail (Phase 3).
+
+## CI/CD (GitHub Actions)
+
+- `.github/workflows/ci.yml` runs on every PR and push to `main`: Python tests, `app-worker` tests + typecheck,
+  `app-ui` tests + build (three parallel jobs).
+- `.github/workflows/deploy.yml` runs on every push to `main` (and by hand from the Actions tab), after the same
+  checks: deploys `grading-sandbox`, `grading` (with the demo UI), applies D1 migrations, builds the UI and deploys
+  `teacher-app`, then smoke-tests `/health`, the Access redirect and the demo home page. Deploys never overlap.
+- Repository secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Repository variable: `DEMO_EXAM_PATH`
+  (`/exam/Gj4_eCLot4LOiksK_JMf-w`, the "try it" box). `INTERNAL_TOKEN` stays a Worker secret on Cloudflare, not in CI.
+- To rotate the token: create a new one (Edit Cloudflare Workers + D1 Edit), replace the secret in
+  Settings > Secrets and variables > Actions.
