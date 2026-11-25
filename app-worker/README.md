@@ -84,4 +84,24 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
 
 ## Status
 
-Smoke-test evidence and Access plan-limit notes: not recorded yet (deploy steps above are pending).
+Deployed 2026-11-25 to https://teacher-app.khangnguyen.workers.dev (D1 `teacher-app`, id in
+`wrangler.jsonc`; `INTERNAL_TOKEN` set on both Workers; preview URLs turned off because they would
+bypass Access). Verified on the live deployment:
+
+- `/health` -> 200; `/api/teacher/me` without a login -> 401 `Not signed in` (fails closed while the
+  Access placeholders are still in `wrangler.jsonc`); `POST /api/internal/grade` on `grading`
+  without the token -> 401; the demo home page still -> 200.
+- Bank: 16 system problems in D1.
+- End to end through the service binding (smoke exam `smokeexam` / teacher `smoke-test@example.invalid`,
+  inserted directly in D1, harmless): start attempt, submit the known-good `two_sum` -> score 94,
+  tests 3/3, LLM feedback returned; by-receipt read-back matched. Those rows stay (scores are append-only).
+
+**Access (2026-11-25):** Zero Trust org `aged-snowflake-18c8.cloudflareaccess.com`; application
+"teacher-app (teacher API)" for `teacher-app.khangnguyen.workers.dev/api/teacher/*`, policy "Owner only"
+(allow one email), session 24 h; AUD tag and team domain are in `wrangler.jsonc`. Created through the
+Cloudflare API with a scoped API token (Access: Apps and Policies edit). Verified live: unauthenticated
+`/api/teacher/me` -> 302 to the Access login; student routes and `/health` stay open.
+
+**Real login verified (2026-11-25, by the author):** browser sign-in with a one-time PIN, then
+`/api/teacher/me` returned the teacher JSON, so the Worker accepts a real Access JWT. The Free plan
+user cap is still unconfirmed from the docs.

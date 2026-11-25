@@ -3,20 +3,22 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  // Preview URLs would bypass the Cloudflare Access policy on the main hostname.
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "teacher-app",
       // Replace with the id printed by `wrangler d1 create teacher-app` (plan Task 10).
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "51f10c77-d6b9-4513-a221-c78521b29362",
       "migrations_dir": "migrations"
     }
   ],
   // The existing Python grading Worker (worker/), called at /api/internal/*.
   "services": [{ "binding": "GRADER", "service": "grading" }],
   "vars": {
-    // Filled in when Cloudflare Access is set up (plan Task 10).
-    "ACCESS_TEAM_DOMAIN": "REPLACE_ME.cloudflareaccess.com",
-    "ACCESS_AUD": "REPLACE_ME"
+    // From the Cloudflare Access application protecting /api/teacher/*.
+    "ACCESS_TEAM_DOMAIN": "aged-snowflake-18c8.cloudflareaccess.com",
+    "ACCESS_AUD": "4a887da67764ade1f6967c38e668942b5cd0f40551f58834dcbdb72bf44a2056"
   }
 }
