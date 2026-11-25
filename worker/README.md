@@ -252,3 +252,10 @@ cd worker && npx wrangler delete grading
 cd ../sandbox-worker && npx wrangler delete grading-sandbox
 npx wrangler d1 delete grading   # deletes all problems, exams and submissions
 ```
+
+## Internal endpoints for the teacher app
+
+`POST /api/internal/grade`, `/api/internal/preview` and `/api/internal/validate-problem` are called
+by the `teacher-app` Worker (see `app-worker/README.md`). They are stateless (no D1) and require the
+`X-Internal-Token` header to equal the `INTERNAL_TOKEN` secret (`uv run pywrangler secret put INTERNAL_TOKEN`);
+without the secret every call answers 401. They are public URLs, protected only by that token.
