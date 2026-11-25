@@ -1,0 +1,52 @@
+import { Hono } from "hono";
+import { insertProblem, listBank, listOwnProblems, type NewProblem } from "../db/problems";
+import { GraderError, previewProblem, toClientError, validateProblem } from "../grader";
+import type { AppEnv } from "../index";
+
+const isStrArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+
+function parseNewProblem(b: any): NewProblem | string {
+  if (!b || typeof b !== "object") return "Body must be a JSON object";
+  if (typeof b.statement !== "string" || !b.statement.trim()) return "statement is required";
+  if (typeof b.func_name !== "string" || !/^[A-Za-z_]\w*$/.test(b.func_name)) return "func_name must be a Python identifier";
+  if (!isStrArray(b.param_names)) return "param_names must be a list of strings";
+  if (!b.rubric || typeof b.rubric !== "object") return "rubric is required";
+  if (typeof b.reference_solution !== "string" || !b.reference_solution.trim()) return "reference_solution is required";
+  if (!Array.isArray(b.test_cases) || b.test_cases.length === 0) return "At least one test case is required";
+  const starter = `def ${b.func_name}(${b.param_names.join(", ")}):\n    # TODO: your solution here\n    pass\n`;
+  return {
+    statement: b.statement, func_name: b.func_name, param_names: b.param_names, rubric: b.rubric,
+    reference_solution: b.reference_solution, test_cases: b.test_cases, starter_code: starter,
+  };
+}
+
+export function teacherProblemRoutes(): Hono<AppEnv> {
+  const r = new Hono<AppEnv>();
+  r.get("/bank", async (c) => c.json(await listBank(c.env.DB)));
+  r.get("/problems", async (c) => c.json(await listOwnProblems(c.env.DB, c.get("teacher").id)));
+
+  r.post("/problems/preview", async (c) => {
+    try {
+      return c.json(await previewProblem(c.env, await c.req.json()));
+    } catch (e) {
+      if (!(e instanceof GraderError)) throw e;
+      const { status, detail } = toClientError(e);
+      return c.json({ detail }, status);
+    }
+  });
+
+  r.post("/problems", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const parsed = parseNewProblem(body);
+    if (typeof parsed === "string") return c.json({ detail: parsed }, 400);
+    try {
+      await validateProblem(c.env, body);
+    } catch (e) {
+      if (!(e instanceof GraderError)) throw e;
+      const { status, detail } = toClientError(e);
+      return c.json({ detail }, status);
+    }
+    return c.json({ id: await insertProblem(c.env.DB, c.get("teacher").id, parsed) });
+  });
+  return r;
+}

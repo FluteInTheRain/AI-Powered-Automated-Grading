@@ -62,3 +62,9 @@ export async function previewProblem(env: GraderEnv, body: unknown): Promise<unk
 export async function validateProblem(env: GraderEnv, body: unknown): Promise<void> {
   await post(env, "validate-problem", body);
 }
+
+/** The HTTP answer to give our own client for a grader failure: 400 passes the detail through, anything else is a fixed 502. */
+export function toClientError(e: GraderError): { status: 400 | 502; detail: string } {
+  if (e.status === 400) return { status: 400, detail: e.detail };
+  return { status: 502, detail: e.status === 502 ? e.detail : FALLBACK_DETAIL };
+}
