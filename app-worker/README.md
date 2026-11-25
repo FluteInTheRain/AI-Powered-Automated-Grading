@@ -2,7 +2,7 @@
 
 Phase 1 of the teacher app: teacher login (Cloudflare Access), question bank, multi-question
 exams, student attempts graded synchronously by the Python Worker (`worker/`) over a service
-binding. API only, no UI yet. Design: `docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md`;
+binding, and a React UI (`app-ui/`, plan `docs/superpowers/plans/2026-11-25-teacher-app-ui.md`) served as static assets. Design: `docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md`;
 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`.
 
 Free plan only, workers.dev hostname, $0.
@@ -105,3 +105,24 @@ Cloudflare API with a scoped API token (Access: Apps and Policies edit). Verifie
 **Real login verified (2026-11-25, by the author):** browser sign-in with a one-time PIN, then
 `/api/teacher/me` returned the teacher JSON, so the Worker accepts a real Access JWT. The Free plan
 user cap is still unconfirmed from the docs.
+
+## UI (`app-ui/`)
+
+React + Vite SPA that reuses the demo's components and `index.css`. Pages: `/teacher` (own exams, create
+from the bank), `/teacher/exams/:id` (results, deadline), `/exam/:token` (student exam with Monaco editor,
+timer, Run Tests, score and AI feedback, receipt-code lookup).
+
+```bash
+npm --prefix app-ui test                       # vitest + Testing Library
+npm --prefix app-ui run build                  # writes app-ui/dist, served by the Worker's assets binding
+(cd app-worker && npx wrangler deploy)         # build the UI first
+```
+
+Dev: `npx wrangler dev` in `app-worker/` (port 8787) and `npm --prefix app-ui run dev` (proxies `/api`).
+
+**Access destinations** (all three are needed): `/api/teacher/*`, `/teacher/*` and the exact path `/teacher`
+(the wildcard does not match it; without it the page loads unprotected and reloads in a loop when the
+API redirects to the login). Student paths `/exam/*` and `/api/exam/*` stay public. Set through the
+Cloudflare API (`PUT /accounts/<id>/access/apps/<app id>` with `destinations`).
+
+Not in the UI yet: authoring your own question, Excel export, the AI audit trail (Phase 3).

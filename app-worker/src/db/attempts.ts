@@ -6,7 +6,7 @@ import { computeTotal } from "../scoring";
 
 export type StudentExam = {
   id: string; title: string; deadline: string | null; student_token: string; time_limit_seconds: number;
-  questions: { problem_id: string; position: number; weight: number; statement: string; starter_code: string; test_cases: string }[];
+  questions: { problem_id: string; position: number; weight: number; statement: string; starter_code: string; test_cases: string; rubric: string }[];
 };
 
 export async function getExamByStudentToken(db: D1Database, token: string) {
@@ -16,7 +16,7 @@ export async function getExamByStudentToken(db: D1Database, token: string) {
   if (!exam) return null;
   const { results } = await db
     .prepare(
-      "SELECT q.problem_id, q.position, q.weight, p.statement, p.starter_code, p.test_cases FROM exam_questions q" +
+      "SELECT q.problem_id, q.position, q.weight, p.statement, p.starter_code, p.test_cases, p.rubric FROM exam_questions q" +
         " JOIN problems p ON p.id = q.problem_id WHERE q.exam_id = ? ORDER BY q.position",
     ).bind(exam.id).all<StudentExam["questions"][number]>();
   return { ...exam, questions: results } as StudentExam;

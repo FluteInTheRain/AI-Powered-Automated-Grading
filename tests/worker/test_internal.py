@@ -145,3 +145,40 @@ def test_grade_feedback_prompt_never_contains_hidden_case_details():
     feedback_calls = [s for s in seen if "CodeFeedback" in s]
     assert feedback_calls
     assert all("expected=" not in s for s in feedback_calls)
+
+
+RUN_BODY = {"code": REF, "func_name": "add", "cases": [CASES[0]]}
+
+
+def test_run_requires_token(env):
+    assert make_client(env).post("/api/internal/run", json=RUN_BODY).status_code == 401
+
+
+def test_run_returns_pass_fail_per_case_without_values(env):
+    r = make_client(env, real_auth=False).post("/api/internal/run", json=RUN_BODY)
+    assert r.status_code == 200
+    assert r.json()["cases"] == [{"passed": True, "error": None}]
+    assert "expected" not in r.text
+
+
+def test_run_reports_failures(env):
+    wrong = {**RUN_BODY, "code": "def add(a, b):\n    return 0\n"}
+    r = make_client(env, real_auth=False).post("/api/internal/run", json=wrong)
+    assert r.status_code == 200
+    assert r.json()["cases"][0]["passed"] is False
+
+
+def test_run_killed_sandbox_is_502(env):
+    env.sandbox.killed = True
+    r = make_client(env, real_auth=False).post("/api/internal/run", json=RUN_BODY)
+    assert r.status_code == 502
+    assert "time/resource" in r.json()["detail"]
+
+
+def test_run_never_returns_error_text_that_can_carry_case_values(env):
+    leaky = {**RUN_BODY, "code": "def add(a, b):\n    raise ValueError(repr((a, b)))\n"}
+    r = make_client(env, real_auth=False).post("/api/internal/run", json=leaky)
+    assert r.status_code == 200
+    case = r.json()["cases"][0]
+    assert case["passed"] is False and case["error"]
+    assert "(1, 2)" not in r.text

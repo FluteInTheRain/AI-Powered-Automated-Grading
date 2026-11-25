@@ -59,6 +59,30 @@ export async function previewProblem(env: GraderEnv, body: unknown): Promise<unk
   return post(env, "preview", body);
 }
 
+export type RunOutput = { status: string; message: string | null; cases: { passed: boolean; error: string | null }[] };
+
+/** Pass/fail per public case; the Python Worker never returns the case values. */
+export async function runCases(
+  env: GraderEnv,
+  input: { code: string; func_name: string; cases: { args: unknown[]; expected: unknown; is_public: boolean }[] },
+): Promise<RunOutput> {
+  return (await post(env, "run", input)) as RunOutput;
+}
+
+/** compile() only parses, so the grader's public syntax-check endpoint needs no token. */
+export async function checkSyntax(env: Pick<Env, "GRADER">, code: string): Promise<unknown> {
+  let res: Response;
+  try {
+    res = await env.GRADER.fetch("https://grader/api/syntax-check", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }),
+    });
+  } catch {
+    throw new GraderError(502, FALLBACK_DETAIL);
+  }
+  if (res.status !== 200) throw new GraderError(res.status, FALLBACK_DETAIL);
+  return res.json();
+}
+
 export async function validateProblem(env: GraderEnv, body: unknown): Promise<void> {
   await post(env, "validate-problem", body);
 }
