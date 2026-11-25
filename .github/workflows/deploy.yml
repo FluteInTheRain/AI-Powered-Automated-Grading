@@ -1,0 +1,66 @@
+name: Deploy
+
+# Runs on every merge to main, after the same checks as CI. Needs the repository secrets
+# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, and the optional variable DEMO_EXAM_PATH
+# (the sample exam path shown in the demo's "try it" box).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # manual re-run from the Actions tab
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never cut a running deploy short
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Check the Cloudflare secrets exist
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" \
+            || { echo "::error::Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the repository secrets"; exit 1; }
+
+      # Order matters: grading's SANDBOX binding points at grading-sandbox, and teacher-app's
+      # GRADER binding points at grading.
+      - name: Deploy grading-sandbox
+        run: |
+          ./sandbox-worker/build.sh
+          cd sandbox-worker && uv run pywrangler deploy
+
+      - name: Deploy grading (Python Worker + demo UI)
+        run: |
+          DEMO_EXAM_PATH="${{ vars.DEMO_EXAM_PATH }}" ./worker/build.sh
+          cd worker && uv run pywrangler deploy
+
+      - name: Build the teacher-app UI
+        run: |
+          npm ci --prefix app-ui
+          npm run build --prefix app-ui
+
+      - name: Migrate the database and deploy teacher-app
+        working-directory: app-worker
+        run: |
+          npm ci
+          npx wrangler d1 migrations apply teacher-app --remote
+          npx wrangler deploy
+
+      - name: Smoke test
+        run: |
+          set -e
+          test "$(curl -s -o /dev/null -w '%{http_code}' https://teacher-app.khangnguyen.workers.dev/health)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' https://teacher-app.khangnguyen.workers.dev/api/teacher/me)" = 302
+          test "$(curl -s -o /dev/null -w '%{http_code}' https://grading.khangnguyen.workers.dev/)" = 200
