@@ -181,6 +181,21 @@ source of truth for project status, not a one-off plan to read once.
   labels) and the T3.3 outcome, whichever way it went.
   ~half day.
 
+## Phase 6 — Teacher app on Cloudflare (new direction, 2026-11-25)
+
+Design: `docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md`.
+Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free plan only.
+
+- [x] **T6.1 — Phase 1 code (Foundation).** `app-worker/` (TypeScript): Access login, question
+  bank seed, multi-question exams, student attempts graded synchronously through the Python Worker's
+  new token-gated `/api/internal/*`, append-only score revisions. 74 Worker tests + 135 Python tests green; whole-branch review findings fixed.
+  No UI yet.
+- [ ] **T6.2 — Phase 1 deploy.** D1 create + migrate + seed, `INTERNAL_TOKEN` on both Workers,
+  deploy, Cloudflare Access on `/api/teacher/*`, smoke test. Runbook: `app-worker/README.md`.
+- [ ] **T6.3 — Phase 2 plan + build:** Queues, Durable Object timer, R2 audit logs, Turnstile, Rate Limiting.
+- [ ] **T6.4 — Phase 3 plan + build:** appeals, Workflows, Cron, teacher review UI.
+- [ ] **T6.5 — Phase 4 plan + build:** AI Gateway, Analytics Engine, logs, CI deploy; plus a UI plan.
+
 ## Notes
 
 - **Productionization ideas are tracked separately, not here.** See

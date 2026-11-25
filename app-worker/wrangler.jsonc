@@ -1,0 +1,22 @@
+{
+  "name": "teacher-app",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "teacher-app",
+      // Replace with the id printed by `wrangler d1 create teacher-app` (plan Task 10).
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // The existing Python grading Worker (worker/), called at /api/internal/*.
+  "services": [{ "binding": "GRADER", "service": "grading" }],
+  "vars": {
+    // Filled in when Cloudflare Access is set up (plan Task 10).
+    "ACCESS_TEAM_DOMAIN": "REPLACE_ME.cloudflareaccess.com",
+    "ACCESS_AUD": "REPLACE_ME"
+  }
+}

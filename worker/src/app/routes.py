@@ -18,6 +18,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from grader.feedback import generate_feedback
 from grader.pipeline import grade
@@ -348,3 +349,69 @@ async def submit_exam(student_token: str, req: ExamSubmitRequest, db=Depends(get
         logger.exception("saving the graded submission failed (submit %s)", context)
         raise HTTPException(status_code=502, detail=NOT_SAVED)
     return result
+
+
+# --- internal endpoints (called by the teacher-app Worker over a service binding) ---
+# Stateless: no DB. They live under /api/ because wrangler's run_worker_first only
+# routes /api/* to this code; the shared secret keeps them off-limits to the public.
+
+async def require_internal_token(request: Request) -> None:
+    expected = getattr(request.scope["env"], "INTERNAL_TOKEN", "") or ""
+    given = request.headers.get("x-internal-token", "")
+    if not expected or not secrets.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+class InternalGradeRequest(BaseModel):
+    statement: str
+    func_name: str
+    rubric: dict
+    hidden_cases: list
+    code: str
+
+
+@router.post("/api/internal/grade", dependencies=[Depends(require_internal_token)])
+async def internal_grade(req: InternalGradeRequest, client=Depends(get_llm_client),
+                         sandbox=Depends(get_sandbox)):
+    context = f"internal func_name={req.func_name}"
+    sample = rules.build_submit_sample(req.statement, req.func_name, req.rubric, req.hidden_cases, req.code)
+    try:
+        result = grade(sample, client, run_submission=sandbox.run_submission)
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Grading failed: your submission exceeded the time/resource limit.",
+                                  context)
+    except Exception:
+        logger.exception("grading failed (%s)", context)
+        raise HTTPException(status_code=502, detail=GRADING_FAILED)
+    # Explanatory only, generated after the score is fixed; best effort. The per-case error
+    # strings carry hidden inputs and expected values, so the feedback prompt only gets counts.
+    try:
+        feedback = generate_feedback(
+            client, req.statement, req.code,
+            {**result["execution_result"], "errors": []}, result["sub_scores_0_to_1"], result["check_details"],
+        )
+        result["feedback"] = feedback.model_dump()
+    except Exception:
+        logger.exception("generate_feedback failed (%s)", context)
+        result["feedback"] = None
+    return {"result": result, "call_log": client.call_log}
+
+
+@router.post("/api/internal/preview", dependencies=[Depends(require_internal_token)])
+async def internal_preview(req: PreviewRequest, sandbox=Depends(get_sandbox)):
+    # Same behaviour as the teacher preview route, minus the teacher URL prefix.
+    return await preview_test_cases(req, sandbox)
+
+
+@router.post("/api/internal/validate-problem", dependencies=[Depends(require_internal_token)])
+async def internal_validate_problem(req: CreateProblemRequest, sandbox=Depends(get_sandbox)):
+    """Run the same gate as create_problem, but persist nothing."""
+    try:
+        rules.validate_new_problem(req.rubric.model_dump(), [tc.model_dump() for tc in req.test_cases],
+                                   sandbox.run_submission, req.reference_solution, req.func_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Reference solution exceeded the time/resource limit.",
+                                  f"validate_problem func_name={req.func_name}")
+    return {"ok": True}
