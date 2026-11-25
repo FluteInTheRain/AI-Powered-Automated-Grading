@@ -89,3 +89,43 @@ def test_grade_ai_failure_is_502_fixed_text():
     r = make_client(env, real_auth=False).post("/api/internal/grade", json=GRADE_BODY)
     assert r.status_code == 502
     assert r.json()["detail"] == routes.GRADING_FAILED
+
+
+def test_preview_requires_token_and_returns_cases(env):
+    c = make_client(env)
+    body = {"reference_solution": REF, "func_name": "add", "cases": [{"args": [1, 2]}]}
+    assert c.post("/api/internal/preview", json=body).status_code == 401
+    r = c.post("/api/internal/preview", json=body, headers=HEADERS)
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+    assert r.json()["cases"][0]["expected"] == 3
+
+
+def test_validate_requires_token(env):
+    assert make_client(env).post("/api/internal/validate-problem", json=PROBLEM).status_code == 401
+
+
+def test_validate_ok_for_good_problem(env):
+    r = make_client(env, real_auth=False).post("/api/internal/validate-problem", json=PROBLEM)
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+
+
+def test_validate_rubric_not_100_is_400(env):
+    bad = {**PROBLEM, "rubric": {**PROBLEM["rubric"], "correctness": 50}}
+    r = make_client(env, real_auth=False).post("/api/internal/validate-problem", json=bad)
+    assert r.status_code == 400
+    assert "Rubric weights must sum to 100" in r.json()["detail"]
+
+
+def test_validate_all_public_is_400(env):
+    bad = {**PROBLEM, "test_cases": [{**CASES[0]}, {**CASES[1], "is_public": True}]}
+    r = make_client(env, real_auth=False).post("/api/internal/validate-problem", json=bad)
+    assert r.status_code == 400
+    assert "hidden" in r.json()["detail"]
+
+
+def test_validate_killed_sandbox_is_502(env):
+    env.sandbox.killed = True
+    r = make_client(env, real_auth=False).post("/api/internal/validate-problem", json=PROBLEM)
+    assert r.status_code == 502

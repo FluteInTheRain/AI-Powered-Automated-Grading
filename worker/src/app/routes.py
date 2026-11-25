@@ -394,3 +394,23 @@ async def internal_grade(req: InternalGradeRequest, client=Depends(get_llm_clien
         logger.exception("generate_feedback failed (%s)", context)
         result["feedback"] = None
     return {"result": result, "call_log": client.call_log}
+
+
+@router.post("/api/internal/preview", dependencies=[Depends(require_internal_token)])
+async def internal_preview(req: PreviewRequest, sandbox=Depends(get_sandbox)):
+    # Same behaviour as the teacher preview route, minus the teacher URL prefix.
+    return await preview_test_cases(req, sandbox)
+
+
+@router.post("/api/internal/validate-problem", dependencies=[Depends(require_internal_token)])
+async def internal_validate_problem(req: CreateProblemRequest, sandbox=Depends(get_sandbox)):
+    """Run the same gate as create_problem, but persist nothing."""
+    try:
+        rules.validate_new_problem(req.rubric.model_dump(), [tc.model_dump() for tc in req.test_cases],
+                                   sandbox.run_submission, req.reference_solution, req.func_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Reference solution exceeded the time/resource limit.",
+                                  f"validate_problem func_name={req.func_name}")
+    return {"ok": True}
