@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createApp } from "../src/index";
 
-export type GraderCall = { name: string; body: unknown };
+export type GraderCall = { name: string; body: any };
 
 /** A fake GRADER service binding: `handler` answers per internal endpoint name. */
 export function fakeGrader(handler: (name: string, body: any) => Response | Promise<Response>) {

@@ -52,3 +52,9 @@ export async function insertProblem(db: D1Database, teacherId: string, p: NewPro
     .run();
   return id;
 }
+
+/** Any problem by id, no ownership check: only for ids already tied to an exam the caller reached by its secret token. */
+export async function getProblemById(db: D1Database, problemId: string): Promise<Problem | null> {
+  const r = await db.prepare("SELECT * FROM problems WHERE id = ?").bind(problemId).first<Row>();
+  return r ? toProblem(r) : null;
+}

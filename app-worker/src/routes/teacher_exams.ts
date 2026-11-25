@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getVisibleProblem } from "../db/problems";
 import { getOwnExam, insertExam, listExamQuestions, listOwnExams, setDeadline, type ExamRow } from "../db/exams";
+import { attemptScores, listAttempts } from "../db/attempts";
 import type { AppEnv } from "../index";
 
 const DEFAULT_TIME_LIMIT_SECONDS = 600;
@@ -61,6 +62,21 @@ export function teacherExamRoutes(): Hono<AppEnv> {
       statement_excerpt: q.statement.length <= 120 ? q.statement : q.statement.slice(0, 120) + "…",
     }));
     return c.json({ ...view(exam), questions });
+  });
+
+  r.get("/exams/:id/results", async (c) => {
+    const exam = await getOwnExam(c.env.DB, c.get("teacher").id, c.req.param("id"));
+    if (!exam) return c.json({ detail: "Unknown exam" }, 404);
+    // One query per attempt: fine at Phase 1 scale (a class of students per exam).
+    const rows = [];
+    for (const a of await listAttempts(c.env.DB, exam.id)) {
+      const s = await attemptScores(c.env.DB, exam.id, a.id);
+      rows.push({
+        attempt_id: a.id, student_name: a.student_name, started_at: a.started_at,
+        questions: s.questions.map((q) => ({ problem_id: q.problem_id, score: q.score })), total: s.total,
+      });
+    }
+    return c.json(rows);
   });
 
   r.patch("/exams/:id", async (c) => {
