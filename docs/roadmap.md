@@ -188,7 +188,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 
 - [x] **T6.1 — Phase 1 code (Foundation).** `app-worker/` (TypeScript): Access login, question
   bank seed, multi-question exams, student attempts graded synchronously through the Python Worker's
-  new token-gated `/api/internal/*`, append-only score revisions. 66 Worker tests + Python tests green.
+  new token-gated `/api/internal/*`, append-only score revisions. 74 Worker tests + 135 Python tests green; whole-branch review findings fixed.
   No UI yet.
 - [ ] **T6.2 — Phase 1 deploy.** D1 create + migrate + seed, `INTERNAL_TOKEN` on both Workers,
   deploy, Cloudflare Access on `/api/teacher/*`, smoke test. Runbook: `app-worker/README.md`.

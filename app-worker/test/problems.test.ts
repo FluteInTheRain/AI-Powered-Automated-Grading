@@ -77,6 +77,19 @@ describe("question bank and teacher problems", () => {
     expect(g.calls.length).toBe(0);
   });
 
+  it.each([
+    ["string is_public", { ...NEW_PROBLEM, test_cases: [{ args: [1, 2], expected: 3, is_public: "false" }, { args: [2, 2], expected: 4, is_public: false }] }],
+    ["args not a list", { ...NEW_PROBLEM, test_cases: [{ args: "1,2", expected: 3, is_public: false }] }],
+    ["string rubric weight", { ...NEW_PROBLEM, rubric: { ...RUBRIC, correctness: "40" } }],
+    ["extra rubric key", { ...NEW_PROBLEM, rubric: { ...RUBRIC, bonus: 0 } }],
+    ["bad param name", { ...NEW_PROBLEM, param_names: ["a b"] }],
+  ])("strictly rejects %s before the grader", async (_n, body) => {
+    const g = fakeGrader(() => jsonRes({ ok: true }));
+    const r = await client(g.binding)("POST", "/api/teacher/problems", { as: "strict@x.com", body });
+    expect(r.status).toBe(400);
+    expect(g.calls.length).toBe(0);
+  });
+
   it("preview is proxied to the grader", async () => {
     const g = fakeGrader(() => jsonRes({ status: "ok", cases: [] }));
     const r = await client(g.binding)("POST", "/api/teacher/problems/preview", { as: "p7@x.com", body: { reference_solution: "x", func_name: "f", cases: [] } });

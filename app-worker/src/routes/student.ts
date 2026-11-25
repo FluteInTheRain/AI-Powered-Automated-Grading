@@ -10,6 +10,7 @@ import type { AppEnv } from "../index";
 
 const MAX_NAME = 100;
 const MAX_CODE = 20_000;
+const GRACE_SECONDS = 10; // slack for network latency on the last submit
 
 export function studentRoutes(now: () => Date): Hono<AppEnv> {
   const r = new Hono<AppEnv>();
@@ -36,20 +37,24 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
     const name = typeof b?.student_name === "string" ? b.student_name.trim() : "";
     if (!name || name.length > MAX_NAME) return c.json({ detail: "student_name must be 1-100 characters" }, 400);
     if (closed(exam.deadline)) return c.json({ detail: "This exam is closed" }, 403);
-    return c.json(await createAttempt(c.env.DB, exam.id, name));
+    return c.json(await createAttempt(c.env.DB, exam.id, name, now()));
   });
 
   r.post("/:token/attempts/:attemptId/questions/:problemId/submit", async (c) => {
     const { token, attemptId, problemId } = c.req.param();
     const exam = await getExamByStudentToken(c.env.DB, token);
     if (!exam) return notFound(c, "exam link");
-    if (!(await attemptInExam(c.env.DB, attemptId, exam.id))) return notFound(c, "attempt");
+    const attempt = await attemptInExam(c.env.DB, attemptId, exam.id);
+    if (!attempt) return notFound(c, "attempt");
     if (!exam.questions.some((q) => q.problem_id === problemId)) return notFound(c, "question");
     const b: any = await c.req.json().catch(() => null);
     if (typeof b?.code !== "string" || b.code.length === 0 || b.code.length > MAX_CODE) {
       return c.json({ detail: "code must be 1-20000 characters" }, 400);
     }
     if (closed(exam.deadline)) return c.json({ detail: "This exam is closed" }, 403);
+    if (now().getTime() > Date.parse(attempt.started_at) + (exam.time_limit_seconds + GRACE_SECONDS) * 1000) {
+      return c.json({ detail: "Time limit exceeded" }, 403);
+    }
     if (await submissionExists(c.env.DB, attemptId, problemId)) return c.json({ detail: "Already submitted" }, 409);
 
     const problem = await getProblemById(c.env.DB, problemId);

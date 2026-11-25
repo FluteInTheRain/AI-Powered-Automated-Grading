@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
-import { client, fakeGrader, jsonRes } from "./helpers";
+import { client, countingDb, fakeGrader, jsonRes } from "./helpers";
 
 const RUBRIC = JSON.stringify({ correctness: 100 });
 const CASES = JSON.stringify([
@@ -177,5 +177,28 @@ describe("student flow", () => {
     expect(ok.json[0]).toMatchObject({ student_name: "Rae", total: null });
     expect(ok.json[0].questions[0]).toMatchObject({ problem_id: "bank:sa", score: 80 });
     expect((await call("GET", `/api/teacher/exams/${id}/results`, { as: "other13@x.com" })).status).toBe(404);
+  });
+
+  it("submit after the time limit is 403, within it is 200", async () => {
+    const { token } = await newExam("s14@x.com");
+    const a = await start(token);
+    const path = `/api/exam/${token}/attempts/${a.json.attempt_id}/questions/bank:sa/submit`;
+    const body = { code: "def f(x): return 3" };
+    const late = client(grader.binding, () => new Date(Date.now() + 700_000));
+    const r = await late("POST", path, { body });
+    expect(r.status).toBe(403);
+    expect(r.json.detail).toBe("Time limit exceeded");
+    const inTime = client(grader.binding, () => new Date(Date.now() + 100_000));
+    expect((await inTime("POST", path, { body })).status).toBe(200);
+  });
+
+  it("teacher results use a constant number of queries", async () => {
+    const { id, token } = await newExam("s15@x.com");
+    for (let i = 0; i < 60; i++) await start(token, `N${i}`);
+    const c = countingDb(env.DB);
+    const r = await client(grader.binding, undefined, c.db)("GET", `/api/teacher/exams/${id}/results`, { as: "s15@x.com" });
+    expect(r.status).toBe(200);
+    expect(r.json).toHaveLength(60);
+    expect(c.count()).toBeLessThanOrEqual(6);
   });
 });

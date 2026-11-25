@@ -68,6 +68,17 @@ so the endpoints live at `/api/internal/*` and are **public but token-gated** (`
 compared in constant time, fails closed when the secret is unset). A separate Worker with
 `workers_dev: false` would remove the public surface at the cost of a third Python bundle.
 
+## Known limits of Phase 1 (read before deploying)
+
+- **No abuse limits yet.** Anyone with an exam link can create attempts and each submit costs a full
+  grading run (about 100 graded questions a day exhaust the Workers AI free budget for the whole app).
+  Turnstile and Rate Limiting arrive in Phase 2; until then share links only with students you trust.
+- Hidden test cases are protected: students get pass counts only, and the LLM feedback prompt sees
+  counts, not the per-case error strings.
+- The time limit (`started_at` + `time_limit_seconds` + 10 s) is checked on submit; the Durable Object
+  timer replaces this in Phase 2. Resubmitting a question is rejected (409).
+- Teacher results use one D1 query (the Free plan caps queries per Worker invocation).
+
 ## Status
 
 Smoke-test evidence and Access plan-limit notes: not recorded yet (deploy steps above are pending).

@@ -383,11 +383,12 @@ async def internal_grade(req: InternalGradeRequest, client=Depends(get_llm_clien
     except Exception:
         logger.exception("grading failed (%s)", context)
         raise HTTPException(status_code=502, detail=GRADING_FAILED)
-    # Explanatory only, generated after the score is fixed; best effort.
+    # Explanatory only, generated after the score is fixed; best effort. The per-case error
+    # strings carry hidden inputs and expected values, so the feedback prompt only gets counts.
     try:
         feedback = generate_feedback(
             client, req.statement, req.code,
-            result["execution_result"], result["sub_scores_0_to_1"], result["check_details"],
+            {**result["execution_result"], "errors": []}, result["sub_scores_0_to_1"], result["check_details"],
         )
         result["feedback"] = feedback.model_dump()
     except Exception:

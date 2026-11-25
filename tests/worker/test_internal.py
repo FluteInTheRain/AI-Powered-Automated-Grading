@@ -129,3 +129,19 @@ def test_validate_killed_sandbox_is_502(env):
     env.sandbox.killed = True
     r = make_client(env, real_auth=False).post("/api/internal/validate-problem", json=PROBLEM)
     assert r.status_code == 502
+
+
+def test_grade_feedback_prompt_never_contains_hidden_case_details():
+    seen = []
+
+    class SpyAI(FakeAI):
+        def run(self, model, payload):
+            seen.append(str(payload))
+            return super().run(model, payload)
+
+    wrong = {**GRADE_BODY, "code": "def add(a, b):\n    return 0\n"}
+    r = make_client(Env(ai=SpyAI()), real_auth=False).post("/api/internal/grade", json=wrong)
+    assert r.status_code == 200
+    feedback_calls = [s for s in seen if "CodeFeedback" in s]
+    assert feedback_calls
+    assert all("expected=" not in s for s in feedback_calls)

@@ -21,9 +21,9 @@ export const jsonRes = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 /** Calls the app as a teacher (dev bypass) or anonymously (student routes). */
-export function client(grader: Fetcher, now?: () => Date) {
+export function client(grader: Fetcher, now?: () => Date, db?: D1Database) {
   const app = createApp(now ? { now } : {});
-  const e = { DB: env.DB, GRADER: grader, INTERNAL_TOKEN: "tok", ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", ACCESS_AUD: "a", DEV_AUTH_BYPASS: "1" };
+  const e = { DB: db ?? env.DB, GRADER: grader, INTERNAL_TOKEN: "tok", ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", ACCESS_AUD: "a", DEV_AUTH_BYPASS: "1" };
   return async (method: string, path: string, opts: { as?: string; body?: unknown } = {}) => {
     const headers: Record<string, string> = {};
     if (opts.as) headers["X-Dev-Teacher"] = opts.as;
@@ -34,4 +34,17 @@ export function client(grader: Fetcher, now?: () => Date) {
     try { json = JSON.parse(text); } catch { /* not json */ }
     return { status: res.status, json, text };
   };
+}
+
+/** Wraps a D1 binding and counts prepare() calls (one per query). */
+export function countingDb(db: D1Database) {
+  let n = 0;
+  const proxy = new Proxy(db, {
+    get(t, k) {
+      if (k === "prepare") return (...a: [string]) => { n++; return t.prepare(...a); };
+      const v = (t as any)[k];
+      return typeof v === "function" ? v.bind(t) : v;
+    },
+  });
+  return { db: proxy as D1Database, count: () => n };
 }

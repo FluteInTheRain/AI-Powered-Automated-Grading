@@ -45,7 +45,7 @@ describe("teacher exams", () => {
   it("another teacher's private problem is 404", async () => {
     const p = await call("POST", "/api/teacher/problems", {
       as: "owner3@x.com",
-      body: { statement: "s", func_name: "f", param_names: [], rubric: {}, reference_solution: "x", test_cases: [{}] },
+      body: { statement: "s", func_name: "f", param_names: [], rubric: { correctness: 100, efficiency: 0, code_style: 0, edge_case_handling: 0 }, reference_solution: "x", test_cases: [{ args: [], expected: 1, is_public: false }] },
     });
     const r = await mkExam("thief3@x.com", { title: "T", questions: Q(p.json.id) });
     expect(r.status).toBe(404);
@@ -76,6 +76,15 @@ describe("teacher exams", () => {
     expect(set.json.deadline).toBe("2030-01-01T00:00:00.000Z");
     const clr = await call("PATCH", `/api/teacher/exams/${r.json.id}`, { as: "ex7@x.com", body: { deadline: null } });
     expect(clr.json.deadline).toBeNull();
+  });
+
+  it("patch without a deadline key is 400 and keeps the deadline", async () => {
+    const r = await mkExam("ex9@x.com", { title: "T", deadline: "2030-01-01T00:00:00Z", questions: Q("bank:e1") });
+    for (const body of [{}, { title: "x" }]) {
+      expect((await call("PATCH", `/api/teacher/exams/${r.json.id}`, { as: "ex9@x.com", body })).status).toBe(400);
+    }
+    const d = await call("GET", `/api/teacher/exams/${r.json.id}`, { as: "ex9@x.com" });
+    expect(d.json.deadline).toBe("2030-01-01T00:00:00.000Z");
   });
 
   it("student token is 32 hex and unique", async () => {
