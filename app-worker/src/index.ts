@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { JWTVerifyGetKey } from "jose";
 import { requireTeacher } from "./auth";
+import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
 import type { Env, Teacher } from "./env";
 
@@ -13,6 +14,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.use("/api/teacher/*", requireTeacher(deps));
   app.get("/api/teacher/me", (c) => c.json(c.get("teacher")));
   app.route("/api/teacher", teacherProblemRoutes());
+  app.route("/api/teacher", teacherExamRoutes());
   return app;
 }
 
