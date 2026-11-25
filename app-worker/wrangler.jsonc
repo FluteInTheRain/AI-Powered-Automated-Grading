@@ -17,8 +17,8 @@
   // The existing Python grading Worker (worker/), called at /api/internal/*.
   "services": [{ "binding": "GRADER", "service": "grading" }],
   "vars": {
-    // Filled in when Cloudflare Access is set up (plan Task 10).
-    "ACCESS_TEAM_DOMAIN": "REPLACE_ME.cloudflareaccess.com",
-    "ACCESS_AUD": "REPLACE_ME"
+    // From the Cloudflare Access application protecting /api/teacher/*.
+    "ACCESS_TEAM_DOMAIN": "aged-snowflake-18c8.cloudflareaccess.com",
+    "ACCESS_AUD": "4a887da67764ade1f6967c38e668942b5cd0f40551f58834dcbdb72bf44a2056"
   }
 }

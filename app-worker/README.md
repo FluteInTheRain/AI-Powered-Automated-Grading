@@ -96,7 +96,12 @@ bypass Access). Verified on the live deployment:
   inserted directly in D1, harmless): start attempt, submit the known-good `two_sum` -> score 94,
   tests 3/3, LLM feedback returned; by-receipt read-back matched. Those rows stay (scores are append-only).
 
-**Still to do (step 5, needs the Zero Trust dashboard):** create the Access application for this
-hostname with path `/api/teacher/*`, then put the team domain and AUD tag in `wrangler.jsonc`
-(`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`) and redeploy. Until then no teacher can log in. The Free plan
-user/application limits are still unconfirmed.
+**Access (2026-11-25):** Zero Trust org `aged-snowflake-18c8.cloudflareaccess.com`; application
+"teacher-app (teacher API)" for `teacher-app.khangnguyen.workers.dev/api/teacher/*`, policy "Owner only"
+(allow one email), session 24 h; AUD tag and team domain are in `wrangler.jsonc`. Created through the
+Cloudflare API with a scoped API token (Access: Apps and Policies edit). Verified live: unauthenticated
+`/api/teacher/me` -> 302 to the Access login; student routes and `/health` stay open.
+
+**Not yet verified:** a real browser login (one-time PIN) followed by `/api/teacher/me` returning the
+teacher JSON, which proves the Worker accepts the real Access JWT. The Free plan user cap is still
+unconfirmed from the docs.
