@@ -415,3 +415,21 @@ async def internal_validate_problem(req: CreateProblemRequest, sandbox=Depends(g
         raise _sandbox_http_error(e, "Reference solution exceeded the time/resource limit.",
                                   f"validate_problem func_name={req.func_name}")
     return {"ok": True}
+
+
+class InternalRunRequest(BaseModel):
+    code: str
+    func_name: str
+    cases: list
+
+
+@router.post("/api/internal/run", dependencies=[Depends(require_internal_token)])
+async def internal_run(req: InternalRunRequest, sandbox=Depends(get_sandbox)):
+    """Pass/fail per given case, never the values. The caller sends only the public cases."""
+    cases = [(tuple(tc["args"]), tc["expected"]) for tc in req.cases]
+    try:
+        detailed = sandbox.run_submission_cases(req.code, req.func_name, cases)
+    except (SandboxKilled, SandboxError) as e:
+        raise _sandbox_http_error(e, "Your code exceeded the time/resource limit.",
+                                  f"internal run func_name={req.func_name}")
+    return rules.run_response(detailed)
