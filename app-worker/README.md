@@ -84,4 +84,19 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
 
 ## Status
 
-Smoke-test evidence and Access plan-limit notes: not recorded yet (deploy steps above are pending).
+Deployed 2026-11-25 to https://teacher-app.khangnguyen.workers.dev (D1 `teacher-app`, id in
+`wrangler.jsonc`; `INTERNAL_TOKEN` set on both Workers; preview URLs turned off because they would
+bypass Access). Verified on the live deployment:
+
+- `/health` -> 200; `/api/teacher/me` without a login -> 401 `Not signed in` (fails closed while the
+  Access placeholders are still in `wrangler.jsonc`); `POST /api/internal/grade` on `grading`
+  without the token -> 401; the demo home page still -> 200.
+- Bank: 16 system problems in D1.
+- End to end through the service binding (smoke exam `smokeexam` / teacher `smoke-test@example.invalid`,
+  inserted directly in D1, harmless): start attempt, submit the known-good `two_sum` -> score 94,
+  tests 3/3, LLM feedback returned; by-receipt read-back matched. Those rows stay (scores are append-only).
+
+**Still to do (step 5, needs the Zero Trust dashboard):** create the Access application for this
+hostname with path `/api/teacher/*`, then put the team domain and AUD tag in `wrangler.jsonc`
+(`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`) and redeploy. Until then no teacher can log in. The Free plan
+user/application limits are still unconfirmed.

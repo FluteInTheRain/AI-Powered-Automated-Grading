@@ -190,7 +190,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
   bank seed, multi-question exams, student attempts graded synchronously through the Python Worker's
   new token-gated `/api/internal/*`, append-only score revisions. 74 Worker tests + 135 Python tests green; whole-branch review findings fixed.
   No UI yet.
-- [ ] **T6.2 — Phase 1 deploy.** D1 create + migrate + seed, `INTERNAL_TOKEN` on both Workers,
+- [ ] **T6.2 — Phase 1 deploy (partly done 2026-11-25: D1, secrets, both Workers deployed, student flow smoke-tested live; Access setup pending).** D1 create + migrate + seed, `INTERNAL_TOKEN` on both Workers,
   deploy, Cloudflare Access on `/api/teacher/*`, smoke test. Runbook: `app-worker/README.md`.
 - [ ] **T6.3 — Phase 2 plan + build:** Queues, Durable Object timer, R2 audit logs, Turnstile, Rate Limiting.
 - [ ] **T6.4 — Phase 3 plan + build:** appeals, Workflows, Cron, teacher review UI.

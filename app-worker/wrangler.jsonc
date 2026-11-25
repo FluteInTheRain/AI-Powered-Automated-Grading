@@ -3,12 +3,14 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
+  // Preview URLs would bypass the Cloudflare Access policy on the main hostname.
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "teacher-app",
       // Replace with the id printed by `wrangler d1 create teacher-app` (plan Task 10).
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "51f10c77-d6b9-4513-a221-c78521b29362",
       "migrations_dir": "migrations"
     }
   ],
