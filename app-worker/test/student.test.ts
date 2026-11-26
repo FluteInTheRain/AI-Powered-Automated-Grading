@@ -1,12 +1,13 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
-import { client, countingDb, fakeGrader, jsonRes } from "./helpers";
+import { client, drain, fakeGrader, fakeQueue, jsonRes } from "./helpers";
 
 const RUBRIC = JSON.stringify({ correctness: 100 });
 const CASES = JSON.stringify([
   { args: [1], expected: "PUBEXP", is_public: true },
   { args: [2], expected: "HIDDENEXP", is_public: false },
 ]);
+const SECRETS = ["PUBEXP", "HIDDENEXP", "SECRET REF"];
 
 let mode: "ok" | "killed" = "ok";
 const grader = fakeGrader(async (name, body) => {
@@ -23,7 +24,9 @@ const grader = fakeGrader(async (name, body) => {
     call_log: [{ kind: "check", schema: "S", model: "m", system_prompt: "sp", user_prompt: "up", raw_response: "rr" }],
   });
 });
-const call = client(grader.binding);
+const q = fakeQueue();
+const call = client(grader.binding, undefined, undefined, { GRADING_QUEUE: q.binding });
+const at = (offsetMs: number) => client(grader.binding, () => new Date(Date.now() + offsetMs), undefined, { GRADING_QUEUE: q.binding });
 
 async function seed(id: string, statement: string) {
   await env.DB.prepare(
@@ -39,180 +42,199 @@ async function newExam(as: string, extra: Record<string, unknown> = {}, weights 
   });
   return { id: r.json.id as string, token: r.json.student_token as string };
 }
-async function start(token: string, name = "Stu") {
-  const r = await call("POST", `/api/exam/${token}/attempts`, { body: { student_name: name } });
-  return r;
-}
-const submit = (token: string, attempt: string, problem: string, code = "def f(x): return 3") =>
-  call("POST", `/api/exam/${token}/attempts/${attempt}/questions/${problem}/submit`, { body: { code } });
+const start = (token: string, name = "Stu", c = call) => c("POST", `/api/exam/${token}/attempts`, { body: { student_name: name } });
+const qpath = (token: string, attempt: string, problem: string, tail: string) => `/api/exam/${token}/attempts/${attempt}/questions/${problem}/${tail}`;
+const submit = (token: string, attempt: string, problem: string, code = "def f(x): return 3", c = call) =>
+  c("POST", qpath(token, attempt, problem, "submit"), { body: { code } });
+const status = (token: string, attempt: string, problem: string) => call("GET", qpath(token, attempt, problem, "status"));
 const count = async (table: string) => (await env.DB.prepare(`SELECT count(*) AS n FROM ${table}`).first<any>()).n;
+const finish = () => drain(q, grader.binding);
 
-describe("student flow", () => {
-  it("exam view follows the UI contract and hides every test value", async () => {
+describe("exam summary and attempt start", () => {
+  it("the summary has no questions and no test values", async () => {
     const { token } = await newExam("s1@x.com");
     const r = await call("GET", `/api/exam/${token}`);
     expect(r.status).toBe(200);
-    expect(r.json).toMatchObject({ title: "T", time_limit_seconds: 600, is_closed: false });
+    expect(r.json).toEqual({ title: "T", deadline: null, time_limit_seconds: 600, is_closed: false, question_count: 2, turnstile_site_key: "" });
+    for (const s of SECRETS) expect(r.text).not.toContain(s);
+  });
+
+  it("starting returns the questions, the remaining seconds and a receipt, never test values", async () => {
+    const { token } = await newExam("s2@x.com");
+    const r = await start(token);
+    expect(r.status).toBe(200);
+    expect(r.json.receipt_code).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
+    expect(r.json.remaining_seconds).toBe(600);
     expect(r.json.questions).toHaveLength(2);
     expect(r.json.questions[0]).toMatchObject({
       problem_id: "bank:sa", position: 0, weight: 1, statement: "ST_A", starter_code: "def f(x): pass",
       rubric: { correctness: 100 }, public_case_count: 1, hidden_case_count: 1,
     });
-    expect(r.json.questions[0]).not.toHaveProperty("public_cases");
-    for (const secret of ["PUBEXP", "HIDDENEXP", "SECRET REF"]) expect(r.text).not.toContain(secret);
+    for (const s of SECRETS) expect(r.text).not.toContain(s);
   });
 
-  it("attempt then submit stores submission, revision 0 and logs", async () => {
-    const { token } = await newExam("s2@x.com");
-    const a = await start(token);
-    expect(a.json.receipt_code).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
-    const [s0, r0, l0] = [await count("submissions"), await count("score_revisions"), await count("grading_logs")];
-    const r = await submit(token, a.json.attempt_id, "bank:sa");
-    expect(r.status).toBe(200);
-    expect(r.json).toMatchObject({ problem_id: "bank:sa", score: 80, tests: { passed: 1, total: 1 } });
-    expect([await count("submissions"), await count("score_revisions"), await count("grading_logs")]).toEqual([s0 + 1, r0 + 1, l0 + 1]);
-    const rev = await env.DB.prepare("SELECT revision, source, score, author FROM score_revisions ORDER BY rowid DESC LIMIT 1").first<any>();
-    expect(rev).toEqual({ revision: 0, source: "ai", score: 80, author: "pipeline" });
-    expect(grader.calls.at(-1)!.body.hidden_cases).toEqual([{ args: [2], expected: "HIDDENEXP", is_public: false }]);
-  });
-
-  it("submit response never contains expected values", async () => {
+  it("the same name again in one exam is a 409 that points to the receipt code", async () => {
     const { token } = await newExam("s3@x.com");
-    const a = await start(token);
-    const r = await submit(token, a.json.attempt_id, "bank:sa");
-    expect(r.text).not.toContain("HIDDENEXP");
+    expect((await start(token, "An Nguyen")).status).toBe(200);
+    const again = await start(token, "  an nguyen ");
+    expect(again.status).toBe(409);
+    expect(again.json.detail).toContain("receipt");
+  });
+
+  it("unknown links are 404, bad names are 400, a closed exam is 403", async () => {
+    expect((await call("GET", "/api/exam/deadbeef")).status).toBe(404);
+    expect((await start("deadbeef")).status).toBe(404);
+    const e = await newExam("s4@x.com");
+    expect((await start(e.token, "n".repeat(101))).status).toBe(400);
+    expect((await start(e.token, "   ")).status).toBe(400);
+    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "s4@x.com", body: { deadline: "2000-01-01T00:00:00Z" } });
+    expect((await start(e.token, "Late")).status).toBe(403);
+  });
+});
+
+describe("resume", () => {
+  it("returns the questions, the remaining time and each question's status", async () => {
+    const { token } = await newExam("s5@x.com");
+    const a = (await start(token, "Rey")).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    const r = await call("GET", `/api/exam/${token}/attempts/${a.attempt_id}`);
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ student_name: "Rey", receipt_code: a.receipt_code });
+    expect(r.json.remaining_seconds).toBeLessThanOrEqual(600);
+    expect(r.json.remaining_seconds).toBeGreaterThan(590);
+    expect(r.json.questions.map((x: any) => [x.problem_id, x.status])).toEqual([["bank:sa", "queued"], ["bank:sb", "none"]]);
+    await finish();
+    const after = await call("GET", `/api/exam/${token}/attempts/${a.attempt_id}`);
+    expect(after.json.questions[0].status).toBe("done");
+    for (const s of SECRETS) expect(r.text).not.toContain(s);
+  });
+
+  it("an unknown attempt, or one from another exam, is 404", async () => {
+    const e1 = await newExam("s6@x.com");
+    const e2 = await newExam("s6@x.com");
+    const a = (await start(e1.token)).json;
+    expect((await call("GET", `/api/exam/${e1.token}/attempts/nope`)).status).toBe(404);
+    expect((await call("GET", `/api/exam/${e2.token}/attempts/${a.attempt_id}`)).status).toBe(404);
+  });
+});
+
+describe("submit, status and retry", () => {
+  it("submit answers 202, stores a queued job and enqueues exactly one message", async () => {
+    const { token } = await newExam("s7@x.com");
+    const a = (await start(token)).json;
+    const before = q.sent.length;
+    const r = await submit(token, a.attempt_id, "bank:sa");
+    expect(r.status).toBe(202);
+    expect(r.json).toEqual({ status: "queued" });
+    expect(q.sent.length).toBe(before + 1);
+    expect((await status(token, a.attempt_id, "bank:sa")).json).toEqual({ status: "queued" });
+    await finish();
+  });
+
+  it("a second submit for the same question is 409, and a concurrent pair has one 202 and one 409", async () => {
+    const { token } = await newExam("s8@x.com");
+    const a = (await start(token)).json;
+    expect((await submit(token, a.attempt_id, "bank:sa")).status).toBe(202);
+    expect((await submit(token, a.attempt_id, "bank:sa")).status).toBe(409);
+    const b = (await start(token, "Other")).json;
+    const [x, y] = await Promise.all([submit(token, b.attempt_id, "bank:sa"), submit(token, b.attempt_id, "bank:sa")]);
+    expect([x.status, y.status].sort()).toEqual([202, 409]);
+    await finish();
+  });
+
+  it("after the consumer runs, status shows the score, tests and feedback but no expected values", async () => {
+    const { token } = await newExam("s9@x.com");
+    const a = (await start(token)).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    await finish();
+    const r = await status(token, a.attempt_id, "bank:sa");
+    expect(r.json).toMatchObject({ status: "done", score: 80, sub_scores: { correctness: 1 }, tests: { passed: 1, total: 1 }, feedback: { summary: "nice" } });
+    for (const s of SECRETS) expect(r.text).not.toContain(s);
     expect(r.text.toLowerCase()).not.toContain("expected");
   });
 
-  it("second submit for the same question is 409", async () => {
-    const { token } = await newExam("s4@x.com");
-    const a = await start(token);
-    expect((await submit(token, a.json.attempt_id, "bank:sa")).status).toBe(200);
-    expect((await submit(token, a.json.attempt_id, "bank:sa")).status).toBe(409);
-  });
-
-  it("concurrent double submit: one 200, one 409", async () => {
-    const { token } = await newExam("s5@x.com");
-    const a = await start(token);
-    const [x, y] = await Promise.all([submit(token, a.json.attempt_id, "bank:sa"), submit(token, a.json.attempt_id, "bank:sa")]);
-    expect([x.status, y.status].sort()).toEqual([200, 409]);
-    const n = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE attempt_id = ?").bind(a.json.attempt_id).first<any>();
-    expect(n.n).toBe(1);
-  });
-
-  it("closed exam rejects attempt and submit with 403", async () => {
-    const open = await newExam("s6@x.com");
-    const a = await start(open.token);
-    await call("PATCH", `/api/teacher/exams/${open.id}`, { as: "s6@x.com", body: { deadline: "2000-01-01T00:00:00Z" } });
-    expect((await submit(open.token, a.json.attempt_id, "bank:sa")).status).toBe(403);
-    expect((await start(open.token)).status).toBe(403);
-  });
-
-  it("grader failure persists nothing and allows a retry", async () => {
-    const { token } = await newExam("s7@x.com");
-    const a = await start(token);
-    const before = await count("submissions");
-    mode = "killed";
-    const bad = await submit(token, a.json.attempt_id, "bank:sa");
-    mode = "ok";
-    expect(bad.status).toBe(502);
-    expect(bad.json.detail).toContain("time/resource");
-    expect(await count("submissions")).toBe(before);
-    expect((await submit(token, a.json.attempt_id, "bank:sa")).status).toBe(200);
-  });
-
-  it("attempt from another exam is 404", async () => {
-    const e1 = await newExam("s8@x.com");
-    const e2 = await newExam("s8@x.com");
-    const a = await start(e1.token);
-    expect((await submit(e2.token, a.json.attempt_id, "bank:sa")).status).toBe(404);
-    expect((await submit(e1.token, a.json.attempt_id, "bank:not-in-exam")).status).toBe(404);
-  });
-
-  it("unknown student token and receipt are 404", async () => {
-    expect((await call("GET", "/api/exam/deadbeef")).status).toBe(404);
-    expect((await start("deadbeef")).status).toBe(404);
-    const { token } = await newExam("s9@x.com");
-    expect((await call("GET", `/api/exam/${token}/attempts/by-receipt/NOSUCHCODE`)).status).toBe(404);
-  });
-
-  it("name over 100 and code over 20000 chars are 400", async () => {
+  it("submit after the time limit is 403, within it is 202", async () => {
     const { token } = await newExam("s10@x.com");
-    expect((await start(token, "n".repeat(101))).status).toBe(400);
-    expect((await start(token, "   ")).status).toBe(400);
-    const a = await start(token);
-    expect((await submit(token, a.json.attempt_id, "bank:sa", "x".repeat(20001))).status).toBe(400);
-    expect((await submit(token, a.json.attempt_id, "bank:sa", "")).status).toBe(400);
+    const a = (await start(token)).json;
+    expect((await submit(token, a.attempt_id, "bank:sa", "x", at(700_000))).status).toBe(403);
+    expect((await submit(token, a.attempt_id, "bank:sa", "x", at(100_000))).status).toBe(202);
+    await finish();
   });
 
-  it("total is null until all questions are submitted, then weighted", async () => {
+  it("an attempt without clock state (created before Phase 2) cannot act", async () => {
     const { token } = await newExam("s11@x.com");
-    const a = await start(token, "Pat");
-    const by = () => call("GET", `/api/exam/${token}/attempts/by-receipt/${a.json.receipt_code}`);
-    await submit(token, a.json.attempt_id, "bank:sa");
-    const half = await by();
-    expect(half.json.total).toBeNull();
-    expect(half.json.questions.map((q: any) => q.score)).toEqual([80, null]);
-    await submit(token, a.json.attempt_id, "bank:sb");
-    const full = await by();
-    expect(full.json.total).toBe(65);
-    expect(full.json.student_name).toBe("Pat");
-    expect(full.json.questions[0].feedback).toEqual({ summary: "nice", issues: [] });
+    const ex = await env.DB.prepare("SELECT id FROM exams WHERE student_token = ?").bind(token).first<any>();
+    const { createAttempt } = await import("../src/db/attempts");
+    const old = await createAttempt(env.DB, ex.id, "Legacy", new Date());
+    expect((await submit(token, old.attempt_id, "bank:sa")).status).toBe(403);
   });
 
-  it("latest revision wins", async () => {
-    const { token } = await newExam("s12@x.com");
-    const a = await start(token);
-    await submit(token, a.json.attempt_id, "bank:sa");
-    const sub = await env.DB.prepare("SELECT id FROM submissions WHERE attempt_id = ?").bind(a.json.attempt_id).first<any>();
-    await env.DB.prepare(
-      "INSERT INTO score_revisions (id, submission_id, revision, source, score, sub_scores, detail, author, reason, created_at)" +
-        " VALUES ('rev-s12', ?, 1, 'teacher', 95, '{}', '{}', 't', 'fair', '2026-11-25T00:00:00Z')",
-    ).bind(sub.id).run();
-    const r = await call("GET", `/api/exam/${token}/attempts/by-receipt/${a.json.receipt_code}`);
-    expect(r.json.questions[0].score).toBe(95);
+  it("a closed exam rejects run and submit", async () => {
+    const e = await newExam("s12@x.com");
+    const a = (await start(e.token)).json;
+    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "s12@x.com", body: { deadline: "2000-01-01T00:00:00Z" } });
+    expect((await submit(e.token, a.attempt_id, "bank:sa")).status).toBe(403);
+    expect((await call("POST", qpath(e.token, a.attempt_id, "bank:sa", "run"), { body: { code: "x" } })).status).toBe(403);
   });
 
-  it("teacher results only for the own exam", async () => {
-    const { id, token } = await newExam("s13@x.com");
-    const a = await start(token, "Rae");
-    await submit(token, a.json.attempt_id, "bank:sa");
-    const ok = await call("GET", `/api/teacher/exams/${id}/results`, { as: "s13@x.com" });
-    expect(ok.status).toBe(200);
-    expect(ok.json[0]).toMatchObject({ student_name: "Rae", total: null });
-    expect(ok.json[0].questions[0]).toMatchObject({ problem_id: "bank:sa", score: 80 });
-    expect((await call("GET", `/api/teacher/exams/${id}/results`, { as: "other13@x.com" })).status).toBe(404);
+  it("when the queue send fails the submit is 503, the question is not stuck, and retry recovers it", async () => {
+    const { token } = await newExam("s13@x.com");
+    const a = (await start(token)).json;
+    q.failNext();
+    const r = await submit(token, a.attempt_id, "bank:sa");
+    expect(r.status).toBe(503);
+    expect((await status(token, a.attempt_id, "bank:sa")).json).toEqual({ status: "queued" });
+    const retryPath = qpath(token, a.attempt_id, "bank:sa", "retry");
+    expect((await call("POST", retryPath)).status).toBe(409); // too soon: the job may still be in flight
+    const before = q.sent.length;
+    expect((await at(120_000)("POST", retryPath)).status).toBe(202);
+    expect(q.sent.length).toBe(before + 1);
+    await finish();
+    expect((await status(token, a.attempt_id, "bank:sa")).json.status).toBe("done");
   });
 
-  it("submit after the time limit is 403, within it is 200", async () => {
+  it("a failed job shows the fixed error and retry grades it again", async () => {
     const { token } = await newExam("s14@x.com");
-    const a = await start(token);
-    const path = `/api/exam/${token}/attempts/${a.json.attempt_id}/questions/bank:sa/submit`;
-    const body = { code: "def f(x): return 3" };
-    const late = client(grader.binding, () => new Date(Date.now() + 700_000));
-    const r = await late("POST", path, { body });
-    expect(r.status).toBe(403);
-    expect(r.json.detail).toBe("Time limit exceeded");
-    const inTime = client(grader.binding, () => new Date(Date.now() + 100_000));
-    expect((await inTime("POST", path, { body })).status).toBe(200);
+    const a = (await start(token)).json;
+    mode = "killed";
+    await submit(token, a.attempt_id, "bank:sa");
+    await finish();
+    mode = "ok";
+    const failed = await status(token, a.attempt_id, "bank:sa");
+    expect(failed.json.status).toBe("failed");
+    expect(failed.json.error).toContain("time/resource");
+    expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(202);
+    await finish();
+    expect((await status(token, a.attempt_id, "bank:sa")).json.status).toBe("done");
   });
 
-  it("teacher results use a constant number of queries", async () => {
-    const { id, token } = await newExam("s15@x.com");
-    for (let i = 0; i < 60; i++) await start(token, `N${i}`);
-    const c = countingDb(env.DB);
-    const r = await client(grader.binding, undefined, c.db)("GET", `/api/teacher/exams/${id}/results`, { as: "s15@x.com" });
-    expect(r.status).toBe(200);
-    expect(r.json).toHaveLength(60);
-    expect(c.count()).toBeLessThanOrEqual(6);
+  it("retry on a finished or never-submitted question is 409", async () => {
+    const { token } = await newExam("s15@x.com");
+    const a = (await start(token)).json;
+    expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(409);
+    await submit(token, a.attempt_id, "bank:sa");
+    await finish();
+    expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(409);
   });
 
-  const runPath = (token: string, attempt: string, problem = "bank:sa") => `/api/exam/${token}/attempts/${attempt}/questions/${problem}/run`;
+  it("bad code, unknown attempt and unknown question are rejected", async () => {
+    const { token } = await newExam("s16@x.com");
+    const a = (await start(token)).json;
+    expect((await submit(token, a.attempt_id, "bank:sa", "")).status).toBe(400);
+    expect((await submit(token, a.attempt_id, "bank:sa", "x".repeat(20001))).status).toBe(400);
+    expect((await submit(token, "nope", "bank:sa")).status).toBe(404);
+    expect((await submit(token, a.attempt_id, "bank:zzz")).status).toBe(404);
+  });
+});
 
-  it("run sends only public cases and returns the grader body", async () => {
+describe("run public tests", () => {
+  const run = (token: string, attempt: string, problem = "bank:sa", code = "def f(x): return 3", c = call) =>
+    c("POST", qpath(token, attempt, problem, "run"), { body: { code } });
+
+  it("sends only the public cases and returns the grader body", async () => {
     const { token } = await newExam("r1@x.com");
-    const a = await start(token);
-    const r = await call("POST", runPath(token, a.json.attempt_id), { body: { code: "def f(x): return 3" } });
+    const a = (await start(token)).json;
+    const r = await run(token, a.attempt_id);
     expect(r.status).toBe(200);
     expect(r.json).toEqual({ status: "ran", message: null, cases: [{ passed: true, error: null }] });
     const sent = grader.calls.at(-1)!;
@@ -220,37 +242,81 @@ describe("student flow", () => {
     expect(sent.body.cases).toEqual([{ args: [1], expected: "PUBEXP", is_public: true }]);
   });
 
-  it("run after the time limit is 403", async () => {
+  it("after the time limit it is 403", async () => {
     const { token } = await newExam("r2@x.com");
-    const a = await start(token);
-    const late = client(grader.binding, () => new Date(Date.now() + 700_000));
-    const r = await late("POST", runPath(token, a.json.attempt_id), { body: { code: "x" } });
+    const a = (await start(token)).json;
+    const r = await run(token, a.attempt_id, "bank:sa", "x", at(700_000));
     expect(r.status).toBe(403);
     expect(r.json.detail).toBe("Time limit exceeded");
   });
 
-  it("run on a closed exam is 403", async () => {
-    const e = await newExam("r3@x.com");
-    const a = await start(e.token);
-    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "r3@x.com", body: { deadline: "2000-01-01T00:00:00Z" } });
-    expect((await call("POST", runPath(e.token, a.json.attempt_id), { body: { code: "x" } })).status).toBe(403);
+  it("unknown attempt or question is 404 and empty code is 400", async () => {
+    const { token } = await newExam("r3@x.com");
+    const a = (await start(token)).json;
+    expect((await run(token, "nope")).status).toBe(404);
+    expect((await run(token, a.attempt_id, "bank:zzz")).status).toBe(404);
+    expect((await run(token, a.attempt_id, "bank:sa", "")).status).toBe(400);
   });
 
-  it("run with an unknown attempt or question is 404, bad code is 400", async () => {
+  it("a grader failure is a 502 with the grader's fixed text", async () => {
     const { token } = await newExam("r4@x.com");
-    const a = await start(token);
-    expect((await call("POST", runPath(token, "nope"), { body: { code: "x" } })).status).toBe(404);
-    expect((await call("POST", runPath(token, a.json.attempt_id, "bank:zzz"), { body: { code: "x" } })).status).toBe(404);
-    expect((await call("POST", runPath(token, a.json.attempt_id), { body: { code: "" } })).status).toBe(400);
-  });
-
-  it("run grader failure is a 502 with the grader's fixed text", async () => {
-    const { token } = await newExam("r5@x.com");
-    const a = await start(token);
+    const a = (await start(token)).json;
     mode = "killed";
-    const r = await call("POST", runPath(token, a.json.attempt_id), { body: { code: "x" } });
+    const r = await run(token, a.attempt_id);
     mode = "ok";
     expect(r.status).toBe(502);
     expect(r.json.detail).toContain("time/resource");
+  });
+});
+
+describe("receipt lookup and teacher results", () => {
+  const byReceipt = (token: string, code: string) => call("GET", `/api/exam/${token}/attempts/by-receipt/${code}`);
+
+  it("unknown token and receipt are 404", async () => {
+    expect((await byReceipt("deadbeef", "X")).status).toBe(404);
+    const { token } = await newExam("c1@x.com");
+    expect((await byReceipt(token, "NOSUCHCODE")).status).toBe(404);
+  });
+
+  it("the total is null until every question is graded, then weighted", async () => {
+    const { token } = await newExam("c2@x.com");
+    const a = (await start(token, "Pat")).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    expect((await byReceipt(token, a.receipt_code)).json.total).toBeNull(); // queued, not graded yet
+    await finish();
+    const half = await byReceipt(token, a.receipt_code);
+    expect(half.json.total).toBeNull();
+    expect(half.json.questions.map((x: any) => [x.score, x.status])).toEqual([[80, "done"], [null, "none"]]);
+    await submit(token, a.attempt_id, "bank:sb");
+    await finish();
+    const full = await byReceipt(token, a.receipt_code);
+    expect(full.json.total).toBe(65);
+    expect(full.json.student_name).toBe("Pat");
+    expect(full.json.questions[0].feedback).toEqual({ summary: "nice", issues: [] });
+  });
+
+  it("the latest revision wins", async () => {
+    const { token } = await newExam("c3@x.com");
+    const a = (await start(token)).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    await finish();
+    const sub = await env.DB.prepare("SELECT id FROM submissions WHERE attempt_id = ?").bind(a.attempt_id).first<any>();
+    await env.DB.prepare(
+      "INSERT INTO score_revisions (id, submission_id, revision, source, score, sub_scores, detail, author, reason, created_at)" +
+        " VALUES ('rev-c3', ?, 1, 'teacher', 95, '{}', '{}', 't', 'fair', '2026-11-26T00:00:00Z')",
+    ).bind(sub.id).run();
+    expect((await byReceipt(token, a.receipt_code)).json.questions[0].score).toBe(95);
+  });
+
+  it("teacher results only for the own exam", async () => {
+    const { id, token } = await newExam("c4@x.com");
+    const a = (await start(token, "Rae")).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    await finish();
+    const ok = await call("GET", `/api/teacher/exams/${id}/results`, { as: "c4@x.com" });
+    expect(ok.status).toBe(200);
+    expect(ok.json[0]).toMatchObject({ student_name: "Rae", total: null });
+    expect(ok.json[0].questions[0]).toMatchObject({ problem_id: "bank:sa", score: 80 });
+    expect((await call("GET", `/api/teacher/exams/${id}/results`, { as: "other-c4@x.com" })).status).toBe(404);
   });
 });

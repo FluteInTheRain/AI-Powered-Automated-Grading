@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { JWTVerifyGetKey } from "jose";
 import { requireTeacher } from "./auth";
+import { queue } from "./jobs";
 import { syntaxRoutes } from "./routes/syntax";
 import { studentRoutes } from "./routes/student";
 import { teacherExamRoutes } from "./routes/teacher_exams";
@@ -23,6 +24,5 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
 }
 
 export { AttemptDO } from "./attempt_do";
-import { queue } from "./jobs";
 
 export default { fetch: createApp().fetch, queue };
