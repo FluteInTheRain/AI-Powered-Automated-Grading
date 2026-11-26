@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="vi" data-theme="dark" style="color-scheme:dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mockup C</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FFFFFF;--bg2:#FAFAF8;--text:#262421;--body:#55524B;--muted:#6B665F;--line:#E4DFD6;--red:#B3402F;--red-h:#8C3021;--btn-ink:#fff;
+--ok:#2F6B5E;--warn:#85661A;--bad:#B3402F;--sel:#F6E4DF;--code:#FAFAF8}
+[data-theme=dark]{--bg:#2A2620;--bg2:#332E27;--text:#F5F1E9;--body:#E0DACE;--muted:#B8AFA0;--line:#4D473D;--red:#F08A7B;--red-h:#F7A596;--btn-ink:#fff;
+--ok:#8ED0BE;--warn:#EBCB63;--bad:#F08A7B;--sel:#4A302B;--code:#2F2B24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 'Noto Sans',Arial,sans-serif}
+h1,h2,h3{text-wrap:balance;margin:0;letter-spacing:-.015em}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+::selection{background:var(--sel)}
+.top{display:flex;align-items:center;gap:14px;height:60px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--bg)}
+.word{font-weight:700;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;letter-spacing:-.01em}
+.sp{flex:1}
+.muted{color:var(--muted)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:transparent;font-weight:500;transition:border-color .15s,color .15s,background-color .15s}
+.btn:hover{border-color:var(--red);color:var(--red)}
+.btn.pri{background:var(--red);border-color:var(--red);color:var(--btn-ink);font-weight:600}
+[data-theme=dark] .btn.pri{background:#C9503F;border-color:#C9503F}
+.btn.pri:hover{background:var(--red-h);border-color:var(--red-h);color:var(--btn-ink)}
+.ibtn{display:grid;place-items:center;width:40px;height:40px;border-radius:6px;border:1px solid var(--line);background:transparent}
+.ibtn:hover{border-color:var(--red);color:var(--red)}
+.ide>*{min-width:0}
+.tabs{flex-wrap:wrap;display:flex;gap:4px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--bg2);font-size:14.5px}
+.tabs button{border:0;background:transparent;padding:4px 10px;border-radius:5px;color:var(--muted)}
+.tabs button.on{background:var(--text);color:var(--bg)}
+.screen{display:none}.screen.on{display:block}
+/* home */
+.wrap{max-width:1100px;margin:0 auto;padding:36px 24px}
+.head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:22px}
+.head h1{font-size:30px}.head p{margin:6px 0 0;color:var(--body);max-width:62ch}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:14.5px;padding:8px 12px;border-bottom:1px solid var(--line)}
+td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:hover td{background:var(--bg2)}
+.num{font-variant-numeric:tabular-nums}
+.r{text-align:right}
+.st{display:inline-flex;align-items:center;gap:7px}.st:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.open{color:var(--ok)}.st.closed{color:var(--muted)}.st.draft{color:var(--warn)}
+.name{font-weight:600}
+.link{color:var(--red);font-weight:500}.link:hover{text-decoration:underline;text-underline-offset:3px}
+/* exam */
+.ide{display:grid;grid-template-columns:210px minmax(280px,.8fr) 1.2fr;height:calc(100vh - 60px - 49px - 3px);min-height:520px}
+.pane{border-right:1px solid var(--line);overflow:auto}
+.pane:last-child{border-right:0}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:46px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg2);font-weight:600;font-size:14.5px}
+.q{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;padding:13px 16px;border-bottom:1px solid var(--line)}
+.q:hover{background:var(--bg2)}
+.q.on{background:var(--sel);font-weight:600}
+.q .i{color:var(--muted)}.q.done .i{color:var(--ok)}
+.pb{padding:20px 22px;color:var(--body);line-height:1.7}
+.pb h2{color:var(--text);font-size:23px;margin-bottom:10px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:14.5px}
+.ex{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:10px 0;background:var(--bg2)}
+.ex b{color:var(--text);font-weight:600}
+.edit{background:var(--code);padding:14px 0;line-height:1.75;min-height:230px}
+.edit div{padding:0 16px;white-space:pre}.ln{display:inline-block;width:26px;color:var(--muted);opacity:.65}
+.kw{color:var(--red)}.fn{color:var(--ok)}.cm{color:var(--muted);font-style:italic}.nm{color:var(--warn)}
+.tests{border-top:1px solid var(--line)}
+.t{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line)}
+.t.p .i{color:var(--ok)}.t.f .i{color:var(--bad)}
+.timer{display:inline-flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums;font-weight:600}
+.timer.low{color:var(--warn)}
+.bar{height:3px;background:var(--line)}.bar i{display:block;height:100%;width:20%;background:var(--red)}
+.save{display:inline-flex;align-items:center;gap:6px;font-weight:400;color:var(--muted);font-size:13.5px}.save .i{color:var(--ok);width:15px;height:15px}
+.foot{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
+.kbd{font:12.5px 'JetBrains Mono',monospace;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted)}
+.filters{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.filters input[type=search]{height:40px;min-width:240px;flex:1;max-width:340px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);padding:0 12px;font:inherit}
+.filters label{display:inline-flex;align-items:center;gap:8px;color:var(--body)}
+.mtabs{display:none}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);padding:24px;max-width:440px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.5)}dialog h2{font-size:20px;margin-bottom:8px}dialog p{color:var(--body);margin:0 0 18px}
+dialog .acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+@media(max-width:900px){
+.ide{grid-template-columns:1fr;height:auto}.pane{border-right:0;border-bottom:1px solid var(--line)}
+.qnav .ph{display:none}.qnav{display:flex;overflow-x:auto;border-bottom:1px solid var(--line)}.qnav .q{width:auto;white-space:nowrap;border-bottom:0;border-right:1px solid var(--line)}
+.mtabs{display:flex;border-bottom:1px solid var(--line);background:var(--bg2)}.mtabs button{flex:1;height:46px;border:0;background:transparent;font-weight:600;color:var(--muted);border-bottom:2px solid transparent}.mtabs button.on{color:var(--text);border-bottom-color:var(--red)}
+.ide[data-p=problem] .code-pane,.ide[data-p=code] .prob-pane{display:none}
+.hide-s{display:none}.tabs .muted{display:none}}
+@media(max-width:720px){
+.wrap{padding:24px 16px}.head{flex-direction:column;align-items:stretch}.head h1{font-size:26px}
+.top{padding:0 14px;gap:10px}
+table.stack thead{display:none}
+table.stack,table.stack tbody{display:block}
+table.stack tr{display:grid;grid-template-columns:1fr;gap:2px 12px;padding:14px 2px;border-bottom:1px solid var(--line)}
+table.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:3px 0}
+table.stack td.name{grid-column:1/-1;font-size:17px}
+table.stack td[data-l]::before{content:attr(data-l);color:var(--muted)}
+table.stack td.r,table.stack td.num{text-align:left}
+table.stack tbody tr:hover td{background:transparent}
+.filters input[type=search]{max-width:none;min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+</svg>
+
+<div class="tabs"><button class="on" data-s="home">Trang chủ giáo viên</button><button data-s="exam">Làm bài</button><button data-s="res">Kết quả</button><span class="sp"></span><span class="muted">Mockup C: phẳng, theo kiểu công cụ</span></div>
+
+<section class="screen on" id="home">
+<header class="top"><span class="word">AI Grader</span><span class="sp"></span><span class="muted">giao.vien@example.com</span><button class="ibtn" onclick="tg()" aria-label="Đổi giao diện sáng hoặc tối"><svg class="i"><use href="#sun"/></svg></button></header>
+<div class="wrap">
+  <div class="head"><div><h1>Bài kiểm tra</h1><p>Tạo đề từ kho bài có sẵn hoặc tự viết, rồi gửi liên kết cho học sinh. AI chấm, bạn xem lại khi cần.</p></div>
+  <button class="btn pri"><svg class="i"><use href="#plus"/></svg>Tạo bài kiểm tra</button></div>
+  <table class="stack"><thead><tr><th>Tên</th><th class="r">Câu</th><th>Hạn nộp</th><th class="r">Đã nộp</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+    <tr><td class="name">Kiểm tra giữa kỳ, Python cơ bản</td><td class="r num" data-l="Số câu">5</td><td class="num" data-l="Hạn nộp">30/11, 21:00</td><td class="r num" data-l="Đã nộp">18</td><td><span class="st open">Đang mở</span></td><td class="r"><a class="link">Xem kết quả</a></td></tr>
+    <tr><td class="name">Vòng lặp và chuỗi</td><td class="r num" data-l="Số câu">3</td><td class="num" data-l="Hạn nộp">24/11, 21:00</td><td class="r num" data-l="Đã nộp">26</td><td><span class="st closed">Đã đóng</span></td><td class="r"><a class="link">Xem kết quả</a></td></tr>
+    <tr><td class="name">Thuật toán sắp xếp</td><td class="r num" data-l="Số câu">4</td><td class="muted" data-l="Hạn nộp">Chưa đặt hạn</td><td class="r num" data-l="Đã nộp">0</td><td><span class="st draft">Chưa gửi</span></td><td class="r"><a class="link">Đặt hạn</a></td></tr>
+  </tbody></table>
+</div></section>
+
+<section class="screen" id="exam">
+<header class="top"><span class="word">Kiểm tra giữa kỳ, Python cơ bản</span><span class="sp"></span><span class="muted num hide-s">Đã làm 1 trên 5 câu</span><span class="timer low"><svg class="i"><use href="#clock"/></svg>04:12</span><button class="ibtn" onclick="tg()" aria-label="Đổi giao diện sáng hoặc tối"><svg class="i"><use href="#sun"/></svg></button><button class="btn pri" onclick="document.getElementById('dlg').showModal()"><svg class="i"><use href="#send"/></svg>Nộp bài</button></header>
+<div class="bar" role="progressbar" aria-valuenow="1" aria-valuemin="0" aria-valuemax="5" aria-label="Số câu đã làm"><i></i></div>
+<div class="mtabs"><button class="on" data-p="problem">Đề bài</button><button data-p="code">Bài làm</button></div>
+<div class="ide" data-p="problem">
+  <nav class="pane qnav"><div class="ph">Câu hỏi</div>
+    <button class="q done"><svg class="i"><use href="#check"/></svg>Câu 1. Tổng hai số</button>
+    <button class="q on"><svg class="i"><use href="#dot"/></svg>Câu 2. Đếm số nguyên tố</button>
+    <button class="q"><svg class="i"><use href="#dot"/></svg>Câu 3. Đảo chuỗi</button>
+    <button class="q"><svg class="i"><use href="#dot"/></svg>Câu 4. Fibonacci</button>
+    <button class="q"><svg class="i"><use href="#dot"/></svg>Câu 5. Palindrome</button></nav>
+  <article class="pane prob-pane"><div class="ph">Đề bài <span class="muted num" style="font-weight:500">20 điểm</span></div>
+    <div class="pb"><h2>Đếm số nguyên tố</h2>Viết hàm <span class="mono">count_primes(n)</span> trả về số nguyên tố nhỏ hơn hoặc bằng <span class="mono">n</span>.
+    <div class="ex"><b>Ví dụ 1</b><br><span class="mono">count_primes(10)  →  4</span></div>
+    <div class="ex"><b>Ví dụ 2</b><br><span class="mono">count_primes(1)  →  0</span></div>
+    <div class="foot"><button class="btn">Câu trước</button><button class="btn">Câu sau</button></div></div></article>
+  <section class="pane code-pane" style="display:flex;flex-direction:column"><div class="ph"><span>Bài làm, Python</span><span class="save"><svg class="i"><use href="#check"/></svg>Đã lưu 10:42</span><button class="btn" style="height:34px"><svg class="i"><use href="#play"/></svg>Chạy thử <span class="kbd hide-s">Ctrl+Enter</span></button></div>
+    <div class="edit mono"><div><span class="ln">1</span><span class="kw">def</span> <span class="fn">count_primes</span>(n):</div><div><span class="ln">2</span>    <span class="cm"># sieve of Eratosthenes</span></div><div><span class="ln">3</span>    <span class="kw">if</span> n &lt; <span class="nm">2</span>:</div><div><span class="ln">4</span>        <span class="kw">return</span> <span class="nm">0</span></div><div><span class="ln">5</span>    sieve = [<span class="kw">True</span>] * (n + <span class="nm">1</span>)</div><div><span class="ln">6</span>    ...</div></div>
+    <div class="tests" aria-live="polite"><div class="t p"><svg class="i"><use href="#check"/></svg>Test 1 đạt</div><div class="t p"><svg class="i"><use href="#check"/></svg>Test 2 đạt</div><div class="t f"><svg class="i"><use href="#x"/></svg>Test 3 chưa đạt: nhận 5, mong đợi 4</div></div></section>
+</div>
+<dialog id="dlg"><h2>Nộp bài ngay bây giờ?</h2><p>Bạn còn 4 câu chưa làm (câu 2, 3, 4, 5). Sau khi nộp sẽ không sửa được nữa.</p><div class="acts"><button class="btn" onclick="document.getElementById('dlg').close()">Quay lại làm bài</button><button class="btn pri" onclick="document.getElementById('dlg').close()">Nộp bài</button></div></dialog>
+</section>
+</div></section>
+
+<section class="screen" id="res">
+<header class="top"><span class="word">AI Grader</span><span class="sp"></span><button class="ibtn" onclick="tg()" aria-label="Đổi giao diện sáng hoặc tối"><svg class="i"><use href="#sun"/></svg></button></header>
+<div class="wrap">
+  <div class="head"><div><h1>Kiểm tra giữa kỳ, Python cơ bản</h1><p>18 bài đã nộp, điểm trung bình 74. 2 bài đang chấm, 1 bài lỗi chấm. Bấm vào một điểm để xem quy trình chấm.</p></div><button class="btn"><svg class="i"><use href="#copy"/></svg>Sao chép liên kết</button></div>
+  <div class="filters"><input type="search" placeholder="Tìm học sinh…" aria-label="Tìm học sinh" name="q" autocomplete="off"><label><input type="checkbox"> Chỉ hiện bài cần xem (lỗi chấm hoặc điểm thấp)</label></div>
+  <table class="stack"><thead><tr><th>Học sinh</th><th class="r">Câu 1</th><th class="r">Câu 2</th><th class="r">Câu 3</th><th class="r">Câu 4</th><th class="r">Tổng</th></tr></thead><tbody>
+    <tr><td class="name">Nguyễn An</td><td class="r num" data-l="Câu 1" style="color:var(--ok)">92</td><td class="r num" data-l="Câu 2" style="color:var(--ok)">88</td><td class="r num" data-l="Câu 3" style="color:var(--warn)">64</td><td class="r num" data-l="Câu 4" style="color:var(--ok)">95</td><td class="r num name" data-l="Tổng">85</td></tr>
+    <tr><td class="name">Trần Bình</td><td class="r num" data-l="Câu 1" style="color:var(--ok)">81</td><td class="r num" data-l="Câu 2" style="color:var(--bad)">35</td><td class="r muted" data-l="Câu 3">đang chấm</td><td class="r muted" data-l="Câu 4">đang chấm</td><td class="r muted" data-l="Tổng">chưa đủ</td></tr>
+    <tr><td class="name">Lê Chi</td><td class="r num" data-l="Câu 1" style="color:var(--warn)">70</td><td class="r" data-l="Câu 2" style="color:var(--bad)">lỗi chấm</td><td class="r num" data-l="Câu 3" style="color:var(--ok)">90</td><td class="r muted" data-l="Câu 4">chưa làm</td><td class="r muted" data-l="Tổng">chưa đủ</td></tr>
+  </tbody></table>
+</div></section>
+
+<script>
+function tg(){const r=document.documentElement,d=r.dataset.theme!=='dark';r.dataset.theme=d?'dark':'light';r.style.colorScheme=d?'dark':'light'}
+document.querySelectorAll('.tabs [data-s]').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.tabs [data-s]').forEach(x=>x.classList.toggle('on',x===b));
+ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===b.dataset.s))});
+document.querySelectorAll('.mtabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mtabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelector('.ide').dataset.p=b.dataset.p});
+if(location.hash){const b=document.querySelector('.tabs [data-s="'+location.hash.slice(1)+'"]');b&&b.click()}
+</script>
+</body></html>

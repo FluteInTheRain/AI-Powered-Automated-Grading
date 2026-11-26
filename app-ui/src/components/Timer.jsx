@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import Icon from './Icon.jsx'
 
 // Counts down to a fixed end time read from the wall clock, not by subtracting one per tick: browsers
 // throttle timers in hidden tabs and freeze them on sleep, while the server enforces real time.
@@ -43,7 +44,7 @@ export default function Timer({ durationSeconds, isRunning, onExpire }) {
 
   return (
     <div className={`timer${isLow ? ' timer-low' : ''}`}>
-      <span className="timer-label">Time left</span>
+      <Icon name="clock" />
       <span className="timer-value">{mm}:{ss}</span>
     </div>
   )

@@ -1,3 +1,5 @@
+import Icon from './Icon.jsx'
+
 export default function TestRunPanel({ runResult }) {
   if (!runResult) return null
 
@@ -20,7 +22,7 @@ export default function TestRunPanel({ runResult }) {
       <ul className="test-case-list">
         {runResult.cases.map((c, i) => (
           <li key={i} className={c.passed ? 'test-case-pass' : 'test-case-fail'}>
-            <span className="test-case-icon">{c.passed ? '✓' : '✗'}</span>
+            <Icon name={c.passed ? 'check' : 'x'} />
             Test {i + 1}: {c.passed ? 'Passed' : 'Failed'}
             {!c.passed && c.error && <span className="test-case-error"> — {c.error}</span>}
           </li>

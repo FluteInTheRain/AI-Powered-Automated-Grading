@@ -5,6 +5,8 @@ import {
   getAttemptByReceipt, getExam, getQuestionStatus, resumeAttempt, retryQuestion, runTests, startAttempt, submitExam,
 } from '../api.js'
 import CodeEditor from '../components/CodeEditor.jsx'
+import Icon from '../components/Icon.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 import ResultPanel from '../components/ResultPanel.jsx'
 import TestRunPanel from '../components/TestRunPanel.jsx'
 import Timer from '../components/Timer.jsx'
@@ -85,6 +87,8 @@ export default function ExamPage() {
   const [lookupCode, setLookupCode] = useState('')
   const [lookup, setLookup] = useState(null)
   const [lookupError, setLookupError] = useState(null)
+  const [mobileTab, setMobileTab] = useState('problem') // phones show the statement or the editor, not both
+  const [savedAt, setSavedAt] = useState(null)
 
   // Refs let long-lived callbacks (timer expiry, polling loops) read the latest values.
   const qsRef = useRef(qs)
@@ -291,122 +295,160 @@ export default function ExamPage() {
   const question = questions[active]
   const state = question ? qs[question.problem_id] : null
   const canRetry = state && ((state.status === 'failed' && state.retryable !== false) || (state.stuck && state.status !== 'done'))
+  const inProgress = phase === 'in_progress' && question
+  const answered = questions.filter((q) => qs[q.problem_id] && qs[q.problem_id].code !== q.starter_code).length
+  const unanswered = questions.length - answered
+  const clock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="app app-wide">
-      <header className="app-header">
-        <h1>{exam.title}</h1>
+    <>
+      <header className="top">
+        <span className="word">{exam.title}</span>
+        <span className="sp" />
+        {inProgress && !submitted && <span className="muted num hide-s">Đã làm {answered} trên {questions.length} câu</span>}
         {phase === 'in_progress' && <Timer durationSeconds={durationSeconds} isRunning={!submitted} onExpire={submitWholeExam} />}
+        <ThemeToggle />
+        {inProgress && !submitted && !confirming && (
+          <button className="btn btn-primary" onClick={() => setConfirming(true)}><Icon name="send" />Nộp bài</button>
+        )}
       </header>
 
-      {phase === 'name_gate' && (
-        <>
-          <p className="hidden-note">Bài gồm {exam.question_count} câu. Đề sẽ hiện sau khi bạn bấm Bắt đầu.</p>
-          <div className="name-gate">
-            <label htmlFor="student-name">Họ tên</label>
-            <input id="student-name" type="text" value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="Nhập họ tên của bạn" />
-            {needsTurnstile && <TurnstileWidget key={challenge} siteKey={exam.turnstile_site_key} onToken={setTurnstileToken} />}
-            <button className="btn btn-primary btn-start" onClick={handleStart} disabled={!canStart}>
-              Bắt đầu ({Math.round(exam.time_limit_seconds / 60)} phút)
-            </button>
-            {errorMessage && <span className="status-error">{errorMessage}</span>}
-          </div>
-          <div className="name-gate">
-            <label htmlFor="receipt-code">Mã biên nhận</label>
-            <input id="receipt-code" type="text" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} placeholder="Đã làm bài? Nhập mã để xem điểm" />
-            <button className="btn btn-secondary" onClick={handleLookup} disabled={!lookupCode.trim()}>
-              Xem điểm
-            </button>
-            {lookupError && <span className="status-error">{lookupError}</span>}
-          </div>
-          {lookup && (
-            <div className="result-panel">
-              <p>{lookup.student_name}</p>
-              <div className="score-grid">
-                {lookup.questions.map((q, i) => (
-                  <div key={q.problem_id} className="score-card">
-                    <div className="score-card-label">Câu {i + 1}</div>
-                    <div className="score-card-value">{q.score === null ? '—' : q.score.toFixed(1)}</div>
-                  </div>
-                ))}
-              </div>
-              <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
-            </div>
-          )}
-        </>
+      {inProgress && (
+        <div className="bar" role="progressbar" aria-label="Số câu đã làm" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={submitted ? questions.length : answered}>
+          <i style={{ width: `${questions.length ? ((submitted ? questions.length : answered) / questions.length) * 100 : 0}%` }} />
+        </div>
       )}
 
-      {phase === 'in_progress' && question && (
-        <>
-          <p className="hidden-note">
-            Mã biên nhận của bạn: <code>{attempt.receipt_code}</code> — hãy lưu lại để xem điểm sau, kể cả khi tải lại trang.
-          </p>
+      {phase === 'name_gate' && (
+        <div className="gate">
+          <h1>{exam.title}</h1>
+          <p className="hidden-note">Bài gồm {exam.question_count} câu. Đề sẽ hiện sau khi bạn bấm Bắt đầu.</p>
+          <div className="gate-sec">
+            <div className="field-row">
+              <label htmlFor="student-name">Họ tên</label>
+              <input id="student-name" name="name" type="text" autoComplete="name" value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="Nhập họ tên của bạn…" />
+            </div>
+            {needsTurnstile && <TurnstileWidget key={challenge} siteKey={exam.turnstile_site_key} onToken={setTurnstileToken} />}
+            <button className="btn btn-primary" onClick={handleStart} disabled={!canStart}>
+              Bắt đầu ({Math.round(exam.time_limit_seconds / 60)} phút)
+            </button>
+            {errorMessage && <p className="status-error" role="alert">{errorMessage}</p>}
+          </div>
+          <div className="gate-sec">
+            <div className="field-row">
+              <label htmlFor="receipt-code">Mã biên nhận</label>
+              <input id="receipt-code" name="receipt" type="text" autoComplete="off" spellCheck={false} value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} placeholder="Đã làm bài? Nhập mã để xem điểm…" />
+            </div>
+            <button className="btn" onClick={handleLookup} disabled={!lookupCode.trim()}>
+              Xem điểm
+            </button>
+            {lookupError && <p className="status-error" role="alert">{lookupError}</p>}
+            {lookup && (
+              <div className="result-panel">
+                <p>{lookup.student_name}</p>
+                <div className="score-grid">
+                  {lookup.questions.map((q, i) => (
+                    <div key={q.problem_id} className="score-card">
+                      <div className="score-card-label">Câu {i + 1}</div>
+                      <div className="score-card-value">{q.score === null ? '—' : q.score.toFixed(1)}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-          {submitted ? (
-            <div className="result-panel">
-              <p>Đã chấm {gradedCount}/{questions.length} câu{allDone ? '' : '…'}</p>
+      {inProgress && (
+        <>
+          {submitted && (
+            <div className="notice" aria-live="polite">
+              <p style={{ margin: 0 }}>Đã chấm {gradedCount}/{questions.length} câu{allDone ? '' : '…'}</p>
               {allDone && total !== null && <p className="final-score-value">Tổng điểm: {total}</p>}
             </div>
-          ) : (
-            <div className="submit-row">
-              {confirming ? (
-                <>
-                  <span>Nộp bài? Sau khi nộp không thể sửa.</span>
-                  <button className="btn btn-primary" onClick={submitWholeExam}>Xác nhận nộp</button>
-                  <button className="btn btn-secondary" onClick={() => setConfirming(false)}>Hủy</button>
-                </>
-              ) : (
-                <button className="btn btn-primary" onClick={() => setConfirming(true)}>Nộp bài</button>
-              )}
-              {submitError && <span className="status-error">Không nộp được: {submitError}</span>}
+          )}
+          {!submitted && confirming && (
+            <div className="confirm-bar" role="alert">
+              <span>{unanswered > 0 ? `Nộp bài? Bạn còn ${unanswered} câu chưa làm. Sau khi nộp không thể sửa.` : 'Nộp bài? Sau khi nộp không thể sửa.'}</span>
+              <button className="btn btn-primary" onClick={submitWholeExam}>Xác nhận nộp</button>
+              <button className="btn" onClick={() => setConfirming(false)}>Hủy</button>
             </div>
           )}
+          {!submitted && submitError && <div className="confirm-bar status-error" role="alert">Không nộp được: {submitError}</div>}
 
-          <div className="submit-row">
-            {questions.map((q, i) => (
-              <button key={q.problem_id} className={`btn ${i === active ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActive(i)}>
-                Câu {i + 1}
-              </button>
-            ))}
+          <div className="mtabs" role="tablist" aria-label="Chuyển giữa đề bài và bài làm">
+            <button role="tab" aria-selected={mobileTab === 'problem'} onClick={() => setMobileTab('problem')}>Đề bài</button>
+            <button role="tab" aria-selected={mobileTab === 'code'} onClick={() => setMobileTab('code')}>Bài làm</button>
           </div>
-          <div className="solve-grid">
-            <div className="solve-left">
-              <div className="problem-header">
+
+          <div className="ide" data-p={mobileTab}>
+            <nav className="pane qnav" aria-label="Danh sách câu hỏi">
+              <div className="ph">Câu hỏi</div>
+              {questions.map((q, i) => {
+                const st = qs[q.problem_id]
+                const done = submitted ? st?.status === 'done' : st && st.code !== q.starter_code
+                return (
+                  <button key={q.problem_id} className={`q${i === active ? ' on' : ''}${done ? ' done' : ''}`} aria-current={i === active ? 'true' : undefined} onClick={() => setActive(i)}>
+                    <Icon name={done ? 'check' : 'dot'} />
+                    Câu {i + 1}
+                  </button>
+                )
+              })}
+            </nav>
+
+            <article className="pane prob-pane">
+              <div className="ph"><span>Đề bài</span></div>
+              <div className="pb">
                 <div className="statement">
                   <ReactMarkdown>{question.statement}</ReactMarkdown>
                 </div>
                 <div className="rubric">
                   {Object.entries(question.rubric).map(([key, weight]) => (
-                    <span key={key} className="rubric-chip">{key.replace(/_/g, ' ')}: {weight}</span>
+                    <span key={key}>{key.replace(/_/g, ' ')}: {weight}</span>
                   ))}
                 </div>
                 <p className="hidden-note">
                   {question.public_case_count} public test case(s) — use "Run Tests" to check pass/fail. Your score is based
                   only on the {question.hidden_case_count} hidden test case(s).
                 </p>
+                <p className="hidden-note">
+                  Mã biên nhận của bạn: <code>{attempt.receipt_code}</code> — hãy lưu lại để xem điểm sau, kể cả khi tải lại trang.
+                </p>
+                {state.status === 'done' && state.result && <ResultPanel result={state.result} />}
+                {state.gaveUp && state.status !== 'done' && (
+                  <p className="status-line">Chấm bài đang mất nhiều thời gian. Điểm sẽ hiện trong phần xem điểm bằng mã biên nhận ở trang đầu.</p>
+                )}
+                <div className="submit-row">
+                  <button className="btn" disabled={active === 0} onClick={() => setActive(active - 1)}>Câu trước</button>
+                  <button className="btn" disabled={active === questions.length - 1} onClick={() => setActive(active + 1)}>Câu sau</button>
+                </div>
               </div>
-              {state.status === 'done' && state.result && <ResultPanel result={state.result} />}
-              {state.gaveUp && state.status !== 'done' && (
-                <p className="status-line">Chấm bài đang mất nhiều thời gian. Điểm sẽ hiện trong phần xem điểm bằng mã biên nhận ở trang đầu.</p>
-              )}
-            </div>
-            <div className="solve-right">
-              <div className="submit-row">
-                {state.status === 'failed' && <span className="status-error">{state.error}</span>}
-                <button className="btn btn-secondary" onClick={() => handleRun(question.problem_id)} disabled={state.status !== 'none' || state.running}>
-                  {state.running ? 'Running…' : 'Run Tests'}
-                </button>
-                {canRetry && <button className="btn btn-primary" onClick={() => handleRetry(question.problem_id)}>Chấm lại</button>}
+            </article>
+
+            <section className="pane code-pane">
+              <div className="ph">
+                <span>Bài làm, Python</span>
+                {savedAt && !submitted && <span className="save" aria-live="polite"><Icon name="check" />Đã lưu {clock(savedAt)}</span>}
+                <span className="actions">
+                  {state.status === 'failed' && <span className="status-error">{state.error}</span>}
+                  <button className="btn btn-small" onClick={() => handleRun(question.problem_id)} disabled={state.status !== 'none' || state.running}>
+                    <Icon name="play" />
+                    {state.running ? 'Running…' : 'Run Tests'}
+                  </button>
+                  {canRetry && <button className="btn btn-primary btn-small" onClick={() => handleRetry(question.problem_id)}>Chấm lại</button>}
+                </span>
               </div>
               <CodeEditor
                 filename={`solution_${active + 1}.py`} value={state.code}
-                onChange={(code) => { patch(question.problem_id, { code }); writeDraft(token, attempt.attempt_id, question.problem_id, code) }} readOnly={state.status !== 'none'}
+                onChange={(code) => { patch(question.problem_id, { code }); writeDraft(token, attempt.attempt_id, question.problem_id, code); setSavedAt(new Date()) }} readOnly={state.status !== 'none'}
               />
               <TestRunPanel runResult={state.runResult} />
-            </div>
+            </section>
           </div>
         </>
       )}
-    </div>
+    </>
   )
 }
