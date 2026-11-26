@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import ProblemPicker from '../src/components/ProblemPicker.jsx'
 
 const problems = [
-  { id: 'a', title: 'Two Sum', category: 'Arrays & Search', difficulty: 'medium', statement: 'Find two numbers that add up to the target.' },
+  { id: 'a', title: 'Two Sum', category: 'Arrays & Search', difficulty: 'medium', statement: '## Ví dụ\n\nFind two numbers that add up to the target.' },
   { id: 'b', title: 'Is Prime', category: 'Math', difficulty: 'easy', statement: 'Return true for primes.' },
   { id: 'c', title: 'Reverse a String', category: 'Strings', difficulty: 'easy', statement: 'Reverse the input.' },
   { id: 'd', title: 'Binary Search', category: 'Arrays & Search', difficulty: 'hard', statement: 'Search a sorted list.' },
@@ -79,11 +79,35 @@ describe('ProblemPicker', () => {
     expect(screen.getByLabelText('Trọng số Two Sum')).toHaveValue(3)
   })
 
-  it('reveals the statement under "Xem đề"', () => {
+  it('opens the whole statement, rendered as markdown, in a dialog', () => {
     render(<Harness />)
-    const row = screen.getByLabelText(/Two Sum/).closest('.problem-row')
-    fireEvent.click(within(row).getByText('Xem đề'))
-    expect(within(row).getByText('Find two numbers that add up to the target.')).toBeVisible()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const row = screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')
+    fireEvent.click(within(row).getByRole('button', { name: 'Xem đề' }))
+    const dialog = screen.getByRole('dialog', { name: 'Two Sum' })
+    expect(within(dialog).getByRole('heading', { name: 'Ví dụ' })).toBeInTheDocument() // markdown, not raw "## Ví dụ"
+    expect(within(dialog).getByText('Find two numbers that add up to the target.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Arrays & Search')).toBeInTheDocument()
+    expect(within(dialog).getByText('Vừa')).toBeInTheDocument()
+  })
+
+  it('closes the dialog with the close button and with Escape', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('chooses and unchooses the problem from inside the dialog', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn câu này' }))
+    expect(screen.getByRole('checkbox', { name: 'Two Sum' })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }))
+    expect(screen.getByRole('checkbox', { name: 'Two Sum' })).not.toBeChecked()
   })
 
   it('is a real table with column headers and one row per problem', () => {

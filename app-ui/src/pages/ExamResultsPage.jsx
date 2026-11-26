@@ -72,7 +72,7 @@ export default function ExamResultsPage() {
       <header className="top">
         <span className="word">AI Grader</span>
         <span className="sp" />
-        <Link className="link" to="/teacher/settings">Cài đặt</Link>
+        <Link className="link" to="/teacher/settings"><Icon name="gear" />Cài đặt</Link>
         <ThemeToggle />
       </header>
       <div className="wrap">
@@ -101,10 +101,10 @@ export default function ExamResultsPage() {
           <label htmlFor="deadline">Hạn chót</label>
           <input id="deadline" type="datetime-local" value={deadlineInput} onChange={(e) => setDeadlineInput(e.target.value)} />
           <button className="btn" disabled={saving} onClick={() => save(deadlineInput ? new Date(deadlineInput).toISOString() : null)}>
-            Lưu hạn chót
+            <Icon name="check" />Lưu hạn chót
           </button>
           <button className="btn" disabled={saving} onClick={() => save(new Date(Date.now() - 1000).toISOString())}>
-            Đóng ngay
+            <Icon name="lock" />Đóng ngay
           </button>
           {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}
         </div>

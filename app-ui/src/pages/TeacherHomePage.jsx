@@ -84,7 +84,7 @@ export default function TeacherHomePage() {
         <span className="word">AI Grader</span>
         <span className="sp" />
         <span className="muted hide-s">{me.email}</span>
-        <Link className="link" to="/teacher/settings">Cài đặt</Link>
+        <Link className="link" to="/teacher/settings"><Icon name="gear" />Cài đặt</Link>
         <ThemeToggle />
       </header>
       <div className="wrap">
@@ -154,7 +154,7 @@ export default function TeacherHomePage() {
             <span className="muted num">{selected.length === 0 ? 'Chưa chọn câu hỏi nào' : `Đã chọn ${selected.length} câu`}</span>
             <span className="sp" />
             {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}
-            <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
+            <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}><Icon name="plus" />Tạo bài kiểm tra</button>
           </div>
           {created && (
             <p className="status-success" aria-live="polite">

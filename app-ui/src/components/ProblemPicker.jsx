@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import { DIFFICULTY_LABEL, categoriesOf, filterProblems, sortProblems } from '../catalog.js'
+import DifficultyMark from './DifficultyMark.jsx'
+import Icon from './Icon.jsx'
+import ProblemDialog from './ProblemDialog.jsx'
 
 const SORTABLE = [['title', 'Tiêu đề'], ['category', 'Loại'], ['difficulty', 'Độ khó']]
 
@@ -9,18 +12,23 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
   const [category, setCategory] = useState('')
   const [difficulty, setDifficulty] = useState('')
   const [sort, setSort] = useState('category')
+  const [viewingId, setViewingId] = useState(null)
 
   const categories = useMemo(() => categoriesOf(problems), [problems])
   const shown = useMemo(() => sortProblems(filterProblems(problems, { search, category, difficulty }), sort), [problems, search, category, difficulty, sort])
   const chosenCount = Object.keys(chosen).length
+  const viewing = problems.find((p) => p.id === viewingId)
 
   return (
     <div className="picker">
       <div className="picker-bar">
-        <input
-          type="search" name="problem-search" autoComplete="off" placeholder="Tìm theo tiêu đề…" aria-label="Tìm theo tiêu đề"
-          value={search} onChange={(e) => setSearch(e.target.value)}
-        />
+        <span className="search-box">
+          <Icon name="search" />
+          <input
+            type="search" name="problem-search" autoComplete="off" placeholder="Tìm theo tiêu đề…" aria-label="Tìm theo tiêu đề"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+          />
+        </span>
         <label>
           Loại
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -55,7 +63,7 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
             <th />
             {SORTABLE.map(([key, label]) => (
               <th key={key} aria-sort={sort === key ? 'ascending' : undefined}>
-                <button type="button" className="th-sort" onClick={() => setSort(key)}>{label}</button>
+                <button type="button" className="th-sort" onClick={() => setSort(key)}>{label}{sort === key && <Icon name="up" />}</button>
               </th>
             ))}
             <th>Trọng số</th>
@@ -72,13 +80,10 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
               </td>
               <td className="name">
                 <label htmlFor={`pick-${p.id}`}>{p.title}</label>
-                <details>
-                  <summary>Xem đề</summary>
-                  <p className="statement-preview">{p.statement}</p>
-                </details>
+                <button type="button" className="view-btn" onClick={() => setViewingId(p.id)}><Icon name="eye" />Xem đề</button>
               </td>
               <td className="muted" data-l="Loại">{p.category}</td>
-              <td data-l="Độ khó"><span className={`diff diff-${p.difficulty}`}>{DIFFICULTY_LABEL[p.difficulty]}</span></td>
+              <td data-l="Độ khó"><DifficultyMark difficulty={p.difficulty} /></td>
               <td data-l="Trọng số">
                 {p.id in chosen && (
                   <input
@@ -91,6 +96,7 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
           ))}
         </tbody>
       </table>
+      {viewing && <ProblemDialog problem={viewing} chosen={viewing.id in chosen} onToggle={onToggle} onClose={() => setViewingId(null)} />}
     </div>
   )
 }
