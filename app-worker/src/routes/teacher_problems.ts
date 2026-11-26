@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { insertProblem, listBank, listOwnProblems, type NewProblem } from "../db/problems";
 import { GraderError, previewProblem, toClientError, validateProblem } from "../grader";
+import { parseRubric } from "../rubric";
 import type { AppEnv } from "../index";
 
-const RUBRIC_KEYS = ["correctness", "efficiency", "code_style", "edge_case_handling"];
 const IDENT = /^[A-Za-z_]\w*$/;
 
 /** Strict shape check; the result is exactly what gets validated by the grader AND stored. */
@@ -14,11 +14,8 @@ function parseNewProblem(b: any): NewProblem | string {
   if (!Array.isArray(b.param_names) || !b.param_names.every((x: unknown) => typeof x === "string" && IDENT.test(x))) {
     return "param_names must be a list of Python identifiers";
   }
-  const r = b.rubric;
-  if (!r || typeof r !== "object" || Object.keys(r).length !== RUBRIC_KEYS.length
-      || !RUBRIC_KEYS.every((k) => Number.isInteger(r[k]))) {
-    return `rubric must have exactly integer keys: ${RUBRIC_KEYS.join(", ")}`;
-  }
+  const rubric = parseRubric(b.rubric);
+  if (typeof rubric === "string") return rubric;
   if (typeof b.reference_solution !== "string" || !b.reference_solution.trim()) return "reference_solution is required";
   if (!Array.isArray(b.test_cases) || b.test_cases.length === 0) return "At least one test case is required";
   for (const t of b.test_cases) {
@@ -29,7 +26,7 @@ function parseNewProblem(b: any): NewProblem | string {
   const starter = `def ${b.func_name}(${b.param_names.join(", ")}):\n    # TODO: your solution here\n    pass\n`;
   return {
     statement: b.statement, func_name: b.func_name, param_names: b.param_names,
-    rubric: Object.fromEntries(RUBRIC_KEYS.map((k) => [k, r[k]])),
+    rubric,
     reference_solution: b.reference_solution,
     test_cases: b.test_cases.map((t: any) => ({ args: t.args, expected: t.expected, is_public: t.is_public })),
     starter_code: starter,
