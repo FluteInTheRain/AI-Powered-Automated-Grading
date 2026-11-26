@@ -94,15 +94,33 @@ describe("processJob", () => {
     expect(await auditObjects(sid)).toBe(1);
   });
 
-  it("a sandbox kill fails permanently on the first delivery with one grader call", async () => {
+  it("a sandbox kill fails permanently on the first delivery with one grader call, and scores zero", async () => {
     mode = "killed";
     const sid = await newSubmission();
     const calls = grader.calls.length;
     expect(await processJob(mkEnv(), sid, 1)).toBe("failed");
     expect(grader.calls.length).toBe(calls + 1);
     expect(await getJob(env.DB, sid)).toMatchObject({ status: "failed", error: KILLED });
-    expect(await revisions(sid)).toBe(0);
+    // Code that kills the sandbox has no verified behaviour: zero on every dimension, so the exam total can still be computed.
+    const rev = await env.DB.prepare("SELECT revision, source, score, sub_scores FROM score_revisions WHERE submission_id = ?").bind(sid).first<any>();
+    expect(rev).toMatchObject({ revision: 0, source: "ai", score: 0 });
+    expect(JSON.parse(rev.sub_scores)).toEqual({ correctness: 0 });
     mode = "ok";
+  });
+
+  it("a blank answer (the unchanged starter code) scores zero without calling the grader", async () => {
+    mode = "ok";
+    const a = await createAttempt(env.DB, "ke", `Blank ${n++}`, new Date());
+    const sid = await insertSubmissionWithJob(env.DB, { attemptId: a.attempt_id, problemId: "kp", code: "  c\n" }); // problem starter code is "c"
+    const calls = grader.calls.length;
+    expect(await processJob(mkEnv(), sid, 1)).toBe("done");
+    expect(grader.calls.length).toBe(calls);
+    const rev = await env.DB.prepare("SELECT score, detail FROM score_revisions WHERE submission_id = ?").bind(sid).first<any>();
+    expect(rev.score).toBe(0);
+    expect(JSON.parse(rev.detail).execution_result).toMatchObject({ pass_count: 0, total: 1, status: "ran" });
+    expect((await getJob(env.DB, sid))?.status).toBe("done");
+    const blob = await (await env.AUDIT.get(`audit/${sid}.json`))!.json<any>();
+    expect(blob.call_log).toEqual([]);
   });
 
   it("a grader 5xx retries until the third delivery, then fails with the fixed text", async () => {

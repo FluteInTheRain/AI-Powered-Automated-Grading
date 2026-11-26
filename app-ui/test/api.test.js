@@ -42,13 +42,20 @@ describe('api client', () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  it('submitQuestion and runTests use the question paths with only the code', async () => {
+  it('submitExam posts the answers map to the exam submit path', async () => {
+    const f = vi.fn().mockResolvedValue(ok({ status: 'queued', problem_ids: ['p1'] }))
+    vi.stubGlobal('fetch', f)
+    await api.submitExam('t', 'a1', { p1: 'CODE' })
+    expect(f.mock.calls[0][0]).toBe('/api/exam/t/attempts/a1/submit')
+    expect(f.mock.calls[0][1].method).toBe('POST')
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ answers: { p1: 'CODE' } })
+  })
+
+  it('runTests uses the question path with only the code', async () => {
     const f = vi.fn().mockResolvedValue(ok({}))
     vi.stubGlobal('fetch', f)
-    await api.submitQuestion('t', 'a1', 'p1', 'CODE')
     await api.runTests('t', 'a1', 'p1', 'CODE')
-    expect(f.mock.calls[0][0]).toBe('/api/exam/t/attempts/a1/questions/p1/submit')
-    expect(f.mock.calls[1][0]).toBe('/api/exam/t/attempts/a1/questions/p1/run')
+    expect(f.mock.calls[0][0]).toBe('/api/exam/t/attempts/a1/questions/p1/run')
     expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ code: 'CODE' })
   })
 

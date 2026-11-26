@@ -2,9 +2,9 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import {
   AlreadySubmitted, NameTaken, attemptByReceipt, attemptInExam, attemptJobStatuses, attemptScores, createAttempt, deleteAttempt, findSubmissionId,
-  getExamByStudentToken, gradedResult, submissionExists, type QuestionStatus, type StudentExam,
+  attemptHasSubmissions, getExamByStudentToken, gradedResult, type QuestionStatus, type StudentExam,
 } from "../db/attempts";
-import { getJob, insertSubmissionWithJob, setJobStatus } from "../db/jobs";
+import { getJob, insertSubmissionsWithJobs, setJobStatus } from "../db/jobs";
 import type { TestCase } from "../db/problems";
 import { getProblemById } from "../db/problems";
 import type { Env } from "../env";
@@ -21,6 +21,7 @@ const DEADLINE_GRACE_MS = 10_000; // run and submit may land this long after the
 
 type Ctx = Context<AppEnv>;
 type QuestionContext = { exam: StudentExam; attemptId: string; problemId: string; code: string };
+const SEND_BATCH_SIZE = 100; // sendBatch accepts at most 100 messages
 
 const attemptStub = (env: Env, attemptId: string) => env.ATTEMPT.get(env.ATTEMPT.idFromName(attemptId));
 
@@ -51,16 +52,24 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       : Math.max(0, Math.min(clockSeconds, Math.floor((new Date(exam.deadline).getTime() - now().getTime()) / 1000)));
 
   /** Token, attempt and question must all belong together. */
-  async function attemptContext(c: Ctx): Promise<Response | { exam: StudentExam; attemptId: string; problemId: string }> {
+  async function attemptContext(c: Ctx): Promise<Response | { exam: StudentExam; attemptId: string; problemId: string | undefined }> {
     const { token, attemptId, problemId } = c.req.param();
     const exam = await getExamByStudentToken(c.env.DB, token);
     if (!exam) return notFound(c, "exam link");
     if (!(await attemptInExam(c.env.DB, attemptId, exam.id))) return notFound(c, "attempt");
-    if (!exam.questions.some((q) => q.problem_id === problemId)) return notFound(c, "question");
+    if (problemId !== undefined && !exam.questions.some((q) => q.problem_id === problemId)) return notFound(c, "question");
     return { exam, attemptId, problemId };
   }
 
-  /** Shared by run and submit: the above plus code, closed and time-limit checks (the clock is the Durable Object's). */
+  /** Closed (with a short grace after the deadline) or out of time: the check shared by run and the exam submit. */
+  async function checkWindow(c: Ctx, exam: StudentExam, attemptId: string): Promise<Response | null> {
+    if (closed(exam.deadline, DEADLINE_GRACE_MS)) return c.json({ detail: "This exam is closed" }, 403);
+    const clock = await attemptStub(c.env, attemptId).check(now().getTime());
+    if (!clock.running) return c.json({ detail: "Time limit exceeded" }, 403); // the clock is the Durable Object's
+    return null;
+  }
+
+  /** Run tests: attempt and question must belong together, the code must be sane, and the window must be open. */
   async function questionContext(c: Ctx): Promise<Response | QuestionContext> {
     const base = await attemptContext(c);
     if (base instanceof Response) return base;
@@ -68,15 +77,16 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     if (typeof b?.code !== "string" || b.code.length === 0 || b.code.length > MAX_CODE) {
       return c.json({ detail: "code must be 1-20000 characters" }, 400);
     }
-    if (closed(base.exam.deadline, DEADLINE_GRACE_MS)) return c.json({ detail: "This exam is closed" }, 403);
-    const clock = await attemptStub(c.env, base.attemptId).check(now().getTime());
-    if (!clock.running) return c.json({ detail: "Time limit exceeded" }, 403);
-    return { ...base, code: b.code };
+    const blocked = await checkWindow(c, base.exam, base.attemptId);
+    if (blocked) return blocked;
+    return { ...base, problemId: base.problemId as string, code: b.code };
   }
 
-  async function enqueue(c: Ctx, submissionId: string): Promise<Response | null> {
+  async function enqueue(c: Ctx, submissionIds: string[]): Promise<Response | null> {
     try {
-      await c.env.GRADING_QUEUE.send({ submission_id: submissionId });
+      for (let i = 0; i < submissionIds.length; i += SEND_BATCH_SIZE) {
+        await c.env.GRADING_QUEUE.sendBatch(submissionIds.slice(i, i + SEND_BATCH_SIZE).map((id) => ({ body: { submission_id: id } })));
+      }
       return null;
     } catch {
       return c.json({ detail: "Could not queue grading, please retry." }, 503);
@@ -122,7 +132,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       await deleteAttempt(c.env.DB, attempt.attempt_id); // an attempt without a clock could never act
       throw e;
     }
-    return c.json({ ...attempt, remaining_seconds: remainingSeconds(exam, clock.remainingSeconds), questions: exam.questions.map(questionView) });
+    return c.json({ ...attempt, remaining_seconds: remainingSeconds(exam, clock.remainingSeconds), submitted: false, questions: exam.questions.map(questionView) });
   });
 
   r.get("/:token/attempts/by-receipt/:receipt", async (c) => {
@@ -143,7 +153,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     const statuses = await attemptJobStatuses(c.env.DB, attempt.id);
     return c.json({
       student_name: attempt.student_name, receipt_code: attempt.receipt_code,
-      remaining_seconds: remainingSeconds(exam, clock.remainingSeconds),
+      remaining_seconds: remainingSeconds(exam, clock.remainingSeconds), submitted: statuses.size > 0,
       questions: exam.questions.map((q) => ({ ...questionView(q), status: (statuses.get(q.problem_id) ?? "none") as QuestionStatus })),
     });
   });
@@ -166,35 +176,53 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     }
   });
 
-  r.post("/:token/attempts/:attemptId/questions/:problemId/submit", async (c) => {
+  /** One submit for the whole exam: every question is stored with a queued job and graded in parallel. */
+  r.post("/:token/attempts/:attemptId/submit", async (c) => {
     if (!(await allow(c.env.RL_ACTION, c.req.param("attemptId")))) return c.json(TOO_MANY, 429);
-    const q = await questionContext(c);
-    if (q instanceof Response) return q;
-    const { attemptId, problemId, code } = q;
-    if (await submissionExists(c.env.DB, attemptId, problemId)) return c.json({ detail: "Already submitted" }, 409);
-    // One submit per question at a time. After a stored submission the claim no longer matters (a resubmit is a 409
-    // anyway); if storing fails the claim is released, and a claim left by a crash expires on its own.
-    const stub = attemptStub(c.env, attemptId);
-    if (!(await stub.claim(problemId, now().getTime()))) {
-      return c.json({ detail: "A submission for this question is already in progress" }, 409);
+    const base = await attemptContext(c);
+    if (base instanceof Response) return base;
+    const { exam, attemptId } = base;
+    const b: any = await c.req.json().catch(() => null);
+    const answers = b?.answers;
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+      return c.json({ detail: "answers must be an object keyed by problem id" }, 400);
     }
-    let submissionId: string;
+    const known = new Set(exam.questions.map((q) => q.problem_id));
+    for (const [id, code] of Object.entries(answers)) {
+      if (!known.has(id)) return c.json({ detail: `Unknown problem_id: ${id}` }, 400);
+      if (typeof code !== "string" || code.length > MAX_CODE) return c.json({ detail: "Each answer must be a string of at most 20000 characters" }, 400);
+    }
+    // Already submitted comes before the time check: after a 503 (answers stored, queue send failed) a repeat must be a 409.
+    if (await attemptHasSubmissions(c.env.DB, attemptId)) return c.json({ detail: "Already submitted" }, 409);
+    const blocked = await checkWindow(c, exam, attemptId);
+    if (blocked) return blocked;
+    // Single flight. After a stored submit the claim no longer matters (a resubmit is a 409 anyway); if storing fails
+    // it is released, and a claim left by a crash expires on its own.
+    const stub = attemptStub(c.env, attemptId);
+    if (!(await stub.claim("__exam__", now().getTime()))) return c.json({ detail: "A submission is already in progress" }, 409);
+    // A blank or missing answer is stored as the starter code; the queue consumer scores an unchanged starter 0 itself
+    // (no sandbox run, no LLM call).
+    const items = exam.questions.map((q) => {
+      const given = (answers as Record<string, unknown>)[q.problem_id];
+      return { problemId: q.problem_id, code: typeof given === "string" && given.trim() !== "" ? given : q.starter_code };
+    });
+    let ids: string[];
     try {
-      submissionId = await insertSubmissionWithJob(c.env.DB, { attemptId, problemId, code });
+      ids = await insertSubmissionsWithJobs(c.env.DB, { attemptId, items });
     } catch (e) {
       if (e instanceof AlreadySubmitted) return c.json({ detail: "Already submitted" }, 409);
-      await stub.release(problemId);
+      await stub.release("__exam__");
       throw e;
     }
-    const failure = await enqueue(c, submissionId);
-    if (failure) return failure; // the stored job stays queued; /retry re-sends it
-    return c.json({ status: "queued" }, 202);
+    const failure = await enqueue(c, ids);
+    if (failure) return failure; // the stored jobs stay queued; /retry re-sends each once it is stuck
+    return c.json({ status: "queued", problem_ids: items.map((i) => i.problemId) }, 202);
   });
 
   r.get("/:token/attempts/:attemptId/questions/:problemId/status", async (c) => {
     const ctx = await attemptContext(c);
     if (ctx instanceof Response) return ctx;
-    const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId);
+    const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId as string);
     const job = sid ? await getJob(c.env.DB, sid) : null;
     if (!sid || !job) return c.json({ status: "none" });
     if (job.status === "done") {
@@ -210,12 +238,12 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     if (!(await allow(c.env.RL_ACTION, c.req.param("attemptId")))) return c.json(TOO_MANY, 429);
     const ctx = await attemptContext(c);
     if (ctx instanceof Response) return ctx;
-    const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId);
+    const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId as string);
     const job = sid ? await getJob(c.env.DB, sid) : null;
     const retryable = !!job && ((job.status === "failed" && !isPermanentError(job.error)) || isStuck(job));
     if (!sid || !job || !retryable) return c.json({ detail: "Nothing to retry" }, 409);
     await setJobStatus(c.env.DB, sid, "queued", { resetAttempts: true });
-    const failure = await enqueue(c, sid);
+    const failure = await enqueue(c, [sid]);
     if (failure) return failure;
     return c.json({ status: "queued" }, 202);
   });

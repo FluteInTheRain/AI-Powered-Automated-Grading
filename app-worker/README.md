@@ -25,7 +25,7 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems`,
 `POST problems/preview`, `GET|POST exams`, `GET|PATCH exams/:id`, `GET exams/:id/results`.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
-`POST attempts/:attempt_id/questions/:problem_id/submit`, `GET attempts/by-receipt/:receipt_code`.
+`POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Scores are append-only rows in `score_revisions` (revision 0 = the AI score); the schema
 rejects `UPDATE`/`DELETE` on scores and submissions.
 
@@ -70,15 +70,17 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
 
 ## Phase 2: background grading, attempt clock, audit log, abuse limits
 
-- **Queues** (`grading-jobs`): submit stores the submission plus a `grading_jobs` row and answers 202; the Worker's
+- **Queues** (`grading-jobs`): the one exam submit (`POST attempts/:id/submit`, answers for every question) stores a submission plus a
+  `grading_jobs` row per question in one batch and answers 202; a blank answer is stored as the starter code and the queue consumer scores an unchanged starter 0 itself (no sandbox run, no LLM
+  call); code that kills the sandbox also scores 0 (with the failure still shown), so an exam always gets a total; an exam has at most 20 questions; the Worker's
   `queue()` handler grades it through the Python Worker, writes score revision 0 to D1 and the LLM call log to **R2**
   (`teacher-app-audit`, key `audit/<submission_id>.json`). Delivery is at least once, so a finished job is a no-op.
   Three deliveries, then the job is `failed` in D1 with a fixed message (no dead-letter queue: it costs operations and adds
   nothing here); a student-code sandbox kill fails at once. The student gets a "Chấm lại" button (`POST .../retry`).
-- **Durable Object** (`AttemptDO`, one per attempt): the authoritative clock (10 s grace) and a per-question submit claim (a claim left by a crashed request expires after 30 s). A queued or grading job older than
+- **Durable Object** (`AttemptDO`, one per attempt): the authoritative clock (10 s grace) and a one-submit-per-attempt claim (a claim left by a crashed request expires after 30 s). A queued or grading job older than
   120 s is reported `stuck` and can be retried; a sandbox kill is permanent (`retryable: false`).
   Questions are only returned after an attempt exists, and a reload resumes the attempt (`GET .../attempts/:id`) with the
-  server's remaining time. Code drafts are not saved, so a resume shows the starter code again.
+  server's remaining time. Typed code is kept as a draft in the student's browser (`localStorage`, not on the server), so a reload restores it; on another device or after clearing storage it is gone.
 - **Rate Limiting** bindings (`RL_START` 60/min and `RL_SYNTAX` 600/min per IP, sized so a classroom behind one public IP is not blocked;
   `RL_ACTION` 30/min per attempt). Counts are per Cloudflare location and approximate.
 - **Turnstile** on attempt start. Secret `TURNSTILE_SECRET` is a Worker secret, `TURNSTILE_SITE_KEY` and `TURNSTILE_HOSTNAMES`
@@ -86,13 +88,19 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
   `1x0000000000000000000000000000000AA`) and add `localhost` to `TURNSTILE_HOSTNAMES`.
 - Read an audit log: `npx wrangler r2 object get teacher-app-audit/audit/<submission_id>.json --remote`.
 
+## Code style and comments
+
+The `code_style` check (`prompts/code_style.txt`) treats comments, docstrings and type hints as optional: their absence never
+lowers the level. Before this rule, every correct uncommented dataset sample scored `medium`; after it 13 of 16 score `clean`
+(measurement and caveats in `docs/report/results.md`).
+
 ## Known limits (after Phase 2)
 
 - **Names are not identities.** A name can be used once per exam, so a student who starts first under someone else's name
   locks that student out of a fresh start (they need their own attempt or receipt code); a different name always starts a
   fresh clock. Real per-student limits need a teacher-issued roster or invites.
 - Attempts created before Phase 2 have no clock state and can no longer submit.
-- Drafts are not autosaved. Hidden test cases are protected: students get pass counts only, the LLM feedback prompt sees
+- Drafts live only in the browser that typed them. Hidden test cases are protected: students get pass counts only, the LLM feedback prompt sees
   counts, public-test errors are reduced to a generic text, and the exam view carries no test values.
 - Resubmitting a question is rejected (409). Teacher results use one D1 query (the Free plan caps queries per invocation).
 - The CI deploy token needs Workers Scripts, D1, Queues, R2 and Durable Objects edit; if the Deploy workflow fails on a

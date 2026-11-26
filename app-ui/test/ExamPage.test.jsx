@@ -23,7 +23,7 @@ const questions = (status = 'none') => [
   { problem_id: 'p1', position: 0, weight: 1, statement: 'Add **numbers**', starter_code: 'def f1(): pass', rubric, public_case_count: 1, hidden_case_count: 2, status },
   { problem_id: 'p2', position: 1, weight: 1, statement: 'Reverse a string', starter_code: 'def f2(): pass', rubric, public_case_count: 1, hidden_case_count: 1, status },
 ]
-const started = (over = {}) => ({ attempt_id: 'att1', receipt_code: 'RCPT123', remaining_seconds: 600, questions: questions(), ...over })
+const started = (over = {}) => ({ attempt_id: 'att1', receipt_code: 'RCPT123', remaining_seconds: 600, submitted: false, questions: questions(), ...over })
 const done = (score = 94) => ({
   status: 'done', score, sub_scores: { correctness: 1, efficiency: 1, code_style: 1, edge_case_handling: 1 },
   tests: { passed: 2, total: 2 }, feedback: { summary: 'Good job', issues: [] },
@@ -42,14 +42,18 @@ const startExam = async (name = 'An') => {
   fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: name } })
   fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
   fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
-  await screen.findByRole('button', { name: 'Submit' })
+  await screen.findByRole('button', { name: 'Nộp bài' })
+}
+const confirmSubmit = async () => {
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Nộp bài' })) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Xác nhận nộp' })) })
 }
 
 beforeEach(() => {
   api.getExam.mockResolvedValue(summary())
   api.startAttempt.mockResolvedValue(started())
   api.checkSyntax.mockResolvedValue({ ok: true })
-  api.submitQuestion.mockResolvedValue({ status: 'queued' })
+  api.submitExam.mockResolvedValue({ status: 'queued', problem_ids: ['p1', 'p2'] })
   api.getQuestionStatus.mockResolvedValue(done())
   api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 80 })
 })
@@ -75,13 +79,13 @@ describe('starting', () => {
   })
 
   it('shows the API message when the name is taken or the client is rate limited', async () => {
-    api.startAttempt.mockRejectedValueOnce(new Error('This name is already used in this exam. Use your receipt code to continue or to see your score.'))
+    api.startAttempt.mockRejectedValueOnce(new Error('This name is already used in this exam. If it was you, continue in the browser where you started.'))
     renderPage()
     await screen.findByLabelText('Họ tên')
     fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'An' } })
     fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
     fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
-    expect(await screen.findByText(/receipt code to continue/)).toBeInTheDocument()
+    expect(await screen.findByText(/already used in this exam/)).toBeInTheDocument()
     api.startAttempt.mockRejectedValueOnce(new Error('Too many requests, slow down.'))
     fireEvent.click(screen.getByRole('button', { name: 'Verify' })) // the spent token was discarded
     fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
@@ -117,7 +121,7 @@ describe('resume', () => {
 
   it('a reload resumes the stored attempt with the server clock and skips the name gate', async () => {
     saved()
-    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 123, questions: questions() })
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 123, submitted: false, questions: questions() })
     renderPage()
     expect(await screen.findByText('02:03')).toBeInTheDocument()
     expect(api.resumeAttempt).toHaveBeenCalledWith('tok', 'att1')
@@ -125,7 +129,7 @@ describe('resume', () => {
     expect(screen.getByText('RCPT123')).toBeInTheDocument()
   })
 
-  it('an unknown stored attempt is forgotten and the name gate is shown', async () => {
+  it('an unknown stored attempt (404) is forgotten and the name gate is shown', async () => {
     saved()
     api.resumeAttempt.mockRejectedValue(Object.assign(new Error('Unknown attempt'), { status: 404 }))
     renderPage()
@@ -142,43 +146,190 @@ describe('resume', () => {
     expect(screen.queryByLabelText('Họ tên')).toBeNull()
   })
 
-  it('a question that was still being graded keeps being polled and ends with its score', async () => {
+  it('a reload after submitting opens the submitted view, keeps polling and ends with the total', async () => {
     saved()
-    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 300, questions: questions('queued') })
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 300, submitted: true, questions: questions('queued') })
     vi.useFakeTimers({ shouldAdvanceTime: false })
     renderPage()
     await tick(0) // let the exam and the attempt load (findBy* would hang under fake timers)
+    expect(screen.queryByRole('button', { name: 'Nộp bài' })).toBeNull()
+    expect(screen.getByText(/Đã chấm 0\/2 câu/)).toBeInTheDocument()
     await tick(2000)
+    expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
     expect(screen.getByText('94.0 / 100')).toBeInTheDocument()
-    expect(api.getQuestionStatus).toHaveBeenCalledWith('tok', 'att1', 'p1')
+    expect(screen.getByText(/Tổng điểm: 80/)).toBeInTheDocument()
   })
 })
 
-describe('solving', () => {
-  it('submit queues the code, polls until done, then shows the score and feedback', async () => {
-    api.getQuestionStatus.mockResolvedValueOnce({ status: 'queued' }).mockResolvedValueOnce({ status: 'grading' }).mockResolvedValue(done())
+describe('submitting the whole exam', () => {
+  it('has no per-question submit button', async () => {
+    renderPage()
+    await startExam()
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull()
+  })
+
+  it('"Nộp bài" asks for confirmation, then sends every answer in one call', async () => {
     renderPage()
     await startExam()
     fireEvent.change(editor(), { target: { value: 'NEWCODE' } })
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    expect(api.submitQuestion).toHaveBeenCalledWith('tok', 'att1', 'p1', 'NEWCODE')
-    expect(screen.getByText(/Đang chờ chấm|Grading/)).toBeInTheDocument()
-    await tick(2000)
-    await tick(2000)
-    await tick(2000)
-    expect(screen.getByText('94.0 / 100')).toBeInTheDocument()
-    expect(screen.getByText('Good job')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Nộp bài' }))
+    expect(screen.getByText(/không thể sửa/)).toBeInTheDocument()
+    expect(api.submitExam).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận nộp' }))
+    await screen.findByText(/Đã chấm|Đang chấm/)
+    expect(api.submitExam).toHaveBeenCalledTimes(1)
+    expect(api.submitExam).toHaveBeenCalledWith('tok', 'att1', { p1: 'NEWCODE', p2: 'def f2(): pass' })
   })
 
-  it('a failed grading shows the error and "Chấm lại" re-queues and polls again', async () => {
-    api.getQuestionStatus.mockResolvedValueOnce({ status: 'failed', error: 'Grading service error, please try again.' }).mockResolvedValue(done(70))
-    api.retryQuestion.mockResolvedValue({ status: 'queued' })
+  it('cancelling the confirmation keeps the exam open', async () => {
+    renderPage()
+    await startExam()
+    fireEvent.click(screen.getByRole('button', { name: 'Nộp bài' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }))
+    expect(api.submitExam).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Nộp bài' })).toBeInTheDocument()
+  })
+
+  it('after submitting, Run Tests is disabled and the submit button is gone', async () => {
+    api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    await confirmSubmit()
+    expect(await screen.findByText(/Đã chấm 0\/2 câu/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Run Tests' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Nộp bài' })).toBeNull()
+  })
+
+  it('shows how many questions are graded, then the total and each result', async () => {
+    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 65 })
+    api.getQuestionStatus
+      .mockResolvedValueOnce(done(70)) // p1 at the first poll
+      .mockResolvedValueOnce({ status: 'queued' }) // p2 at the first poll
+      .mockResolvedValue(done(60))
     renderPage()
     await startExam()
     vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
+    await confirmSubmit()
     await tick(2000)
+    expect(screen.getByText(/Đã chấm 1\/2 câu/)).toBeInTheDocument()
+    expect(screen.getByText('70.0 / 100')).toBeInTheDocument()
+    await tick(2000)
+    expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
+    expect(screen.getByText(/Tổng điểm: 65/)).toBeInTheDocument()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Câu 2' })) })
+    expect(screen.getByText('60.0 / 100')).toBeInTheDocument()
+  })
+
+  it('timer expiry submits once, and nothing can submit a second time afterwards', async () => {
+    api.startAttempt.mockResolvedValue(started({ remaining_seconds: 3 }))
+    renderPage()
+    await screen.findByLabelText('Họ tên')
+    fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'An' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ })) })
+    await tick(4000)
+    expect(api.submitExam).toHaveBeenCalledTimes(1)
+    expect(api.submitExam).toHaveBeenCalledWith('tok', 'att1', { p1: 'def f1(): pass', p2: 'def f2(): pass' })
+    await tick(10000)
+    expect(api.submitExam).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Nộp bài' })).toBeNull()
+  })
+
+  it('a 409 on submit switches to the submitted view without an error', async () => {
+    api.submitExam.mockRejectedValue(new Error('Already submitted'))
+    renderPage()
+    await startExam()
+    await confirmSubmit()
+    expect(await screen.findByText(/Đã chấm|Đang chấm/)).toBeInTheDocument()
+    expect(screen.queryByText(/Không nộp được/)).toBeNull()
+  })
+
+  it('a 503 means the answers are stored: the exam locks and grading is watched', async () => {
+    api.submitExam.mockRejectedValue(Object.assign(new Error('Could not queue grading, please retry.'), { status: 503 }))
+    api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    await confirmSubmit()
+    expect(await screen.findByText(/Đã chấm 0\/2 câu/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nộp bài' })).toBeNull()
+    expect(screen.queryByText(/Không nộp được/)).toBeNull()
+  })
+
+  it('a network error keeps the exam open and the student can try again', async () => {
+    api.submitExam.mockRejectedValueOnce(new Error('Failed to fetch')).mockResolvedValue({ status: 'queued', problem_ids: ['p1', 'p2'] })
+    renderPage()
+    await startExam()
+    await confirmSubmit()
+    expect(await screen.findByText(/Không nộp được: Failed to fetch/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nộp bài' })).toBeInTheDocument()
+    await confirmSubmit()
+    expect(await screen.findByText(/Đã chấm|Đang chấm/)).toBeInTheDocument()
+    expect(api.submitExam).toHaveBeenCalledTimes(2)
+  })
+
+  it('when another submit is in progress but nothing was stored, the exam opens again', async () => {
+    api.submitExam.mockRejectedValueOnce(new Error('A submission is already in progress'))
+    api.getQuestionStatus.mockResolvedValue({ status: 'none' })
+    renderPage()
+    await startExam()
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await confirmSubmit()
+    await tick(2000)
+    expect(screen.getByRole('button', { name: 'Nộp bài' })).toBeInTheDocument()
+  })
+})
+
+describe('drafts', () => {
+  it('typed code is kept in this browser and comes back after a reload', async () => {
+    const first = renderPage()
+    await startExam()
+    fireEvent.change(editor(), { target: { value: 'MY DRAFT' } })
+    first.unmount()
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 500, submitted: false, questions: questions() })
+    renderPage()
+    await screen.findByText('RCPT123')
+    expect(editor()).toHaveValue('MY DRAFT')
+  })
+
+  it('a different student on the same browser never sees the previous attempt\'s drafts', async () => {
+    const first = renderPage()
+    await startExam('An')
+    fireEvent.change(editor(), { target: { value: 'AN PRIVATE CODE' } })
+    first.unmount()
+    localStorage.removeItem('exam:tok') // the stored attempt is gone: a new person opens the same link
+    api.startAttempt.mockResolvedValue(started({ attempt_id: 'att2', receipt_code: 'OTHER99' }))
+    renderPage()
+    await startExam('Binh')
+    expect(editor()).toHaveValue('def f1(): pass')
+    expect(document.body.textContent).not.toContain('AN PRIVATE CODE')
+  })
+
+  it('drafts are cleared once the exam is submitted', async () => {
+    api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    fireEvent.change(editor(), { target: { value: 'MY DRAFT' } })
+    await confirmSubmit()
+    await screen.findByText(/Đã chấm 0\/2 câu/)
+    expect(localStorage.getItem('exam:tok:att1:drafts')).toBeNull()
+  })
+})
+
+describe('grading problems', () => {
+  const submitThenPoll = async (statusFor) => {
+    api.getQuestionStatus.mockImplementation(async (_t, _a, pid) => statusFor(pid))
+    renderPage()
+    await startExam()
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await confirmSubmit()
+    await tick(2000)
+  }
+
+  it('a failed question shows the error and "Chấm lại" re-queues it and polls again', async () => {
+    let calls = 0
+    api.retryQuestion.mockResolvedValue({ status: 'queued' })
+    await submitThenPoll((pid) => (pid === 'p1' && calls++ === 0 ? { status: 'failed', error: 'Grading service error, please try again.', retryable: true } : done(70)))
     expect(screen.getByText(/Grading service error/)).toBeInTheDocument()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Chấm lại' })) })
     await tick(2000)
@@ -186,14 +337,17 @@ describe('solving', () => {
     expect(screen.getByText('70.0 / 100')).toBeInTheDocument()
   })
 
-  it('a job reported stuck offers "Chấm lại", which re-queues it', async () => {
-    api.getQuestionStatus.mockResolvedValueOnce({ status: 'grading', stuck: true }).mockResolvedValue(done(88))
+  it('a permanently failed question counts as settled, so the progress finishes and the total shows', async () => {
+    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 35 })
+    await submitThenPoll((pid) => (pid === 'p1' ? done(70) : { status: 'failed', error: 'Grading failed: your submission exceeded the time/resource limit.', retryable: false }))
+    expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
+    expect(screen.getByText(/Tổng điểm: 35/)).toBeInTheDocument()
+  })
+
+  it('a job reported stuck offers "Chấm lại"', async () => {
+    let calls = 0
     api.retryQuestion.mockResolvedValue({ status: 'queued' })
-    renderPage()
-    await startExam()
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    await tick(2000)
+    await submitThenPoll((pid) => (pid === 'p1' && calls++ === 0 ? { status: 'grading', stuck: true } : done(88)))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Chấm lại' })) })
     await tick(2000)
     expect(api.retryQuestion).toHaveBeenCalledWith('tok', 'att1', 'p1')
@@ -201,28 +355,9 @@ describe('solving', () => {
   })
 
   it('a permanent failure shows the error and no retry button', async () => {
-    api.getQuestionStatus.mockResolvedValue({ status: 'failed', error: 'Grading failed: your submission exceeded the time/resource limit.', retryable: false })
-    renderPage()
-    await startExam()
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    await tick(2000)
+    await submitThenPoll(() => ({ status: 'failed', error: 'Grading failed: your submission exceeded the time/resource limit.', retryable: false }))
     expect(screen.getByText(/time\/resource limit/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Chấm lại' })).toBeNull()
-  })
-
-  it('when another submit is in progress but nothing was stored, the student can submit again', async () => {
-    api.submitQuestion.mockRejectedValueOnce(new Error('A submission for this question is already in progress')).mockResolvedValue({ status: 'queued' })
-    api.getQuestionStatus.mockResolvedValueOnce({ status: 'none' }).mockResolvedValue(done())
-    renderPage()
-    await startExam()
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    await tick(2000)
-    const submit = screen.getByRole('button', { name: 'Submit' })
-    expect(submit).toBeEnabled()
-    await act(async () => { fireEvent.click(submit) })
-    expect(api.submitQuestion).toHaveBeenCalledTimes(2)
   })
 
   it('polling gives up after five minutes with a pointer to the receipt lookup', async () => {
@@ -230,14 +365,16 @@ describe('solving', () => {
     renderPage()
     await startExam()
     vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
+    await confirmSubmit()
     await tick(5 * 60 * 1000 + 4000)
-    expect(screen.getByText(/mất nhiều thời gian/)).toBeInTheDocument()
+    expect(screen.getAllByText(/mất nhiều thời gian/).length).toBeGreaterThan(0)
     const calls = api.getQuestionStatus.mock.calls.length
     await tick(30_000)
     expect(api.getQuestionStatus.mock.calls.length).toBe(calls)
   })
+})
 
+describe('working on the exam', () => {
   it('shows pass/fail counts for Run Tests', async () => {
     api.runTests.mockResolvedValue({ status: 'ran', message: null, cases: [{ passed: true, error: null }] })
     renderPage()
@@ -265,39 +402,6 @@ describe('solving', () => {
     renderPage()
     await startExam()
     expect(screen.getByText('04:30')).toBeInTheDocument()
-  })
-
-  it('timer expiry submits each unsubmitted question exactly once and treats a 409 as in flight', async () => {
-    api.startAttempt.mockResolvedValue(started({ remaining_seconds: 3 }))
-    api.submitQuestion.mockImplementation(async (_t, _a, pid) => {
-      if (pid === 'p2') throw new Error('Already submitted')
-      return { status: 'queued' }
-    })
-    renderPage()
-    await screen.findByLabelText('Họ tên')
-    fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'An' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ })) })
-    await tick(4000)
-    expect(api.submitQuestion.mock.calls.map((c) => c[2]).sort()).toEqual(['p1', 'p2'])
-    await tick(10000)
-    expect(api.submitQuestion).toHaveBeenCalledTimes(2)
-    expect(screen.queryByText(/Grading failed/)).toBeNull()
-  })
-
-  it('shows the total once every question is graded', async () => {
-    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 65 })
-    renderPage()
-    await startExam()
-    vi.useFakeTimers({ shouldAdvanceTime: false })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    await tick(2000)
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Câu 2' })) })
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
-    await tick(2000)
-    expect(screen.getByText(/Tổng điểm: 65/)).toBeInTheDocument()
-    expect(api.getAttemptByReceipt).toHaveBeenCalledWith('tok', 'RCPT123')
   })
 
   it('never renders test inputs or expected values, even if the API sent them', async () => {
