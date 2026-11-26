@@ -22,4 +22,12 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   return app;
 }
 
-export default { fetch: createApp().fetch };
+export { AttemptDO } from "./attempt_do";
+
+export default {
+  fetch: createApp().fetch,
+  // Stub consumer so the queue binding deploys; the real one arrives in plan Task 4.
+  async queue(batch: MessageBatch<{ submission_id: string }>): Promise<void> {
+    batch.ackAll();
+  },
+};

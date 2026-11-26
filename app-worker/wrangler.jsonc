@@ -12,6 +12,21 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/health"]
   },
+  // Grading runs in the background: submit stores a job and sends its id here (plan Phase 2).
+  "queues": {
+    "producers": [{ "binding": "GRADING_QUEUE", "queue": "grading-jobs" }],
+    "consumers": [{ "queue": "grading-jobs", "max_batch_size": 1, "max_retries": 3 }]
+  },
+  // One object per exam attempt: its clock and the one-submit-at-a-time lock.
+  "durable_objects": { "bindings": [{ "name": "ATTEMPT", "class_name": "AttemptDO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AttemptDO"] }],
+  // Full LLM prompts and raw responses of every graded submission.
+  "r2_buckets": [{ "binding": "AUDIT", "bucket_name": "teacher-app-audit" }],
+  "ratelimits": [
+    { "name": "RL_START", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_SYNTAX", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_ACTION", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -26,6 +41,8 @@
   "vars": {
     // From the Cloudflare Access application protecting /api/teacher/*.
     "ACCESS_TEAM_DOMAIN": "aged-snowflake-18c8.cloudflareaccess.com",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAGTjjMuLo41_WwwC",
+    "TURNSTILE_HOSTNAMES": "teacher-app.khangnguyen.workers.dev",
     "ACCESS_AUD": "4a887da67764ade1f6967c38e668942b5cd0f40551f58834dcbdb72bf44a2056"
   }
 }
