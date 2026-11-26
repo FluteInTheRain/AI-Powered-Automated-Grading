@@ -32,8 +32,8 @@ export function client(grader: Fetcher, now?: () => Date, db?: D1Database, extra
     RL_START: allow, RL_SYNTAX: allow, RL_ACTION: allow, TURNSTILE_SITE_KEY: "", TURNSTILE_SECRET: "", TURNSTILE_HOSTNAMES: "",
     ...extra,
   };
-  return async (method: string, path: string, opts: { as?: string; body?: unknown } = {}) => {
-    const headers: Record<string, string> = {};
+  return async (method: string, path: string, opts: { as?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
+    const headers: Record<string, string> = { ...opts.headers };
     if (opts.as) headers["X-Dev-Teacher"] = opts.as;
     if (opts.body !== undefined) headers["content-type"] = "application/json";
     const res = await app.request(path, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) }, e);

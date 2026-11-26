@@ -9,6 +9,7 @@ import type { TestCase } from "../db/problems";
 import { getProblemById } from "../db/problems";
 import type { Env } from "../env";
 import { GraderError, runCases, toClientError } from "../grader";
+import { TOO_MANY, allow, clientIp } from "../limits";
 import type { AppEnv } from "../index";
 
 const MAX_NAME = 100;
@@ -87,6 +88,7 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
   });
 
   r.post("/:token/attempts", async (c) => {
+    if (!(await allow(c.env.RL_START, clientIp(c.req)))) return c.json(TOO_MANY, 429);
     const exam = await getExamByStudentToken(c.env.DB, c.req.param("token"));
     if (!exam) return notFound(c, "exam link");
     const b: any = await c.req.json().catch(() => null);
@@ -132,6 +134,7 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
   });
 
   r.post("/:token/attempts/:attemptId/questions/:problemId/run", async (c) => {
+    if (!(await allow(c.env.RL_ACTION, c.req.param("attemptId")))) return c.json(TOO_MANY, 429);
     const q = await questionContext(c);
     if (q instanceof Response) return q;
     const question = q.exam.questions.find((x) => x.problem_id === q.problemId)!;
@@ -149,6 +152,7 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
   });
 
   r.post("/:token/attempts/:attemptId/questions/:problemId/submit", async (c) => {
+    if (!(await allow(c.env.RL_ACTION, c.req.param("attemptId")))) return c.json(TOO_MANY, 429);
     const q = await questionContext(c);
     if (q instanceof Response) return q;
     const { attemptId, problemId, code } = q;
@@ -185,6 +189,7 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
 
   /** Grade again after a failure, or recover a job whose queue message was lost. */
   r.post("/:token/attempts/:attemptId/questions/:problemId/retry", async (c) => {
+    if (!(await allow(c.env.RL_ACTION, c.req.param("attemptId")))) return c.json(TOO_MANY, 429);
     const ctx = await attemptContext(c);
     if (ctx instanceof Response) return ctx;
     const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId);
