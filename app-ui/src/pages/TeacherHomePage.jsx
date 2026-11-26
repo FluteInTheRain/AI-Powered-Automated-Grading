@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createExam, getMe, getSettings, listBank, listExams } from '../api.js'
+import { createExam, getMe, getSettings, listBank, listExams, listOwnProblems } from '../api.js'
 import Icon from '../components/Icon.jsx'
+import ProblemPicker from '../components/ProblemPicker.jsx'
 import RubricFields, { DEFAULT_RUBRIC, isValidRubric, rubricToNumbers, rubricToStrings } from '../components/RubricFields.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
@@ -31,9 +32,9 @@ export default function TeacherHomePage() {
   const prefilled = useRef(false) // the form takes the teacher's defaults once, so reloading the list never wipes typed values
 
   const load = useCallback(() => {
-    Promise.all([getMe(), listExams(), listBank(), getSettings()])
-      .then(([m, e, b, s]) => {
-        setMe(m); setExams(e); setBank(b)
+    Promise.all([getMe(), listExams(), listBank(), listOwnProblems(), getSettings()])
+      .then(([m, e, b, own, s]) => {
+        setMe(m); setExams(e); setBank([...b, ...(own ?? [])])
         if (prefilled.current) return
         prefilled.current = true
         if (s?.default_rubric) setRubric(rubricToStrings(s.default_rubric))
@@ -134,20 +135,10 @@ export default function TeacherHomePage() {
           <h3 style={{ margin: '24px 0 8px' }}>Trọng số tiêu chí chấm</h3>
           <RubricFields value={rubric} onChange={setRubric} />
           <p className="field-hint" style={{ marginTop: 24 }}>Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
-          {bank.map((q) => (
-            <div key={q.id} className="bank-row">
-              <label>
-                <input type="checkbox" checked={q.id in chosen} onChange={(e) => toggle(q.id, e.target.checked)} />
-                <span>{excerpt(q.statement)}</span>
-              </label>
-              {q.id in chosen && (
-                <input
-                  type="number" min="0" step="any" aria-label={`Trọng số ${excerpt(q.statement)}`}
-                  value={chosen[q.id]} onChange={(e) => setChosen((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                />
-              )}
-            </div>
-          ))}
+          <ProblemPicker
+            problems={bank} chosen={chosen} onToggle={toggle}
+            onWeight={(id, value) => setChosen((prev) => ({ ...prev, [id]: value }))}
+          />
           <div className="submit-row">
             <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
             {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}

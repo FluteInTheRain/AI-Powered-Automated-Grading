@@ -9,8 +9,8 @@ vi.mock('../src/api.js')
 
 const exams = [{ id: 'e1', title: 'Quiz 1', student_token: 'tok1', student_path: '/exam/tok1', deadline: null, time_limit_seconds: 600, created_at: '2026-11-25T00:00:00Z' }]
 const bank = [
-  { id: 'bank:a', statement: 'Add numbers', func_name: 'add', rubric: {} },
-  { id: 'bank:b', statement: 'Reverse a string', func_name: 'rev', rubric: {} },
+  { id: 'bank:a', title: 'Add numbers', category: 'Math', difficulty: 'easy', statement: 'Add two numbers a and b', func_name: 'add', rubric: {} },
+  { id: 'bank:b', title: 'Reverse a string', category: 'Strings', difficulty: 'easy', statement: 'Reverse a string', func_name: 'rev', rubric: {} },
 ]
 
 const renderHome = () => render(<MemoryRouter><TeacherHomePage /></MemoryRouter>)
@@ -25,6 +25,7 @@ beforeEach(() => {
   api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com' })
   api.listExams.mockResolvedValue(exams)
   api.listBank.mockResolvedValue(bank)
+  api.listOwnProblems.mockResolvedValue([])
   api.getSettings.mockResolvedValue({})
 })
 afterEach(() => vi.resetAllMocks())
