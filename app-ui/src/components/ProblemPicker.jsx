@@ -4,18 +4,33 @@ import DifficultyMark from './DifficultyMark.jsx'
 import Icon from './Icon.jsx'
 import ProblemDialog from './ProblemDialog.jsx'
 
-const SORTABLE = [['title', 'Tiêu đề'], ['category', 'Loại'], ['difficulty', 'Độ khó']]
+
+/** A sortable column header: a button that sorts by `sortKey`, and reverses the order when it is already the active key. */
+function SortTh({ sortKey, sort, setSort, aria, children }) {
+  const active = sort.key === sortKey
+  return (
+    <th aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button
+        type="button" className="th-sort" aria-label={aria}
+        onClick={() => setSort(active ? { key: sortKey, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: sortKey, dir: 'asc' })}
+      >
+        {children}
+        {active && <Icon name={sort.dir === 'asc' ? 'up' : 'down'} />}
+      </button>
+    </th>
+  )
+}
 
 /** Chooses the questions of an exam: search, filters and sorting; `chosen` maps problem id -> weight and is never filtered. */
 export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [difficulty, setDifficulty] = useState('')
-  const [sort, setSort] = useState('category')
+  const [sort, setSort] = useState({ key: 'category', dir: 'asc' })
   const [viewingId, setViewingId] = useState(null)
 
   const categories = useMemo(() => categoriesOf(problems), [problems])
-  const shown = useMemo(() => sortProblems(filterProblems(problems, { search, category, difficulty }), sort), [problems, search, category, difficulty, sort])
+  const shown = useMemo(() => sortProblems(filterProblems(problems, { search, category, difficulty }), sort.key, sort.dir, chosen), [problems, search, category, difficulty, sort, chosen])
   const chosenCount = Object.keys(chosen).length
   const viewing = problems.find((p) => p.id === viewingId)
 
@@ -43,30 +58,40 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
             {Object.entries(DIFFICULTY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </label>
-        <label>
-          Sắp xếp
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="category">Loại</option>
-            <option value="title">Tiêu đề</option>
-            <option value="difficulty">Độ khó</option>
-          </select>
-        </label>
       </div>
-      <p className="field-hint num" aria-live="polite">
+      <div className="picker-meta">
+      <p className="field-hint num" aria-live="polite" style={{ margin: 0 }}>
         <span>{`Hiện ${shown.length} trên ${problems.length} bài`}</span>
         {chosenCount > 0 && <span>{` — Đã chọn ${chosenCount} bài`}</span>}
       </p>
+        <div className="sort-group">
+          <label>
+          Sắp xếp
+          <select value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: 'asc' })}>
+            <option value="category">Loại</option>
+            <option value="title">Tiêu đề</option>
+            <option value="difficulty">Độ khó</option>
+            <option value="selected">Câu đã chọn</option>
+            <option value="weight">Trọng số</option>
+          </select>
+        </label>
+        <button
+          type="button" className="ibtn" aria-label="Đảo chiều sắp xếp" title={sort.dir === 'asc' ? 'Đang tăng dần' : 'Đang giảm dần'}
+          onClick={() => setSort((prev) => ({ ...prev, dir: prev.dir === 'asc' ? 'desc' : 'asc' }))}
+        >
+          <Icon name={sort.dir === 'asc' ? 'up' : 'down'} />
+        </button>
+        </div>
+      </div>
 
       <table className="picker-table stack">
         <thead>
           <tr>
-            <th />
-            {SORTABLE.map(([key, label]) => (
-              <th key={key} aria-sort={sort === key ? 'ascending' : undefined}>
-                <button type="button" className="th-sort" onClick={() => setSort(key)}>{label}{sort === key && <Icon name="up" />}</button>
-              </th>
-            ))}
-            <th>Trọng số</th>
+            <SortTh sortKey="selected" sort={sort} setSort={setSort} aria="Sắp xếp theo câu đã chọn"><Icon name="check" /></SortTh>
+            <SortTh sortKey="title" sort={sort} setSort={setSort}>Tiêu đề</SortTh>
+            <SortTh sortKey="category" sort={sort} setSort={setSort}>Loại</SortTh>
+            <SortTh sortKey="difficulty" sort={sort} setSort={setSort}>Độ khó</SortTh>
+            <SortTh sortKey="weight" sort={sort} setSort={setSort}>Trọng số</SortTh>
           </tr>
         </thead>
         <tbody>

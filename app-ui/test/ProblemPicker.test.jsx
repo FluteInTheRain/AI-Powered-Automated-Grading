@@ -114,6 +114,7 @@ describe('ProblemPicker', () => {
     render(<Harness />)
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['', 'Tiêu đề', 'Loại', 'Độ khó', 'Trọng số'])
+    for (const h of screen.getAllByRole('columnheader')) expect(within(h).getByRole('button')).toBeInTheDocument() // every column sorts
     expect(screen.getAllByRole('row')).toHaveLength(6) // header + 5 problems
   })
 
@@ -126,5 +127,33 @@ describe('ProblemPicker', () => {
     expect(titles()[0]).toBe('Factorial')
     expect(screen.getByRole('columnheader', { name: 'Độ khó' })).toHaveAttribute('aria-sort', 'ascending')
     expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('a second click on the same header reverses the order', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    expect(titles()[0]).toBe('Two Sum')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sorts by the selection and by weight from their headers', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Reverse a String' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Factorial' }))
+    fireEvent.change(screen.getByLabelText('Trọng số Factorial'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sắp xếp theo câu đã chọn' }))
+    expect(titles().slice(0, 2)).toEqual(['Factorial', 'Reverse a String'])
+    fireEvent.click(screen.getByRole('button', { name: 'Trọng số' }))
+    expect(titles().slice(0, 2)).toEqual(['Reverse a String', 'Factorial']) // weight 1 before weight 5
+    fireEvent.click(screen.getByRole('button', { name: 'Trọng số' }))
+    expect(titles().slice(0, 2)).toEqual(['Factorial', 'Reverse a String'])
+  })
+
+  it('the sort select and the direction button work together (phones have no table header)', () => {
+    render(<Harness />)
+    fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Đảo chiều sắp xếp' }))
+    expect(titles()[0]).toBe('Two Sum')
   })
 })
