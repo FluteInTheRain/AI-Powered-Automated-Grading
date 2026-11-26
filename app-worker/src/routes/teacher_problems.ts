@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { insertProblem, listBank, listOwnProblems, type NewProblem } from "../db/problems";
 import { GraderError, previewProblem, toClientError, validateProblem } from "../grader";
+import { parseProblemMeta } from "../problem_meta";
 import { parseRubric } from "../rubric";
 import type { AppEnv } from "../index";
 
@@ -14,6 +15,8 @@ function parseNewProblem(b: any): NewProblem | string {
   if (!Array.isArray(b.param_names) || !b.param_names.every((x: unknown) => typeof x === "string" && IDENT.test(x))) {
     return "param_names must be a list of Python identifiers";
   }
+  const meta = parseProblemMeta(b);
+  if (typeof meta === "string") return meta;
   const rubric = parseRubric(b.rubric);
   if (typeof rubric === "string") return rubric;
   if (typeof b.reference_solution !== "string" || !b.reference_solution.trim()) return "reference_solution is required";
@@ -25,7 +28,7 @@ function parseNewProblem(b: any): NewProblem | string {
   }
   const starter = `def ${b.func_name}(${b.param_names.join(", ")}):\n    # TODO: your solution here\n    pass\n`;
   return {
-    statement: b.statement, func_name: b.func_name, param_names: b.param_names,
+    ...meta, statement: b.statement, func_name: b.func_name, param_names: b.param_names,
     rubric,
     reference_solution: b.reference_solution,
     test_cases: b.test_cases.map((t: any) => ({ args: t.args, expected: t.expected, is_public: t.is_public })),

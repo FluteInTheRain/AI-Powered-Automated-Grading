@@ -45,7 +45,7 @@ describe("teacher exams", () => {
   it("another teacher's private problem is 404", async () => {
     const p = await call("POST", "/api/teacher/problems", {
       as: "owner3@x.com",
-      body: { statement: "s", func_name: "f", param_names: [], rubric: { correctness: 100, efficiency: 0, code_style: 0, edge_case_handling: 0 }, reference_solution: "x", test_cases: [{ args: [], expected: 1, is_public: false }] },
+      body: { title: "T", category: "Math", difficulty: "easy", statement: "s", func_name: "f", param_names: [], rubric: { correctness: 100, efficiency: 0, code_style: 0, edge_case_handling: 0 }, reference_solution: "x", test_cases: [{ args: [], expected: 1, is_public: false }] },
     });
     const r = await mkExam("thief3@x.com", { title: "T", questions: Q(p.json.id) });
     expect(r.status).toBe(404);
