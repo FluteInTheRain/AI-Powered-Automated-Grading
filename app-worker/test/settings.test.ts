@@ -27,6 +27,8 @@ describe("teacher settings", () => {
 
   it.each([
     ["all-zero rubric", { default_rubric: { correctness: 0, efficiency: 0, code_style: 0, edge_case_handling: 0 } }],
+    ["total below 100", { default_rubric: { correctness: 30, efficiency: 20, code_style: 20, edge_case_handling: 10 } }],
+    ["total above 100", { default_rubric: { correctness: 60, efficiency: 20, code_style: 20, edge_case_handling: 10 } }],
     ["negative weight", { default_rubric: { ...RUBRIC, correctness: -1 } }],
     ["float weight", { default_rubric: { ...RUBRIC, correctness: 50.5 } }],
     ["missing key", { default_rubric: { correctness: 1, efficiency: 1, code_style: 1 } }],

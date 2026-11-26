@@ -7,7 +7,7 @@ Teachers want to decide how much each grading criterion counts (correctness, eff
 
 ## Goals
 - One set of four integer weights per **exam**, applied to every question of that exam, chosen by the teacher who creates it.
-- Default for the set: the teacher's own default from Settings, else each problem's own rubric (today's behaviour, so old exams are unchanged).
+- Default for the set: the teacher's own default from Settings, else each problem's own rubric on the API (so old exams are unchanged). The exam form always shows and sends explicit weights (60/15/15/10 when Settings has none), so exams created in the UI never fall back to a problem's own weights.
 - A Settings page for the teacher: default criterion weights and default time limit (minutes). The exam creation form is pre-filled from it.
 - Weights are fixed when the exam is created, so one exam never mixes two ways of grading.
 
@@ -21,7 +21,7 @@ Per-question weights inside an exam (a possible later step). Editing an exam's w
 
 ## Design
 - Migration `0003`: `exams.rubric TEXT` (JSON, NULL = use each problem's rubric) and `teachers.settings TEXT NOT NULL DEFAULT '{}'` (JSON `{default_rubric?, default_time_limit_seconds?}`).
-- Validation shared with problems: exactly the four keys, non-negative integers, sum greater than 0.
+- Validation shared with problems: exactly the four keys, non-negative integers, **sum exactly 100** (changed after review: the grader sends the raw edge-case weight into its LLM prompt as points, so the scale must be the same for every exam).
 - API: `GET/PUT /api/teacher/settings`; `POST /api/teacher/exams` accepts optional `rubric` (omitted: the teacher's default, else NULL); exam detail returns the effective rubric.
 - Effective rubric = `exam.rubric ?? problem.rubric`, used wherever the problem rubric is read today: the grading job (and its zero result keys) and the student exam payload.
 - UI: `/teacher/settings` page (linked from the header), weight fields with live percentage and total, plus the exam form section "Trọng số tiêu chí" pre-filled from Settings; the results page shows the exam's weights read-only.

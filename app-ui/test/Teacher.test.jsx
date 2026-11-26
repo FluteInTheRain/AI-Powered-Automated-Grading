@@ -94,6 +94,14 @@ describe('exam weights on the home page', () => {
     })
   })
 
+  it('does not create an exam while the weights do not total 100', async () => {
+    renderHome()
+    fireEvent.change(await screen.findByLabelText('Tiêu đề'), { target: { value: 'X' } })
+    fireEvent.click(await screen.findByLabelText(/Add numbers/))
+    fireEvent.change(screen.getByLabelText(/Đúng sai/), { target: { value: '70' } })
+    expect(screen.getByRole('button', { name: 'Tạo bài kiểm tra' })).toBeDisabled()
+  })
+
   it('does not create an exam while the weights total 0', async () => {
     renderHome()
     fireEvent.change(await screen.findByLabelText('Tiêu đề'), { target: { value: 'X' } })

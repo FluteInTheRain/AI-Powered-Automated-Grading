@@ -24,7 +24,7 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 
 Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems`,
 `POST problems/preview`, `GET|PUT settings` (default weights and time limit), `GET|POST exams`
-(`POST` takes an optional `rubric` of four integer weights: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
+(`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Scores are append-only rows in `score_revisions` (revision 0 = the AI score); the schema

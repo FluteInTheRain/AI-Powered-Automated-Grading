@@ -10,8 +10,8 @@ export const DEFAULT_RUBRIC = { correctness: '60', efficiency: '15', code_style:
 const toNumber = (v) => (/^\d+$/.test(String(v).trim()) ? Number(v) : NaN)
 const total = (value) => RUBRIC_FIELDS.reduce((sum, f) => sum + (toNumber(value[f.key]) || 0), 0)
 
-/** All four are whole numbers of 0 or more, and they do not all equal zero. */
-export const isValidRubric = (value) => RUBRIC_FIELDS.every((f) => !Number.isNaN(toNumber(value[f.key]))) && total(value) > 0
+/** All four are whole numbers of 0 or more and they add up to exactly 100 (the grader reads the weights as points). */
+export const isValidRubric = (value) => RUBRIC_FIELDS.every((f) => !Number.isNaN(toNumber(value[f.key]))) && total(value) === 100
 export const rubricToNumbers = (value) => Object.fromEntries(RUBRIC_FIELDS.map((f) => [f.key, toNumber(value[f.key])]))
 export const rubricToStrings = (rubric) => Object.fromEntries(RUBRIC_FIELDS.map((f) => [f.key, String(rubric[f.key])]))
 
@@ -32,7 +32,9 @@ export default function RubricFields({ value, onChange }) {
           </div>
         )
       })}
-      <p className="field-hint num">Tổng: {sum}</p>
+      <p className={`field-hint num${sum === 100 ? '' : ' status-error'}`} aria-live="polite">
+        Tổng: {sum}{sum === 100 ? '' : '. Tổng phải bằng 100.'}
+      </p>
     </div>
   )
 }

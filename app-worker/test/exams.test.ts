@@ -133,6 +133,8 @@ describe("exam rubric", () => {
 
   it.each([
     ["all-zero", { correctness: 0, efficiency: 0, code_style: 0, edge_case_handling: 0 }],
+    ["total above 100", { ...W, correctness: 71 }],
+    ["total below 100", { ...W, correctness: 69 }],
     ["negative", { ...W, correctness: -1 }],
     ["float", { ...W, correctness: 70.5 }],
     ["missing key", { correctness: 1, efficiency: 1, code_style: 1 }],

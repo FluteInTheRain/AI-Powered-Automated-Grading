@@ -44,15 +44,24 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('button', { name: 'Lưu cài đặt' })).toBeDisabled()
   })
 
+  it('disables Save and says so when the total is not 100', async () => {
+    renderPage()
+    fireEvent.change(await screen.findByLabelText(/Đúng sai/), { target: { value: '70' } })
+    expect(screen.getByRole('button', { name: 'Lưu cài đặt' })).toBeDisabled()
+    expect(screen.getByText(/Tổng phải bằng 100/)).toBeInTheDocument()
+  })
+
   it('saves integers and shows that it saved', async () => {
     api.putSettings.mockResolvedValue({})
     renderPage()
     fireEvent.change(await screen.findByLabelText(/Đúng sai/), { target: { value: '70' } })
+    fireEvent.change(screen.getByLabelText(/Hiệu năng/), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText(/Phong cách code/), { target: { value: '20' } })
     fireEvent.change(screen.getByLabelText(/Thời gian làm bài mặc định/), { target: { value: '45' } })
     fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
     expect(await screen.findByText('Đã lưu')).toBeInTheDocument()
     expect(api.putSettings).toHaveBeenCalledWith({
-      default_rubric: { correctness: 70, efficiency: 20, code_style: 20, edge_case_handling: 10 }, default_time_limit_seconds: 2700,
+      default_rubric: { correctness: 70, efficiency: 0, code_style: 20, edge_case_handling: 10 }, default_time_limit_seconds: 2700,
     })
   })
 
@@ -60,6 +69,7 @@ describe('SettingsPage', () => {
     api.putSettings.mockRejectedValue(new Error('rubric weights cannot all be zero'))
     renderPage()
     fireEvent.change(await screen.findByLabelText(/Đúng sai/), { target: { value: '70' } })
+    fireEvent.change(screen.getByLabelText(/Hiệu năng/), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
     expect(await screen.findByText(/cannot all be zero/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Đúng sai/)).toHaveValue(70)
