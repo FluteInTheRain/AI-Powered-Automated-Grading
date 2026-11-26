@@ -53,4 +53,18 @@ describe('api client', () => {
     expect(f.mock.calls[0][1].method).toBe('PATCH')
     expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ deadline: null })
   })
+
+  it('startAttempt sends the Turnstile token and the other attempt calls use their paths', async () => {
+    const f = vi.fn().mockResolvedValue(ok({}))
+    vi.stubGlobal('fetch', f)
+    await api.startAttempt('t', 'An', 'tt')
+    await api.resumeAttempt('t', 'a1')
+    await api.getQuestionStatus('t', 'a1', 'p1')
+    await api.retryQuestion('t', 'a1', 'p1')
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ student_name: 'An', turnstile_token: 'tt' })
+    expect(f.mock.calls[1][0]).toBe('/api/exam/t/attempts/a1')
+    expect(f.mock.calls[2][0]).toBe('/api/exam/t/attempts/a1/questions/p1/status')
+    expect(f.mock.calls[3][0]).toBe('/api/exam/t/attempts/a1/questions/p1/retry')
+    expect(f.mock.calls[3][1].method).toBe('POST')
+  })
 })
