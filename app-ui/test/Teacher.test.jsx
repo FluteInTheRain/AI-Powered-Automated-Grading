@@ -25,6 +25,7 @@ beforeEach(() => {
   api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com' })
   api.listExams.mockResolvedValue(exams)
   api.listBank.mockResolvedValue(bank)
+  api.getSettings.mockResolvedValue({})
 })
 afterEach(() => vi.resetAllMocks())
 
@@ -60,6 +61,7 @@ describe('TeacherHomePage', () => {
     expect(await screen.findByText(`${window.location.origin}/exam/tok2`)).toBeInTheDocument()
     expect(api.createExam).toHaveBeenCalledWith({
       title: 'Midterm', time_limit_seconds: 900, deadline: new Date('2030-01-01T10:00').toISOString(),
+      rubric: { correctness: 60, efficiency: 15, code_style: 15, edge_case_handling: 10 },
       questions: [{ problem_id: 'bank:a', weight: 2 }, { problem_id: 'bank:b', weight: 1 }],
     })
   })
@@ -71,6 +73,35 @@ describe('TeacherHomePage', () => {
     fireEvent.click(await screen.findByLabelText(/Add numbers/))
     fireEvent.click(screen.getByRole('button', { name: 'Tạo bài kiểm tra' }))
     expect(await screen.findByText(/Unknown problem_id/)).toBeInTheDocument()
+  })
+})
+
+describe('exam weights on the home page', () => {
+  it('pre-fills the form from the teacher settings and sends the weights', async () => {
+    api.getSettings.mockResolvedValue({
+      default_rubric: { correctness: 40, efficiency: 20, code_style: 30, edge_case_handling: 10 }, default_time_limit_seconds: 1800,
+    })
+    api.createExam.mockResolvedValue({ id: 'e9', student_token: 't9', student_path: '/exam/t9' })
+    renderHome()
+    expect(await screen.findByLabelText(/Đúng sai/)).toHaveValue(40)
+    expect(screen.getByLabelText('Thời gian (phút)')).toHaveValue(30)
+    fireEvent.change(screen.getByLabelText('Tiêu đề'), { target: { value: 'X' } })
+    fireEvent.click(await screen.findByLabelText(/Add numbers/))
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo bài kiểm tra' }))
+    await screen.findByText(/Đã tạo/)
+    expect(api.createExam.mock.calls[0][0]).toMatchObject({
+      time_limit_seconds: 1800, rubric: { correctness: 40, efficiency: 20, code_style: 30, edge_case_handling: 10 },
+    })
+  })
+
+  it('does not create an exam while the weights total 0', async () => {
+    renderHome()
+    fireEvent.change(await screen.findByLabelText('Tiêu đề'), { target: { value: 'X' } })
+    fireEvent.click(await screen.findByLabelText(/Add numbers/))
+    for (const name of [/Đúng sai/, /Hiệu năng/, /Phong cách code/, /Trường hợp biên/]) {
+      fireEvent.change(screen.getByLabelText(name), { target: { value: '0' } })
+    }
+    expect(screen.getByRole('button', { name: 'Tạo bài kiểm tra' })).toBeDisabled()
   })
 })
 
@@ -121,5 +152,15 @@ describe('ExamResultsPage', () => {
     api.getExamDetail.mockRejectedValue(new Error('Unknown exam'))
     renderResults()
     expect(await screen.findByText(/Error: Unknown exam/)).toBeInTheDocument()
+  })
+
+  it('shows the weights of the exam, or says each problem keeps its own', async () => {
+    api.getExamDetail.mockResolvedValue({ ...detail, rubric: { correctness: 70, efficiency: 10, code_style: 10, edge_case_handling: 10 } })
+    const { unmount } = renderResults()
+    expect(await screen.findByText(/Đúng sai 70%/)).toBeInTheDocument()
+    unmount()
+    api.getExamDetail.mockResolvedValue({ ...detail, rubric: null })
+    renderResults()
+    expect(await screen.findByText(/theo từng bài/)).toBeInTheDocument()
   })
 })

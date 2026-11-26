@@ -209,3 +209,10 @@ input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--red); }
   table.stack tbody tr:hover td { background: transparent; }
   .filters input[type='search'] { max-width: none; min-width: 0; width: 100%; }
 }
+
+/* rubric weights */
+.rubric-fields { max-width: 520px; }
+.rubric-row { display: grid; grid-template-columns: 1fr 96px 52px; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.rubric-row .pct { text-align: right; }
+@media (max-width: 720px) { .rubric-row { grid-template-columns: 1fr 84px 48px; } }
+a.word { color: inherit; text-decoration: none; }

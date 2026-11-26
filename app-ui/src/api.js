@@ -53,3 +53,5 @@ export const getExamDetail = (id) => request(`/api/teacher/exams/${id}`)
 export const getResults = (id) => request(`/api/teacher/exams/${id}/results`)
 export const updateDeadline = (id, deadline) =>
   request(`/api/teacher/exams/${id}`, { method: 'PATCH', body: JSON.stringify({ deadline }) })
+export const getSettings = () => request('/api/teacher/settings')
+export const putSettings = (settings) => request('/api/teacher/settings', { method: 'PUT', body: JSON.stringify(settings) })

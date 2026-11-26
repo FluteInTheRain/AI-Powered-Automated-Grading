@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { getExamDetail, getResults, updateDeadline } from '../api.js'
 import Icon from '../components/Icon.jsx'
+import { RUBRIC_FIELDS } from '../components/RubricFields.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 function toDatetimeLocalValue(iso) {
@@ -71,6 +72,7 @@ export default function ExamResultsPage() {
       <header className="top">
         <span className="word">AI Grader</span>
         <span className="sp" />
+        <Link className="link" to="/teacher/settings">Cài đặt</Link>
         <ThemeToggle />
       </header>
       <div className="wrap">
@@ -85,6 +87,11 @@ export default function ExamResultsPage() {
           <span className={`st ${isClosed ? 'st-closed' : 'st-open'}`}>{isClosed ? 'Đã đóng' : 'Đang mở'}</span>
         </div>
 
+        <p className="link-row">
+          {exam.rubric
+            ? `Trọng số tiêu chí: ${RUBRIC_FIELDS.map((f) => `${f.label.split(' (')[0]} ${Math.round((exam.rubric[f.key] / Object.values(exam.rubric).reduce((a, b) => a + b, 0)) * 100)}%`).join(', ')}.`
+            : 'Trọng số tiêu chí: theo từng bài (đề này tạo trước khi có tuỳ chỉnh).'}
+        </p>
         <div className="link-row">
           <span>Link cho học sinh: <code>{link}</code></span>
           <button className="btn btn-small" onClick={() => navigator.clipboard?.writeText(link).catch(() => {})}><Icon name="copy" />Sao chép</button>
