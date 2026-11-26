@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
-import { client, drain, fakeGrader, fakeQueue, jsonRes } from "./helpers";
+import { client, countingDb, drain, fakeGrader, fakeQueue, jsonRes } from "./helpers";
 
 const RUBRIC = JSON.stringify({ correctness: 100 });
 const CASES = JSON.stringify([
@@ -318,5 +318,31 @@ describe("receipt lookup and teacher results", () => {
     expect(ok.json[0]).toMatchObject({ student_name: "Rae", total: null });
     expect(ok.json[0].questions[0]).toMatchObject({ problem_id: "bank:sa", score: 80 });
     expect((await call("GET", `/api/teacher/exams/${id}/results`, { as: "other-c4@x.com" })).status).toBe(404);
+  });
+
+  it("results carry a grading status per question: none, queued, done and failed", async () => {
+    const { id, token } = await newExam("c5@x.com");
+    const a = (await start(token, "Stat")).json;
+    const results = async () => (await call("GET", `/api/teacher/exams/${id}/results`, { as: "c5@x.com" })).json[0].questions.map((x: any) => x.status);
+    expect(await results()).toEqual(["none", "none"]);
+    await submit(token, a.attempt_id, "bank:sa");
+    expect(await results()).toEqual(["queued", "none"]);
+    await finish();
+    expect(await results()).toEqual(["done", "none"]);
+    mode = "killed";
+    await submit(token, a.attempt_id, "bank:sb");
+    await finish();
+    mode = "ok";
+    expect(await results()).toEqual(["done", "failed"]);
+  });
+
+  it("teacher results use a constant number of queries however many attempts exist", async () => {
+    const { id, token } = await newExam("c6@x.com");
+    for (let i = 0; i < 60; i++) await start(token, `N${i}`);
+    const c = countingDb(env.DB);
+    const r = await client(grader.binding, undefined, c.db, { GRADING_QUEUE: q.binding })("GET", `/api/teacher/exams/${id}/results`, { as: "c6@x.com" });
+    expect(r.status).toBe(200);
+    expect(r.json).toHaveLength(60);
+    expect(c.count()).toBeLessThanOrEqual(6);
   });
 });

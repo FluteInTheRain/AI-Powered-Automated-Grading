@@ -80,8 +80,9 @@ describe('ExamResultsPage', () => {
     questions: [{ problem_id: 'p1', position: 0, weight: 1, statement_excerpt: 'Q1' }, { problem_id: 'p2', position: 1, weight: 1, statement_excerpt: 'Q2' }],
   }
   const results = [
-    { attempt_id: 'a1', student_name: 'An', started_at: '2026-11-25T01:00:00Z', questions: [{ problem_id: 'p1', score: 80 }, { problem_id: 'p2', score: null }], total: null },
-    { attempt_id: 'a2', student_name: 'Binh', started_at: '2026-11-25T02:00:00Z', questions: [{ problem_id: 'p1', score: 70 }, { problem_id: 'p2', score: 60 }], total: 65 },
+    { attempt_id: 'a1', student_name: 'An', started_at: '2026-11-25T01:00:00Z', questions: [{ problem_id: 'p1', score: 80, status: 'done' }, { problem_id: 'p2', score: null, status: 'none' }], total: null },
+    { attempt_id: 'a2', student_name: 'Binh', started_at: '2026-11-25T02:00:00Z', questions: [{ problem_id: 'p1', score: 70, status: 'done' }, { problem_id: 'p2', score: 60, status: 'done' }], total: 65 },
+    { attempt_id: 'a3', student_name: 'Chi', started_at: '2026-11-25T03:00:00Z', questions: [{ problem_id: 'p1', score: null, status: 'queued' }, { problem_id: 'p2', score: null, status: 'failed' }], total: null },
   ]
   beforeEach(() => {
     api.getExamDetail.mockResolvedValue(detail)
@@ -96,6 +97,13 @@ describe('ExamResultsPage', () => {
     expect(within(an).getAllByText('—').length).toBe(2) // missing score and no total yet
     const binh = screen.getByText('Binh').closest('tr')
     expect(within(binh).getByText('65')).toBeInTheDocument()
+  })
+
+  it('shows … while grading is pending and "lỗi chấm" when grading failed', async () => {
+    renderResults()
+    const chi = (await screen.findByText('Chi')).closest('tr')
+    expect(within(chi).getByText('…')).toBeInTheDocument()
+    expect(within(chi).getByText('lỗi chấm')).toBeInTheDocument()
   })
 
   it('saves the deadline and closes now with a past time', async () => {

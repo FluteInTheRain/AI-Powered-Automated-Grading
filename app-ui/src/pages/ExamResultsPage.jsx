@@ -45,7 +45,11 @@ export default function ExamResultsPage() {
 
   const isClosed = exam.deadline !== null && new Date(exam.deadline).getTime() <= Date.now()
   const link = `${window.location.origin}${exam.student_path}`
-  const fmt = (n) => (n === null ? '—' : n.toFixed(1))
+  const cell = (q) => {
+    if (q.status === 'failed') return 'lỗi chấm'
+    if (q.status === 'queued' || q.status === 'grading') return '…'
+    return q.score === null ? '—' : q.score.toFixed(1)
+  }
 
   return (
     <div className="app">
@@ -86,7 +90,7 @@ export default function ExamResultsPage() {
           {rows.map((r) => (
             <tr key={r.attempt_id}>
               <td>{r.student_name}</td>
-              {r.questions.map((q) => <td key={q.problem_id}>{fmt(q.score)}</td>)}
+              {r.questions.map((q) => <td key={q.problem_id}>{cell(q)}</td>)}
               <td>{r.total === null ? '—' : r.total}</td>
               <td>{new Date(r.started_at).toLocaleString()}</td>
             </tr>

@@ -54,6 +54,11 @@ export async function submissionExists(db: D1Database, attemptId: string, proble
 
 export class AlreadySubmitted extends Error {}
 
+/** Phase 1 submissions have no job row but do have a score: they are done. */
+function questionStatus(jobStatus: string | null, score: number | null, hasSubmission: number): QuestionStatus {
+  return (jobStatus ?? (score !== null ? "done" : hasSubmission ? "queued" : "none")) as QuestionStatus;
+}
+
 type ScoreRow = { problem_id: string; weight: number; score: number | null; ai_detail: string | null; job_status: string | null; has_submission: number };
 
 /** Per-question latest score (and the AI feedback) of one attempt, in exam order, plus the weighted total. */
@@ -72,8 +77,7 @@ export async function attemptScores(db: D1Database, examId: string, attemptId: s
   const questions = results.map((r) => ({
     problem_id: r.problem_id,
     score: r.score,
-    // Phase 1 submissions have no job row but do have a score: they are done.
-    status: r.job_status ?? (r.score !== null ? "done" : r.has_submission ? "queued" : "none"),
+    status: questionStatus(r.job_status, r.score, r.has_submission),
     feedback: r.ai_detail ? (JSON.parse(r.ai_detail).feedback ?? null) : null,
   }));
   const all = results.every((r) => r.score !== null);
@@ -96,15 +100,18 @@ export async function listAttempts(db: D1Database, examId: string) {
 
 type ResultRow = {
   attempt_id: string; student_name: string; started_at: string; problem_id: string; weight: number; score: number | null;
+  job_status: string | null; has_submission: number;
 };
 
 /** Every attempt of an exam with its per-question latest score and weighted total, in ONE query (D1 Free caps queries per invocation). */
 export async function listResults(db: D1Database, examId: string) {
   const { results } = await db
     .prepare(
-      "SELECT a.id AS attempt_id, a.student_name, a.started_at, q.problem_id, q.weight, sr.score" +
+      "SELECT a.id AS attempt_id, a.student_name, a.started_at, q.problem_id, q.weight, sr.score," +
+        " j.status AS job_status, (s.id IS NOT NULL) AS has_submission" +
         " FROM attempts a JOIN exam_questions q ON q.exam_id = a.exam_id" +
         " LEFT JOIN submissions s ON s.attempt_id = a.id AND s.problem_id = q.problem_id" +
+        " LEFT JOIN grading_jobs j ON j.submission_id = s.id" +
         " LEFT JOIN score_revisions sr ON sr.submission_id = s.id" +
         "   AND sr.revision = (SELECT max(revision) FROM score_revisions WHERE submission_id = s.id)" +
         " WHERE a.exam_id = ? ORDER BY a.started_at, a.rowid, q.position",
@@ -117,7 +124,7 @@ export async function listResults(db: D1Database, examId: string) {
   }
   return [...byAttempt.values()].map((e) => ({
     attempt_id: e.attempt_id, student_name: e.student_name, started_at: e.started_at,
-    questions: e.rows.map((r) => ({ problem_id: r.problem_id, score: r.score })),
+    questions: e.rows.map((r) => ({ problem_id: r.problem_id, score: r.score, status: questionStatus(r.job_status, r.score, r.has_submission) })),
     total: e.rows.every((r) => r.score !== null)
       ? computeTotal(e.rows.map((r) => ({ weight: r.weight, score: r.score as number }))) : null,
   }));
