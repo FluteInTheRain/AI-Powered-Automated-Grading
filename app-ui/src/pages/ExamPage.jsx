@@ -36,24 +36,24 @@ function writeStored(token, value) {
 }
 
 // Typed code is kept in this browser (not on the server) so a reload or a crash does not lose it.
-const draftsKey = (token) => `exam:${token}:drafts`
-function readDrafts(token) {
+const draftsKey = (token, attemptId) => `exam:${token}:${attemptId}:drafts` // per attempt: a shared browser must not mix people
+function readDrafts(token, attemptId) {
   try {
-    return JSON.parse(localStorage.getItem(draftsKey(token))) || {}
+    return JSON.parse(localStorage.getItem(draftsKey(token, attemptId))) || {}
   } catch {
     return {}
   }
 }
-function writeDraft(token, problemId, code) {
+function writeDraft(token, attemptId, problemId, code) {
   try {
-    localStorage.setItem(draftsKey(token), JSON.stringify({ ...readDrafts(token), [problemId]: code }))
+    localStorage.setItem(draftsKey(token, attemptId), JSON.stringify({ ...readDrafts(token, attemptId), [problemId]: code }))
   } catch {
     /* storage can be blocked; the draft then lives only in memory */
   }
 }
-function clearDrafts(token) {
+function clearDrafts(token, attemptId) {
   try {
-    localStorage.removeItem(draftsKey(token))
+    localStorage.removeItem(draftsKey(token, attemptId))
   } catch {
     /* nothing to clear */
   }
@@ -140,7 +140,7 @@ export default function ExamPage() {
     attemptRef.current = att
     setAttempt(att)
     setQuestions(qList)
-    const drafts = wasSubmitted ? {} : readDrafts(token)
+    const drafts = wasSubmitted ? {} : readDrafts(token, att.attempt_id)
     const initial = Object.fromEntries(qList.map((q) => [q.problem_id, { ...blankQuestion(q), code: drafts[q.problem_id] ?? q.starter_code }]))
     qsRef.current = initial
     setQs(initial)
@@ -179,7 +179,8 @@ export default function ExamPage() {
             if (!cancelled) { setErrorMessage(`Không thể tải lại bài làm: ${err.message}`); setPhase('error') }
             return
           }
-          writeStored(token, null) // the server does not know this attempt: forget it and start fresh
+          clearDrafts(token, stored.attempt_id) // forget the attempt and its drafts together
+          writeStored(token, null) // the server does not know this attempt: start fresh
         }
       }
       if (!cancelled) setPhase('name_gate')
@@ -195,7 +196,7 @@ export default function ExamPage() {
     setSubmitError(null)
     const answers = Object.fromEntries(questions.map((q) => [q.problem_id, qsRef.current[q.problem_id].code]))
     const markSubmitted = () => {
-      clearDrafts(token)
+      clearDrafts(token, attemptRef.current.attempt_id)
       setQs((prev) => Object.fromEntries(Object.entries(prev).map(([id, st]) => [id, { ...st, status: 'queued', error: null }])))
       setSubmitted(true)
       questions.forEach((q) => watch(q.problem_id))
@@ -399,7 +400,7 @@ export default function ExamPage() {
               </div>
               <CodeEditor
                 filename={`solution_${active + 1}.py`} value={state.code}
-                onChange={(code) => { patch(question.problem_id, { code }); writeDraft(token, question.problem_id, code) }} readOnly={state.status !== 'none'}
+                onChange={(code) => { patch(question.problem_id, { code }); writeDraft(token, attempt.attempt_id, question.problem_id, code) }} readOnly={state.status !== 'none'}
               />
               <TestRunPanel runResult={state.runResult} />
             </div>

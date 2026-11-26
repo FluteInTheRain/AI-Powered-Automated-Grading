@@ -292,6 +292,19 @@ describe('drafts', () => {
     expect(editor()).toHaveValue('MY DRAFT')
   })
 
+  it('a different student on the same browser never sees the previous attempt\'s drafts', async () => {
+    const first = renderPage()
+    await startExam('An')
+    fireEvent.change(editor(), { target: { value: 'AN PRIVATE CODE' } })
+    first.unmount()
+    localStorage.removeItem('exam:tok') // the stored attempt is gone: a new person opens the same link
+    api.startAttempt.mockResolvedValue(started({ attempt_id: 'att2', receipt_code: 'OTHER99' }))
+    renderPage()
+    await startExam('Binh')
+    expect(editor()).toHaveValue('def f1(): pass')
+    expect(document.body.textContent).not.toContain('AN PRIVATE CODE')
+  })
+
   it('drafts are cleared once the exam is submitted', async () => {
     api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
     renderPage()
@@ -299,7 +312,7 @@ describe('drafts', () => {
     fireEvent.change(editor(), { target: { value: 'MY DRAFT' } })
     await confirmSubmit()
     await screen.findByText(/Đã chấm 0\/2 câu/)
-    expect(localStorage.getItem('exam:tok:drafts')).toBeNull()
+    expect(localStorage.getItem('exam:tok:att1:drafts')).toBeNull()
   })
 })
 
