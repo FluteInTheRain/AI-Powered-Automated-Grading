@@ -22,6 +22,13 @@ describe('api client', () => {
     await expect(api.getExam('t')).rejects.toThrow('This exam is closed')
   })
 
+  it('an error carries the HTTP status so callers can tell a 404 from an outage', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fail(404, { detail: 'Unknown attempt' })))
+    const err = await api.resumeAttempt('t', 'a').catch((e) => e)
+    expect(err.message).toBe('Unknown attempt')
+    expect(err.status).toBe(404)
+  })
+
   it('a non-JSON error body gives the friendly message', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, type: 'basic', json: async () => { throw new Error('x') } }))
     await expect(api.getExam('t')).rejects.toThrow(/time\/resource limit or the server is busy/)
@@ -52,5 +59,19 @@ describe('api client', () => {
     expect(f.mock.calls[0][0]).toBe('/api/teacher/exams/e1')
     expect(f.mock.calls[0][1].method).toBe('PATCH')
     expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ deadline: null })
+  })
+
+  it('startAttempt sends the Turnstile token and the other attempt calls use their paths', async () => {
+    const f = vi.fn().mockResolvedValue(ok({}))
+    vi.stubGlobal('fetch', f)
+    await api.startAttempt('t', 'An', 'tt')
+    await api.resumeAttempt('t', 'a1')
+    await api.getQuestionStatus('t', 'a1', 'p1')
+    await api.retryQuestion('t', 'a1', 'p1')
+    expect(JSON.parse(f.mock.calls[0][1].body)).toEqual({ student_name: 'An', turnstile_token: 'tt' })
+    expect(f.mock.calls[1][0]).toBe('/api/exam/t/attempts/a1')
+    expect(f.mock.calls[2][0]).toBe('/api/exam/t/attempts/a1/questions/p1/status')
+    expect(f.mock.calls[3][0]).toBe('/api/exam/t/attempts/a1/questions/p1/retry')
+    expect(f.mock.calls[3][1].method).toBe('POST')
   })
 })

@@ -1,6 +1,4 @@
 import { newId, newReceiptCode } from "../ids";
-import type { GradeOutput } from "../grader";
-import type { Problem } from "./problems";
 import { computeTotal } from "../scoring";
 
 
@@ -22,24 +20,37 @@ export async function getExamByStudentToken(db: D1Database, token: string) {
   return { ...exam, questions: results } as StudentExam;
 }
 
+export class NameTaken extends Error {}
+
 export async function createAttempt(db: D1Database, examId: string, studentName: string, startedAt: Date) {
+  const nameKey = studentName.trim().toLowerCase();
   for (let i = 0; i < 5; i++) {
     const id = newId();
     const receipt = newReceiptCode();
     try {
       await db
-        .prepare("INSERT INTO attempts (id, exam_id, student_name, receipt_code, started_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, examId, studentName, receipt, startedAt.toISOString()).run();
+        .prepare("INSERT INTO attempts (id, exam_id, student_name, name_key, receipt_code, started_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(id, examId, studentName, nameKey, receipt, startedAt.toISOString()).run();
       return { attempt_id: id, receipt_code: receipt };
     } catch (e) {
-      if (!String(e).includes("UNIQUE")) throw e; // receipt collision: draw another code
+      const msg = String(e);
+      if (msg.includes("name_key")) throw new NameTaken(); // same name already used in this exam
+      if (!msg.includes("UNIQUE")) throw e; // a receipt collision just draws another code
     }
   }
   throw new Error("could not allocate a receipt code");
 }
 
+/** Undo a just-created attempt whose clock could not be started, so the name is free again. */
+export async function deleteAttempt(db: D1Database, attemptId: string): Promise<void> {
+  await db.prepare("DELETE FROM attempts WHERE id = ?").bind(attemptId).run();
+}
+
 export async function attemptInExam(db: D1Database, attemptId: string, examId: string) {
-  return db.prepare("SELECT id, started_at FROM attempts WHERE id = ? AND exam_id = ?").bind(attemptId, examId).first<{ id: string; started_at: string }>();
+  return db
+    .prepare("SELECT id, student_name, receipt_code, started_at FROM attempts WHERE id = ? AND exam_id = ?")
+    .bind(attemptId, examId)
+    .first<{ id: string; student_name: string; receipt_code: string; started_at: string }>();
 }
 
 export async function submissionExists(db: D1Database, attemptId: string, problemId: string): Promise<boolean> {
@@ -48,45 +59,22 @@ export async function submissionExists(db: D1Database, attemptId: string, proble
 
 export class AlreadySubmitted extends Error {}
 
-/** Submission + revision 0 + grading logs in one atomic batch; the UNIQUE(attempt, problem) constraint decides races. */
-export async function saveGraded(
-  db: D1Database,
-  a: { attemptId: string; problem: Problem; code: string; out: GradeOutput },
-): Promise<void> {
-  const sid = newId();
-  const now = new Date().toISOString();
-  const r = a.out.result;
-  const stmts = [
-    db.prepare("INSERT INTO submissions (id, attempt_id, problem_id, code, submitted_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(sid, a.attemptId, a.problem.id, a.code, now),
-    db.prepare(
-      "INSERT INTO score_revisions (id, submission_id, revision, source, score, sub_scores, detail, author, reason, created_at)" +
-        " VALUES (?, ?, 0, 'ai', ?, ?, ?, 'pipeline', NULL, ?)",
-    ).bind(newId(), sid, r.final_score_0_to_100, JSON.stringify(r.sub_scores_0_to_1), JSON.stringify(r), now),
-    ...a.out.call_log.map((e, i) =>
-      db.prepare(
-        "INSERT INTO grading_logs (id, submission_id, call_index, kind, schema_name, model, system_prompt, user_prompt, raw_response, created_at)" +
-          " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      ).bind(newId(), sid, i, e.kind, e.schema ?? null, e.model, e.system_prompt, e.user_prompt, e.raw_response, now)),
-  ];
-  try {
-    await db.batch(stmts);
-  } catch (e) {
-    if (String(e).includes("UNIQUE")) throw new AlreadySubmitted();
-    throw e;
-  }
+/** Phase 1 submissions have no job row but do have a score: they are done. */
+function questionStatus(jobStatus: string | null, score: number | null, hasSubmission: number): QuestionStatus {
+  return (jobStatus ?? (score !== null ? "done" : hasSubmission ? "queued" : "none")) as QuestionStatus;
 }
 
-type ScoreRow = { problem_id: string; weight: number; score: number | null; ai_detail: string | null };
+type ScoreRow = { problem_id: string; weight: number; score: number | null; ai_detail: string | null; job_status: string | null; has_submission: number };
 
 /** Per-question latest score (and the AI feedback) of one attempt, in exam order, plus the weighted total. */
 export async function attemptScores(db: D1Database, examId: string, attemptId: string) {
   const { results } = await db
     .prepare(
-      "SELECT q.problem_id, q.weight, sr.score," +
+      "SELECT q.problem_id, q.weight, sr.score, j.status AS job_status, (s.id IS NOT NULL) AS has_submission," +
         " (SELECT detail FROM score_revisions WHERE submission_id = s.id AND revision = 0) AS ai_detail" +
         " FROM exam_questions q" +
         " LEFT JOIN submissions s ON s.attempt_id = ? AND s.problem_id = q.problem_id" +
+        " LEFT JOIN grading_jobs j ON j.submission_id = s.id" +
         " LEFT JOIN score_revisions sr ON sr.submission_id = s.id" +
         "   AND sr.revision = (SELECT max(revision) FROM score_revisions WHERE submission_id = s.id)" +
         " WHERE q.exam_id = ? ORDER BY q.position",
@@ -94,6 +82,7 @@ export async function attemptScores(db: D1Database, examId: string, attemptId: s
   const questions = results.map((r) => ({
     problem_id: r.problem_id,
     score: r.score,
+    status: questionStatus(r.job_status, r.score, r.has_submission),
     feedback: r.ai_detail ? (JSON.parse(r.ai_detail).feedback ?? null) : null,
   }));
   const all = results.every((r) => r.score !== null);
@@ -116,15 +105,18 @@ export async function listAttempts(db: D1Database, examId: string) {
 
 type ResultRow = {
   attempt_id: string; student_name: string; started_at: string; problem_id: string; weight: number; score: number | null;
+  job_status: string | null; has_submission: number;
 };
 
 /** Every attempt of an exam with its per-question latest score and weighted total, in ONE query (D1 Free caps queries per invocation). */
 export async function listResults(db: D1Database, examId: string) {
   const { results } = await db
     .prepare(
-      "SELECT a.id AS attempt_id, a.student_name, a.started_at, q.problem_id, q.weight, sr.score" +
+      "SELECT a.id AS attempt_id, a.student_name, a.started_at, q.problem_id, q.weight, sr.score," +
+        " j.status AS job_status, (s.id IS NOT NULL) AS has_submission" +
         " FROM attempts a JOIN exam_questions q ON q.exam_id = a.exam_id" +
         " LEFT JOIN submissions s ON s.attempt_id = a.id AND s.problem_id = q.problem_id" +
+        " LEFT JOIN grading_jobs j ON j.submission_id = s.id" +
         " LEFT JOIN score_revisions sr ON sr.submission_id = s.id" +
         "   AND sr.revision = (SELECT max(revision) FROM score_revisions WHERE submission_id = s.id)" +
         " WHERE a.exam_id = ? ORDER BY a.started_at, a.rowid, q.position",
@@ -137,8 +129,39 @@ export async function listResults(db: D1Database, examId: string) {
   }
   return [...byAttempt.values()].map((e) => ({
     attempt_id: e.attempt_id, student_name: e.student_name, started_at: e.started_at,
-    questions: e.rows.map((r) => ({ problem_id: r.problem_id, score: r.score })),
+    questions: e.rows.map((r) => ({ problem_id: r.problem_id, score: r.score, status: questionStatus(r.job_status, r.score, r.has_submission) })),
     total: e.rows.every((r) => r.score !== null)
       ? computeTotal(e.rows.map((r) => ({ weight: r.weight, score: r.score as number }))) : null,
   }));
+}
+
+export type QuestionStatus = "none" | "queued" | "grading" | "done" | "failed";
+
+/** Job status per problem of one attempt (problems with no submission are absent). */
+export async function attemptJobStatuses(db: D1Database, attemptId: string): Promise<Map<string, QuestionStatus>> {
+  const { results } = await db
+    .prepare("SELECT s.problem_id, j.status FROM submissions s JOIN grading_jobs j ON j.submission_id = s.id WHERE s.attempt_id = ?")
+    .bind(attemptId).all<{ problem_id: string; status: QuestionStatus }>();
+  return new Map(results.map((r) => [r.problem_id, r.status]));
+}
+
+export async function findSubmissionId(db: D1Database, attemptId: string, problemId: string): Promise<string | null> {
+  const r = await db.prepare("SELECT id FROM submissions WHERE attempt_id = ? AND problem_id = ?").bind(attemptId, problemId).first<{ id: string }>();
+  return r?.id ?? null;
+}
+
+/** The student-facing result of a graded question: latest score plus the AI detail (counts, never case values). */
+export async function gradedResult(db: D1Database, submissionId: string) {
+  const row = await db
+    .prepare(
+      "SELECT (SELECT score FROM score_revisions WHERE submission_id = ?1 ORDER BY revision DESC LIMIT 1) AS score," +
+        " (SELECT detail FROM score_revisions WHERE submission_id = ?1 AND revision = 0) AS detail",
+    ).bind(submissionId).first<{ score: number | null; detail: string | null }>();
+  if (!row || row.score === null || !row.detail) return null;
+  const d = JSON.parse(row.detail);
+  return {
+    score: row.score, sub_scores: d.sub_scores_0_to_1,
+    tests: { passed: d.execution_result.pass_count, total: d.execution_result.total },
+    feedback: d.feedback ?? null,
+  };
 }

@@ -15,12 +15,11 @@ async function request(path, options = {}) {
   if (!res.ok) {
     // Non-JSON bodies (e.g. platform limit pages from the edge) get a plain message.
     const body = await res.json().catch(() => null)
-    if (body === null) {
-      throw new Error(
-        'Your submission exceeded the time/resource limit or the server is busy. Please try again.',
-      )
-    }
-    throw new Error(body.detail || `Request failed: ${res.status}`)
+    const message =
+      body === null
+        ? 'Your submission exceeded the time/resource limit or the server is busy. Please try again.'
+        : body.detail || `Request failed: ${res.status}`
+    throw Object.assign(new Error(message), { status: res.status })
   }
   return res.json()
 }
@@ -30,7 +29,13 @@ const post = (path, body) => request(path, { method: 'POST', body: JSON.stringif
 // --- Student (no login) ----------------------------------------------------
 
 export const getExam = (token) => request(`/api/exam/${token}`)
-export const startAttempt = (token, studentName) => post(`/api/exam/${token}/attempts`, { student_name: studentName })
+export const startAttempt = (token, studentName, turnstileToken) =>
+  post(`/api/exam/${token}/attempts`, { student_name: studentName, turnstile_token: turnstileToken })
+export const resumeAttempt = (token, attemptId) => request(`/api/exam/${token}/attempts/${attemptId}`)
+export const getQuestionStatus = (token, attemptId, problemId) =>
+  request(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/status`)
+export const retryQuestion = (token, attemptId, problemId) =>
+  post(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/retry`, {})
 export const runTests = (token, attemptId, problemId, code) =>
   post(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/run`, { code })
 export const submitQuestion = (token, attemptId, problemId, code) =>

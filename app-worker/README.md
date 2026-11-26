@@ -68,19 +68,35 @@ so the endpoints live at `/api/internal/*` and are **public but token-gated** (`
 compared in constant time, fails closed when the secret is unset). A separate Worker with
 `workers_dev: false` would remove the public surface at the cost of a third Python bundle.
 
-## Known limits of Phase 1 (read before deploying)
+## Phase 2: background grading, attempt clock, audit log, abuse limits
 
-- **No abuse limits yet.** Anyone with an exam link can create attempts and each submit costs a full
-  grading run (about 100 graded questions a day exhaust the Workers AI free budget for the whole app).
-  Turnstile and Rate Limiting arrive in Phase 2; until then share links only with students you trust.
-- Hidden test cases are protected: students get pass counts only, and the LLM feedback prompt sees
-  counts, not the per-case error strings.
-- The time limit (`started_at` + `time_limit_seconds` + 10 s) is checked on submit; the Durable Object
-  timer replaces this in Phase 2. Resubmitting a question is rejected (409).
-  It is **not** cheat-proof: students have no identity, so a new attempt resets the clock, and the
-  questions are visible before an attempt starts. Phase 2 moves questions behind the attempt and adds
-  Rate Limiting; real per-student limits would need invited or authenticated students.
-- Teacher results use one D1 query (the Free plan caps queries per Worker invocation).
+- **Queues** (`grading-jobs`): submit stores the submission plus a `grading_jobs` row and answers 202; the Worker's
+  `queue()` handler grades it through the Python Worker, writes score revision 0 to D1 and the LLM call log to **R2**
+  (`teacher-app-audit`, key `audit/<submission_id>.json`). Delivery is at least once, so a finished job is a no-op.
+  Three deliveries, then the job is `failed` in D1 with a fixed message (no dead-letter queue: it costs operations and adds
+  nothing here); a student-code sandbox kill fails at once. The student gets a "Chấm lại" button (`POST .../retry`).
+- **Durable Object** (`AttemptDO`, one per attempt): the authoritative clock (10 s grace) and a per-question submit claim (a claim left by a crashed request expires after 30 s). A queued or grading job older than
+  120 s is reported `stuck` and can be retried; a sandbox kill is permanent (`retryable: false`).
+  Questions are only returned after an attempt exists, and a reload resumes the attempt (`GET .../attempts/:id`) with the
+  server's remaining time. Code drafts are not saved, so a resume shows the starter code again.
+- **Rate Limiting** bindings (`RL_START` 60/min and `RL_SYNTAX` 600/min per IP, sized so a classroom behind one public IP is not blocked;
+  `RL_ACTION` 30/min per attempt). Counts are per Cloudflare location and approximate.
+- **Turnstile** on attempt start. Secret `TURNSTILE_SECRET` is a Worker secret, `TURNSTILE_SITE_KEY` and `TURNSTILE_HOSTNAMES`
+  are vars. For local runs use Cloudflare's always-pass test keys (site `1x00000000000000000000AA`, secret
+  `1x0000000000000000000000000000000AA`) and add `localhost` to `TURNSTILE_HOSTNAMES`.
+- Read an audit log: `npx wrangler r2 object get teacher-app-audit/audit/<submission_id>.json --remote`.
+
+## Known limits (after Phase 2)
+
+- **Names are not identities.** A name can be used once per exam, so a student who starts first under someone else's name
+  locks that student out of a fresh start (they need their own attempt or receipt code); a different name always starts a
+  fresh clock. Real per-student limits need a teacher-issued roster or invites.
+- Attempts created before Phase 2 have no clock state and can no longer submit.
+- Drafts are not autosaved. Hidden test cases are protected: students get pass counts only, the LLM feedback prompt sees
+  counts, public-test errors are reduced to a generic text, and the exam view carries no test values.
+- Resubmitting a question is rejected (409). Teacher results use one D1 query (the Free plan caps queries per invocation).
+- The CI deploy token needs Workers Scripts, D1, Queues, R2 and Durable Objects edit; if the Deploy workflow fails on a
+  permission, recreate the token and replace the repository secret.
 
 ## Status
 

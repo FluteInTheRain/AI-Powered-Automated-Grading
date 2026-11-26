@@ -194,7 +194,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
   on both Workers, `grading` and `teacher-app` deployed, student flow smoke-tested live (score 94),
   Access application on `/api/teacher/*` created and a real PIN login verified. Runbook: `app-worker/README.md`.
 - [x] **T6.2b — UI (2026-11-25).** `app-ui/` (React + Vite, existing look) served by `teacher-app`; teacher pages behind Access; plan `docs/superpowers/plans/2026-11-25-teacher-app-ui.md`. Real browser walk-through by the author still to confirm.
-- [ ] **T6.3 — Phase 2 plan + build:** Queues, Durable Object timer, R2 audit logs, Turnstile, Rate Limiting.
+- [x] **T6.3 — Phase 2 (2026-11-26).** Queues (background grading), AttemptDO (clock, submit claim, resume), R2 audit logs, Rate Limiting and Turnstile; plan `docs/superpowers/plans/2026-11-26-teacher-app-phase2.md`. Free-tier spikes: Rate Limiting binding, sqlite Durable Objects, Queues and R2 all work on Free; Turnstile accepted the workers.dev hostname. Live smoke test still to confirm.
 - [ ] **T6.4 — Phase 3 plan + build:** appeals, Workflows, Cron, teacher review UI.
 - [ ] **T6.5 — Phase 4 plan + build:** AI Gateway, Analytics Engine, logs, CI deploy; plus a UI plan.
 

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { GraderError, checkSyntax, toClientError } from "../grader";
+import { TOO_MANY, allow, clientIp } from "../limits";
 import type { AppEnv } from "../index";
 
 const MAX_CODE = 20_000;
@@ -8,6 +9,7 @@ const MAX_CODE = 20_000;
 export function syntaxRoutes(): Hono<AppEnv> {
   const r = new Hono<AppEnv>();
   r.post("/syntax-check", async (c) => {
+    if (!(await allow(c.env.RL_SYNTAX, clientIp(c.req)))) return c.json(TOO_MANY, 429);
     const b: any = await c.req.json().catch(() => null);
     if (typeof b?.code !== "string" || b.code.length > MAX_CODE) return c.json({ detail: "code must be a string of at most 20000 characters" }, 400);
     try {
