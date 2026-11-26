@@ -98,21 +98,7 @@ AI, không phải kiểm tra độ ổn định: xem các lưu ý trong [`docs/r
 
 ## Cách chấm điểm
 
-```mermaid
-flowchart LR
-    S[Student submission] --> X[Sandbox: run test cases]
-    X -->|pass rate| C[correctness]
-    X -->|"0 tests passed or compile error"| Z[All dimensions = 0]
-    S --> E[LLM check: efficiency]
-    S --> T[LLM check: code style]
-    S --> H[LLM check: edge cases]
-    C --> A["aggregate()<br/>fixed weighted sum in Python"]
-    E --> A
-    T --> A
-    H --> A
-    A --> F[Final score 0-100]
-    F -.-> FB[LLM feedback text<br/>generated after scoring,<br/>never changes the score]
-```
+![Grading pipeline: a sandbox run for correctness, three independent LLM checks, a fixed weighted sum, then feedback text](docs/img/pipeline.svg)
 
 | Bước | Code | Ghi chú |
 |---|---|---|
@@ -129,26 +115,7 @@ Lý do của thiết kế này và các tài liệu tham khảo nằm trong [`do
 Giáo viên đăng nhập, tạo bài thi từ kho câu hỏi (hoặc câu hỏi tự soạn) và chia sẻ một link. Học sinh mở link,
 làm hết các câu rồi nộp **một lần**. Mọi câu được chấm song song và học sinh thấy một kết quả cho cả bài.
 
-```mermaid
-flowchart LR
-    T[Teacher] -->|login| AC[Cloudflare Access]
-    S[Student] -->|exam link| GATE["Turnstile +<br/>rate limits"]
-    AC --> API
-    GATE --> API
-    subgraph APP["teacher-app Worker (TypeScript, Hono)"]
-        API["API + static React UI"]
-        QC[Queue consumer]
-    end
-    API --> D1[(D1)]
-    API --> DO["Durable Object<br/>one per attempt: clock + lock"]
-    API -- "one message per question" --> Q[(Queues)]
-    Q --> QC
-    QC --> D1
-    QC --> R2[("R2<br/>LLM audit log")]
-    QC -- "service binding" --> G["grading Worker<br/>(Python)"]
-    G -- "code + inputs only" --> SB["grading-sandbox Worker<br/>no bindings, no public URL"]
-    G --> AI[Workers AI]
-```
+![Teacher app architecture on Cloudflare: Access and Turnstile in front of a Worker, Queues, D1, Durable Objects, R2 and the Python grading Worker](docs/img/teacher-app.svg)
 
 **App làm được gì**
 - **Bài thi.** Kho 16 đề cùng đề giáo viên tự soạn (qua API), bài thi tối đa 20 câu có trọng số, hạn nộp và
