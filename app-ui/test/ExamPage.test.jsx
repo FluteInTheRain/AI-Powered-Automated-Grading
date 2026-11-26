@@ -245,6 +245,17 @@ describe('submitting the whole exam', () => {
     expect(screen.queryByText(/Không nộp được/)).toBeNull()
   })
 
+  it('a 503 means the answers are stored: the exam locks and grading is watched', async () => {
+    api.submitExam.mockRejectedValue(Object.assign(new Error('Could not queue grading, please retry.'), { status: 503 }))
+    api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    await confirmSubmit()
+    expect(await screen.findByText(/Đã chấm 0\/2 câu/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nộp bài' })).toBeNull()
+    expect(screen.queryByText(/Không nộp được/)).toBeNull()
+  })
+
   it('a network error keeps the exam open and the student can try again', async () => {
     api.submitExam.mockRejectedValueOnce(new Error('Failed to fetch')).mockResolvedValue({ status: 'queued', problem_ids: ['p1', 'p2'] })
     renderPage()
@@ -269,6 +280,29 @@ describe('submitting the whole exam', () => {
   })
 })
 
+describe('drafts', () => {
+  it('typed code is kept in this browser and comes back after a reload', async () => {
+    const first = renderPage()
+    await startExam()
+    fireEvent.change(editor(), { target: { value: 'MY DRAFT' } })
+    first.unmount()
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 500, submitted: false, questions: questions() })
+    renderPage()
+    await screen.findByText('RCPT123')
+    expect(editor()).toHaveValue('MY DRAFT')
+  })
+
+  it('drafts are cleared once the exam is submitted', async () => {
+    api.getQuestionStatus.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    fireEvent.change(editor(), { target: { value: 'MY DRAFT' } })
+    await confirmSubmit()
+    await screen.findByText(/Đã chấm 0\/2 câu/)
+    expect(localStorage.getItem('exam:tok:drafts')).toBeNull()
+  })
+})
+
 describe('grading problems', () => {
   const submitThenPoll = async (statusFor) => {
     api.getQuestionStatus.mockImplementation(async (_t, _a, pid) => statusFor(pid))
@@ -288,6 +322,13 @@ describe('grading problems', () => {
     await tick(2000)
     expect(api.retryQuestion).toHaveBeenCalledWith('tok', 'att1', 'p1')
     expect(screen.getByText('70.0 / 100')).toBeInTheDocument()
+  })
+
+  it('a permanently failed question counts as settled, so the progress finishes and the total shows', async () => {
+    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 35 })
+    await submitThenPoll((pid) => (pid === 'p1' ? done(70) : { status: 'failed', error: 'Grading failed: your submission exceeded the time/resource limit.', retryable: false }))
+    expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
+    expect(screen.getByText(/Tổng điểm: 35/)).toBeInTheDocument()
   })
 
   it('a job reported stuck offers "Chấm lại"', async () => {

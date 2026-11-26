@@ -21,7 +21,7 @@ const DEADLINE_GRACE_MS = 10_000; // run and submit may land this long after the
 
 type Ctx = Context<AppEnv>;
 type QuestionContext = { exam: StudentExam; attemptId: string; problemId: string; code: string };
-const MAX_ANSWER_KEYS = 100; // sendBatch accepts at most 100 messages
+const SEND_BATCH_SIZE = 100; // sendBatch accepts at most 100 messages
 
 const attemptStub = (env: Env, attemptId: string) => env.ATTEMPT.get(env.ATTEMPT.idFromName(attemptId));
 
@@ -84,8 +84,8 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
 
   async function enqueue(c: Ctx, submissionIds: string[]): Promise<Response | null> {
     try {
-      for (let i = 0; i < submissionIds.length; i += MAX_ANSWER_KEYS) {
-        await c.env.GRADING_QUEUE.sendBatch(submissionIds.slice(i, i + MAX_ANSWER_KEYS).map((id) => ({ body: { submission_id: id } })));
+      for (let i = 0; i < submissionIds.length; i += SEND_BATCH_SIZE) {
+        await c.env.GRADING_QUEUE.sendBatch(submissionIds.slice(i, i + SEND_BATCH_SIZE).map((id) => ({ body: { submission_id: id } })));
       }
       return null;
     } catch {
@@ -192,14 +192,16 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       if (!known.has(id)) return c.json({ detail: `Unknown problem_id: ${id}` }, 400);
       if (typeof code !== "string" || code.length > MAX_CODE) return c.json({ detail: "Each answer must be a string of at most 20000 characters" }, 400);
     }
+    // Already submitted comes before the time check: after a 503 (answers stored, queue send failed) a repeat must be a 409.
+    if (await attemptHasSubmissions(c.env.DB, attemptId)) return c.json({ detail: "Already submitted" }, 409);
     const blocked = await checkWindow(c, exam, attemptId);
     if (blocked) return blocked;
-    if (await attemptHasSubmissions(c.env.DB, attemptId)) return c.json({ detail: "Already submitted" }, 409);
     // Single flight. After a stored submit the claim no longer matters (a resubmit is a 409 anyway); if storing fails
     // it is released, and a claim left by a crash expires on its own.
     const stub = attemptStub(c.env, attemptId);
     if (!(await stub.claim("__exam__", now().getTime()))) return c.json({ detail: "A submission is already in progress" }, 409);
-    // A blank or missing answer is graded as the starter code (it passes no test, so it scores 0 without an LLM call).
+    // A blank or missing answer is stored as the starter code; the queue consumer scores an unchanged starter 0 itself
+    // (no sandbox run, no LLM call).
     const items = exam.questions.map((q) => {
       const given = (answers as Record<string, unknown>)[q.problem_id];
       return { problemId: q.problem_id, code: typeof given === "string" && given.trim() !== "" ? given : q.starter_code };

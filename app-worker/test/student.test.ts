@@ -141,8 +141,12 @@ describe("submit the whole exam", () => {
     expect((await submitAll(token, a.attempt_id, { "bank:sa": "" })).status).toBe(202);
     const rows = await env.DB.prepare("SELECT problem_id, code FROM submissions WHERE attempt_id = ? ORDER BY problem_id").bind(a.attempt_id).all<any>();
     expect(rows.results).toEqual([{ problem_id: "bank:sa", code: "def f(x): pass" }, { problem_id: "bank:sb", code: "def f(x): pass" }]);
+    const callsBefore = grader.calls.length;
     await finish();
-    expect(grader.calls.slice(-2).map((c) => c.body.code)).toEqual(["def f(x): pass", "def f(x): pass"]);
+    // Blank answers are scored zero by the Worker itself: no sandbox run and no LLM call at all.
+    expect(grader.calls.length).toBe(callsBefore);
+    const r = await status(token, a.attempt_id, "bank:sb");
+    expect(r.json).toMatchObject({ status: "done", score: 0 });
   });
 
   it("a second submit is 409 and adds nothing; a concurrent pair has one 202 and one 409", async () => {
@@ -155,6 +159,14 @@ describe("submit the whole exam", () => {
     expect([x.status, y.status].sort()).toEqual([202, 409]);
     const n = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE attempt_id = ?").bind(b.attempt_id).first<any>();
     expect(n.n).toBe(2);
+    await finish();
+  });
+
+  it("a repeated submit is a 409 even after the time is up (an answered 503 must not turn into a 403)", async () => {
+    const { token } = await newExam("s8c@x.com");
+    const a = (await start(token)).json;
+    expect((await submitAll(token, a.attempt_id)).status).toBe(202);
+    expect((await submitAll(token, a.attempt_id, ANSWERS, at(700_000))).status).toBe(409);
     await finish();
   });
 
@@ -406,8 +418,9 @@ describe("receipt lookup and teacher results", () => {
     await submitAll(f.token, b.attempt_id);
     await finish();
     mode = "ok";
-    const failed = (await call("GET", `/api/teacher/exams/${f.id}/results`, { as: "c5b@x.com" })).json[0].questions.map((x: any) => x.status);
-    expect(failed).toEqual(["failed", "failed"]);
+    const row = (await call("GET", `/api/teacher/exams/${f.id}/results`, { as: "c5b@x.com" })).json[0];
+    expect(row.questions.map((x: any) => [x.status, x.score])).toEqual([["failed", 0], ["failed", 0]]);
+    expect(row.total).toBe(0); // a permanent failure scores zero, so the exam still gets a total
   });
 
   it("teacher results use a constant number of queries however many attempts exist", async () => {

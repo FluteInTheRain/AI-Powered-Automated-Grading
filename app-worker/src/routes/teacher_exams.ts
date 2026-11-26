@@ -5,6 +5,8 @@ import { listResults } from "../db/attempts";
 import type { AppEnv } from "../index";
 
 const DEFAULT_TIME_LIMIT_SECONDS = 600;
+// The one-shot submit writes two rows per question in one D1 batch; the Free plan caps queries per invocation.
+const MAX_QUESTIONS = 20;
 
 const view = (e: ExamRow) => ({
   id: e.id, title: e.title, student_token: e.student_token, student_path: `/exam/${e.student_token}`,
@@ -31,6 +33,7 @@ export function teacherExamRoutes(): Hono<AppEnv> {
     const limit = b.time_limit_seconds ?? DEFAULT_TIME_LIMIT_SECONDS;
     if (!Number.isInteger(limit) || limit <= 0) return bad("time_limit_seconds must be a positive integer");
     if (!Array.isArray(b.questions) || b.questions.length === 0) return bad("At least one question is required");
+    if (b.questions.length > MAX_QUESTIONS) return bad(`An exam can have at most ${MAX_QUESTIONS} questions`);
     const questions: { problem_id: string; weight: number }[] = [];
     for (const q of b.questions) {
       const weight = q?.weight ?? 1;

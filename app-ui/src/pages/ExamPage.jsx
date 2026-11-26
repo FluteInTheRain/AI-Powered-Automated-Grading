@@ -35,6 +35,30 @@ function writeStored(token, value) {
   }
 }
 
+// Typed code is kept in this browser (not on the server) so a reload or a crash does not lose it.
+const draftsKey = (token) => `exam:${token}:drafts`
+function readDrafts(token) {
+  try {
+    return JSON.parse(localStorage.getItem(draftsKey(token))) || {}
+  } catch {
+    return {}
+  }
+}
+function writeDraft(token, problemId, code) {
+  try {
+    localStorage.setItem(draftsKey(token), JSON.stringify({ ...readDrafts(token), [problemId]: code }))
+  } catch {
+    /* storage can be blocked; the draft then lives only in memory */
+  }
+}
+function clearDrafts(token) {
+  try {
+    localStorage.removeItem(draftsKey(token))
+  } catch {
+    /* nothing to clear */
+  }
+}
+
 const blankQuestion = (q) => ({
   code: q.starter_code, status: q.status ?? 'none', result: null, runResult: null,
   running: false, error: null, gaveUp: false, stuck: false, retryable: undefined,
@@ -116,7 +140,8 @@ export default function ExamPage() {
     attemptRef.current = att
     setAttempt(att)
     setQuestions(qList)
-    const initial = Object.fromEntries(qList.map((q) => [q.problem_id, blankQuestion(q)]))
+    const drafts = wasSubmitted ? {} : readDrafts(token)
+    const initial = Object.fromEntries(qList.map((q) => [q.problem_id, { ...blankQuestion(q), code: drafts[q.problem_id] ?? q.starter_code }]))
     qsRef.current = initial
     setQs(initial)
     setDurationSeconds(remainingSeconds)
@@ -127,7 +152,7 @@ export default function ExamPage() {
       if (q.status === 'queued' || q.status === 'grading') watch(q.problem_id)
       else if (q.status === 'done' || q.status === 'failed') settle(q.problem_id, att.attempt_id)
     })
-  }, [watch, settle])
+  }, [token, watch, settle])
 
   useEffect(() => {
     let cancelled = false
@@ -170,6 +195,7 @@ export default function ExamPage() {
     setSubmitError(null)
     const answers = Object.fromEntries(questions.map((q) => [q.problem_id, qsRef.current[q.problem_id].code]))
     const markSubmitted = () => {
+      clearDrafts(token)
       setQs((prev) => Object.fromEntries(Object.entries(prev).map(([id, st]) => [id, { ...st, status: 'queued', error: null }])))
       setSubmitted(true)
       questions.forEach((q) => watch(q.problem_id))
@@ -178,8 +204,10 @@ export default function ExamPage() {
       await submitExam(token, attemptRef.current.attempt_id, answers)
       markSubmitted()
     } catch (e) {
-      if (/already submitted|in progress/i.test(e.message)) {
-        markSubmitted() // it is on the server already: just watch it
+      // A 409 (already stored) and a 503 (stored, but the queue send failed) both mean the answers are on the server:
+      // lock the exam and watch the questions; "Chấm lại" appears for any job that stays stuck.
+      if (/already submitted|in progress/i.test(e.message) || e.status === 503) {
+        markSubmitted()
       } else {
         submitRef.current = false // let the student try again
         setSubmitError(e.message)
@@ -236,7 +264,9 @@ export default function ExamPage() {
     }
   }
 
-  const gradedCount = questions.filter((q) => qs[q.problem_id]?.status === 'done').length
+  // A permanently failed question (the code killed the sandbox) is settled: the server scores it 0 and still gives a total.
+  const isSettled = (st) => st?.status === 'done' || (st?.status === 'failed' && st.retryable === false)
+  const gradedCount = questions.filter((q) => isSettled(qs[q.problem_id])).length
   const allDone = questions.length > 0 && gradedCount === questions.length
   useEffect(() => {
     if (!allDone || !attempt) return
@@ -369,7 +399,7 @@ export default function ExamPage() {
               </div>
               <CodeEditor
                 filename={`solution_${active + 1}.py`} value={state.code}
-                onChange={(code) => patch(question.problem_id, { code })} readOnly={state.status !== 'none'}
+                onChange={(code) => { patch(question.problem_id, { code }); writeDraft(token, question.problem_id, code) }} readOnly={state.status !== 'none'}
               />
               <TestRunPanel runResult={state.runResult} />
             </div>

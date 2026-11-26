@@ -52,6 +52,14 @@ describe("teacher exams", () => {
     expect((await mkExam("owner3@x.com", { title: "T", questions: Q(p.json.id) })).status).toBe(200);
   });
 
+  it("more than 20 questions in one exam is a 400 (a one-shot submit writes two rows per question)", async () => {
+    const many = Array.from({ length: 21 }, (_, i) => ({ problem_id: `bank:e${i % 2 + 1}-${i}` }));
+    const r = await mkExam("ex3b@x.com", { title: "T", questions: many });
+    expect(r.status).toBe(400);
+    expect(r.json.detail).toContain("20");
+    expect((await mkExam("ex3c@x.com", { title: "T", questions: Q("bank:e1") })).status).toBe(200);
+  });
+
   it("bank problem is allowed", async () => {
     expect((await mkExam("ex4@x.com", { title: "T", questions: Q("bank:e1") })).status).toBe(200);
   });
