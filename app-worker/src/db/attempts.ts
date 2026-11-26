@@ -53,6 +53,10 @@ export async function attemptInExam(db: D1Database, attemptId: string, examId: s
     .first<{ id: string; student_name: string; receipt_code: string; started_at: string }>();
 }
 
+export async function attemptHasSubmissions(db: D1Database, attemptId: string): Promise<boolean> {
+  return !!(await db.prepare("SELECT 1 AS x FROM submissions WHERE attempt_id = ? LIMIT 1").bind(attemptId).first());
+}
+
 export async function submissionExists(db: D1Database, attemptId: string, problemId: string): Promise<boolean> {
   return !!(await db.prepare("SELECT 1 AS x FROM submissions WHERE attempt_id = ? AND problem_id = ?").bind(attemptId, problemId).first());
 }

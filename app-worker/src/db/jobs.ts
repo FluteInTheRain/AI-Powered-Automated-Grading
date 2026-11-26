@@ -29,6 +29,27 @@ export async function insertSubmissionWithJob(
   return sid;
 }
 
+/** Every item of an exam submit in ONE batch: all rows are stored or none (a UNIQUE conflict rolls the batch back). */
+export async function insertSubmissionsWithJobs(
+  db: D1Database,
+  a: { attemptId: string; items: { problemId: string; code: string }[] },
+): Promise<string[]> {
+  const now = new Date().toISOString();
+  const ids = a.items.map(() => newId());
+  const stmts = a.items.flatMap((it, i) => [
+    db.prepare("INSERT INTO submissions (id, attempt_id, problem_id, code, submitted_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(ids[i], a.attemptId, it.problemId, it.code, now),
+    db.prepare("INSERT INTO grading_jobs (submission_id, status, attempts, updated_at) VALUES (?, 'queued', 0, ?)").bind(ids[i], now),
+  ]);
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    if (String(e).includes("UNIQUE")) throw new AlreadySubmitted();
+    throw e;
+  }
+  return ids;
+}
+
 export async function getJob(db: D1Database, submissionId: string): Promise<Job | null> {
   return db.prepare("SELECT * FROM grading_jobs WHERE submission_id = ?").bind(submissionId).first<Job>();
 }

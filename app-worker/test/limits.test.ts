@@ -64,7 +64,7 @@ describe("rate limited student endpoints", () => {
     const base = `/api/exam/${token}/attempts/${a.attempt_id}/questions/bank:lp`;
     const subs = await count("submissions");
     expect((await c("POST", `${base}/run`, { body: { code: "x" } })).status).toBe(429);
-    expect((await c("POST", `${base}/submit`, { body: { code: "x" } })).status).toBe(429);
+    expect((await c("POST", `/api/exam/${token}/attempts/${a.attempt_id}/submit`, { body: { answers: {} } })).status).toBe(429);
     expect((await c("POST", `${base}/retry`)).status).toBe(429);
     expect(deny.keys).toEqual([a.attempt_id, a.attempt_id, a.attempt_id]);
     expect(await count("submissions")).toBe(subs);

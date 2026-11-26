@@ -72,6 +72,10 @@ export function fakeQueue() {
         if (fail) { fail = false; throw new Error("queue down"); }
         sent.push(m);
       },
+      sendBatch: async (msgs: Iterable<{ body: { submission_id: string } }>) => {
+        if (fail) { fail = false; throw new Error("queue down"); }
+        for (const m of msgs) sent.push(m.body);
+      },
     } as unknown as Queue<{ submission_id: string }>,
   };
 }

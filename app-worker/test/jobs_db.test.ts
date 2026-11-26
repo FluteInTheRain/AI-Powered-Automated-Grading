@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AlreadySubmitted, NameTaken, createAttempt } from "../src/db/attempts";
-import { getJob, getSubmissionBundle, insertSubmissionWithJob, setJobStatus } from "../src/db/jobs";
+import { getJob, getSubmissionBundle, insertSubmissionWithJob, insertSubmissionsWithJobs, setJobStatus } from "../src/db/jobs";
 
 const run = (sql: string, ...b: unknown[]) => env.DB.prepare(sql).bind(...b).run();
 const NOW = "2026-11-26T00:00:00Z";
@@ -56,6 +56,28 @@ describe("grading jobs", () => {
     expect(b?.submission).toMatchObject({ id: sid, code: "THE CODE", problem_id: "jp" });
     expect(b?.problem.func_name).toBe("fn");
     expect(await getSubmissionBundle(env.DB, "nope")).toBeNull();
+  });
+});
+
+describe("batch insert", () => {
+  const rows = async (attemptId: string) =>
+    (await env.DB.prepare("SELECT (SELECT count(*) FROM submissions WHERE attempt_id = ?1) AS s, (SELECT count(*) FROM grading_jobs j JOIN submissions s ON s.id = j.submission_id WHERE s.attempt_id = ?1) AS j").bind(attemptId).first<{ s: number; j: number }>())!;
+
+  it("creates one queued job per item and returns the submission ids in order", async () => {
+    await env.DB.prepare("INSERT OR IGNORE INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at) VALUES ('jp2', NULL, 'system', 's2','fn2','[]','{}','r','[]','c',?)").bind(NOW).run();
+    const a = await newAttempt("je1", "Batch One");
+    const ids = await insertSubmissionsWithJobs(env.DB, { attemptId: a.attempt_id, items: [{ problemId: "jp", code: "a" }, { problemId: "jp2", code: "b" }] });
+    expect(ids).toHaveLength(2);
+    expect((await getSubmissionBundle(env.DB, ids[1]))?.submission).toMatchObject({ problem_id: "jp2", code: "b" });
+    expect(await rows(a.attempt_id)).toEqual({ s: 2, j: 2 });
+    expect((await getJob(env.DB, ids[0]))?.status).toBe("queued");
+  });
+
+  it("a conflict rolls back the whole batch and throws AlreadySubmitted", async () => {
+    const a = await newAttempt("je1", "Batch Two");
+    await insertSubmissionWithJob(env.DB, { attemptId: a.attempt_id, problemId: "jp2", code: "old" });
+    await expect(insertSubmissionsWithJobs(env.DB, { attemptId: a.attempt_id, items: [{ problemId: "jp", code: "a" }, { problemId: "jp2", code: "b" }] })).rejects.toBeInstanceOf(AlreadySubmitted);
+    expect(await rows(a.attempt_id)).toEqual({ s: 1, j: 1 }); // only the earlier one: nothing from the failed batch
   });
 });
 
