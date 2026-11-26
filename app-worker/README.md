@@ -22,7 +22,7 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 
 ## API
 
-Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems`,
+Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems` (each problem has `title` up to 80 chars, `category` up to 40 chars as free text, and `difficulty` easy, medium or hard; `POST` requires all three),
 `POST problems/preview`, `GET|PUT settings` (default weights and time limit), `GET|POST exams`
 (`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
@@ -40,7 +40,8 @@ Steps marked **(you)** need your Cloudflare login or the dashboard.
    ```bash
    npx wrangler d1 migrations apply teacher-app --remote
    python3 ../scripts/export_bank_seed.py          # regenerates seed/bank.sql from data/problems.py
-   npx wrangler d1 execute teacher-app --remote --file seed/bank.sql
+   npx wrangler d1 execute teacher-app --remote --file seed/bank.sql   # upsert: a problem that already exists only gets
+                                                                        # its title, category and difficulty refreshed
    npx wrangler d1 execute teacher-app --remote --command "SELECT count(*) FROM problems WHERE visibility='system'"   # expect 16
    ```
 3. **(you)** Pick one random value and set it as `INTERNAL_TOKEN` on BOTH Workers:

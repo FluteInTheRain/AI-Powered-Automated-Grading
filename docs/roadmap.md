@@ -197,6 +197,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.3 — Phase 2 (2026-11-26).** Queues (background grading), AttemptDO (clock, submit claim, resume), R2 audit logs, Rate Limiting and Turnstile; plan `docs/superpowers/plans/2026-11-26-teacher-app-phase2.md`. Free-tier spikes: Rate Limiting binding, sqlite Durable Objects, Queues and R2 all work on Free; Turnstile accepted the workers.dev hostname. Live smoke test still to confirm.
 - [x] **T6.3b — style prompt and one-shot submit (2026-11-26).** Comments are optional for the style check (0 -> 13 of 16 correct uncommented samples score clean on the live model); the exam is submitted once and every question is graded in parallel; plan `docs/superpowers/plans/2026-11-26-style-prompt-and-submit-all.md`.
 - [x] **T6.3b — Per-exam rubric weights and teacher Settings (2026-11-26).** `exams.rubric` snapshot + `teachers.settings` (migration 0003), `/teacher/settings` page; spec and plan in `docs/superpowers/`.
+- [x] **T6.3c — Problem catalog (2026-11-26).** Title, category and difficulty on every problem (migration 0004, bank metadata in `data/problems.py`, metadata-only seed upsert), searchable/filterable/sortable picker in the exam form; spec and plan in `docs/superpowers/`.
 - [ ] **T6.4 — Phase 3 plan + build:** appeals, Workflows, Cron, teacher review UI.
 - [ ] **T6.5 — Phase 4 plan + build:** AI Gateway, Analytics Engine, logs, CI deploy; plus a UI plan.
 
