@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createExam, getMe, listBank, listExams } from '../api.js'
+import Icon from '../components/Icon.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const studentUrl = (path) => `${window.location.origin}${path}`
 const excerpt = (text) => (text.length <= 120 ? text : `${text.slice(0, 120)}…`)
@@ -68,63 +70,83 @@ export default function TeacherHomePage() {
   if (!exams) return <p className="status-line">Loading…</p>
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Bài kiểm tra của tôi</h1>
-        <span className="field-hint">{me.email}</span>
+    <>
+      <header className="top">
+        <span className="word">AI Grader</span>
+        <span className="sp" />
+        <span className="muted hide-s">{me.email}</span>
+        <ThemeToggle />
       </header>
-
-      <div className="teacher-section">
-        <h2>Các bài kiểm tra</h2>
-        {exams.length === 0 && <p className="status-line">Chưa có bài kiểm tra nào.</p>}
-        {exams.map((e) => (
-          <div key={e.id} className="exam-link-row">
-            <Link to={`/teacher/exams/${e.id}`}>{e.title}</Link>
-            <code>{studentUrl(e.student_path)}</code>
-            <button className="btn btn-secondary" onClick={() => copy(studentUrl(e.student_path))}>Sao chép link</button>
+      <div className="wrap">
+        <div className="head">
+          <div>
+            <h1>Bài kiểm tra của tôi</h1>
+            <p>Tạo đề từ kho bài có sẵn, rồi gửi liên kết cho học sinh. AI chấm, bạn xem lại khi cần.</p>
           </div>
-        ))}
-      </div>
+          <a className="btn btn-primary" href="#tao-bai"><Icon name="plus" />Tạo bài kiểm tra mới</a>
+        </div>
 
-      <div className="teacher-section">
-        <h2>Tạo bài kiểm tra</h2>
-        <div className="field-row">
-          <label htmlFor="exam-title">Tiêu đề</label>
-          <input id="exam-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </div>
-        <div className="field-row">
-          <label htmlFor="exam-minutes">Thời gian (phút)</label>
-          <input id="exam-minutes" type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
-        </div>
-        <div className="field-row">
-          <label htmlFor="exam-deadline">Hạn chót</label>
-          <input id="exam-deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-        </div>
-        <p className="field-hint">Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
-        {bank.map((q) => (
-          <div key={q.id} className="field-row">
-            <label>
-              <input type="checkbox" checked={q.id in chosen} onChange={(e) => toggle(q.id, e.target.checked)} />{' '}
-              {excerpt(q.statement)}
-            </label>
-            {q.id in chosen && (
-              <input
-                type="number" min="0" step="any" aria-label={`Trọng số ${excerpt(q.statement)}`}
-                value={chosen[q.id]} onChange={(e) => setChosen((prev) => ({ ...prev, [q.id]: e.target.value }))}
-              />
-            )}
-          </div>
-        ))}
-        <div className="submit-row">
-          {errorMessage && <span className="status-error">{errorMessage}</span>}
-          <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
-        </div>
-        {created && (
-          <p className="status-success">
-            Đã tạo. Link cho học sinh: <code>{studentUrl(created.student_path)}</code>
-          </p>
+        {exams.length === 0 ? (
+          <p className="status-line">Chưa có bài kiểm tra nào.</p>
+        ) : (
+          <table className="stack">
+            <thead>
+              <tr><th>Tên</th><th>Liên kết cho học sinh</th><th /></tr>
+            </thead>
+            <tbody>
+              {exams.map((e) => (
+                <tr key={e.id}>
+                  <td className="name"><Link className="link" to={`/teacher/exams/${e.id}`}>{e.title}</Link></td>
+                  <td><code>{studentUrl(e.student_path)}</code></td>
+                  <td className="r">
+                    <button className="btn btn-small" onClick={() => copy(studentUrl(e.student_path))}><Icon name="copy" />Sao chép link</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
+
+        <section className="form-sec" id="tao-bai">
+          <h2>Tạo bài kiểm tra</h2>
+          <div className="field-row">
+            <label htmlFor="exam-title">Tiêu đề</label>
+            <input id="exam-title" name="title" type="text" autoComplete="off" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="field-row">
+            <label htmlFor="exam-minutes">Thời gian (phút)</label>
+            <input id="exam-minutes" name="minutes" type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+          </div>
+          <div className="field-row">
+            <label htmlFor="exam-deadline">Hạn chót</label>
+            <input id="exam-deadline" name="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          </div>
+          <p className="field-hint">Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
+          {bank.map((q) => (
+            <div key={q.id} className="bank-row">
+              <label>
+                <input type="checkbox" checked={q.id in chosen} onChange={(e) => toggle(q.id, e.target.checked)} />
+                <span>{excerpt(q.statement)}</span>
+              </label>
+              {q.id in chosen && (
+                <input
+                  type="number" min="0" step="any" aria-label={`Trọng số ${excerpt(q.statement)}`}
+                  value={chosen[q.id]} onChange={(e) => setChosen((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+          <div className="submit-row">
+            <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
+            {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}
+          </div>
+          {created && (
+            <p className="status-success" aria-live="polite">
+              Đã tạo. Link cho học sinh: <code>{studentUrl(created.student_path)}</code>
+            </p>
+          )}
+        </section>
       </div>
-    </div>
+    </>
   )
 }

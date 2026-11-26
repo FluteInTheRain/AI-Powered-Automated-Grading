@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { checkSyntax } from '../api.js'
+import { useTheme } from '../theme.js'
 
 const DEBOUNCE_MS = 1000 // longer than the demo: every check is a Worker request on the Free budget
 const MARKER_OWNER = 'python-syntax'
 
 export default function CodeEditor({ value, onChange, readOnly, filename = 'solution.py' }) {
   const [syntaxError, setSyntaxError] = useState(null)
+  const [theme] = useTheme()
   const monacoRef = useRef(null)
   const editorRef = useRef(null)
   const debounceRef = useRef(null)
@@ -60,17 +62,17 @@ export default function CodeEditor({ value, onChange, readOnly, filename = 'solu
         <span className="editor-filename">{filename}</span>
       </div>
       <Editor
-        height="480px"
+        height="min(52vh, 480px)"
         defaultLanguage="python"
         path={filename} // one editor model per file name, so undo history never crosses questions
-        theme="vs-dark"
+        theme={theme === 'dark' ? 'vs-dark' : 'vs'}
         value={value}
         onChange={(v) => onChange(v ?? '')}
         onMount={handleMount}
         options={{
           readOnly,
-          fontSize: 14,
-          minimap: { enabled: true },
+          fontSize: 15,
+          minimap: { enabled: false },
           automaticLayout: true,
           tabSize: 4,
           insertSpaces: true,
