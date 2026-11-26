@@ -21,7 +21,7 @@ function Harness() {
     />
   )
 }
-const titles = () => screen.getAllByRole('checkbox').map((c) => c.closest('label').textContent)
+const titles = () => screen.getAllByRole('checkbox').map((c) => document.querySelector(`label[for="${c.id}"]`).textContent)
 
 describe('ProblemPicker', () => {
   it('shows title, category and the Vietnamese difficulty per problem and a count', () => {
@@ -84,5 +84,23 @@ describe('ProblemPicker', () => {
     const row = screen.getByLabelText(/Two Sum/).closest('.problem-row')
     fireEvent.click(within(row).getByText('Xem đề'))
     expect(within(row).getByText('Find two numbers that add up to the target.')).toBeVisible()
+  })
+
+  it('is a real table with column headers and one row per problem', () => {
+    render(<Harness />)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['', 'Tiêu đề', 'Loại', 'Độ khó', 'Trọng số'])
+    expect(screen.getAllByRole('row')).toHaveLength(6) // header + 5 problems
+  })
+
+  it('sorts when a column header is clicked and marks it with aria-sort', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    expect(titles()[0]).toBe('Binary Search')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).toHaveAttribute('aria-sort', 'ascending')
+    fireEvent.click(screen.getByRole('button', { name: 'Độ khó' }))
+    expect(titles()[0]).toBe('Factorial')
+    expect(screen.getByRole('columnheader', { name: 'Độ khó' })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).not.toHaveAttribute('aria-sort')
   })
 })

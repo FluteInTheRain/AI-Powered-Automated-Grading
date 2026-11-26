@@ -98,9 +98,6 @@ tbody tr:hover td { background: var(--bg2); }
 .field-row label { font-weight: 500; }
 input[type='text'], input[type='number'], input[type='search'], input[type='datetime-local'] { min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
 input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--red); }
-.bank-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 4px; border-top: 1px solid var(--line); }
-.bank-row label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; flex: 1; min-width: 0; }
-.bank-row input[type='number'] { width: 90px; }
 .submit-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
 .filters { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
 .filters input[type='search'] { flex: 1; min-width: 240px; max-width: 340px; }
@@ -222,15 +219,48 @@ a.word { color: inherit; text-decoration: none; }
 .picker-bar input[type='search'] { flex: 1; min-width: 220px; max-width: 320px; }
 .picker-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
 .picker-bar select { min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
-.problem-row { padding: 10px 4px; border-top: 1px solid var(--line); }
-.problem-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
-.problem-main label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; cursor: pointer; font-weight: 500; }
-.problem-main input[type='number'] { width: 90px; }
 .diff { font-weight: 600; font-size: 14px; }
 .diff-easy { color: var(--ok); }
 .diff-medium { color: var(--warn); }
 .diff-hard { color: var(--bad); }
-.problem-row details { margin: 4px 0 0 28px; color: var(--body); }
 .problem-row summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .statement-preview { margin: 6px 0 0; max-width: 70ch; }
 @media (max-width: 720px) { .picker-bar input[type='search'] { max-width: none; width: 100%; } .picker-bar label { flex: 1; } }
+
+/* exam form: grouped blocks, compact weights, a real table for the questions */
+.exam-form .form-block { padding: 20px 0; border-top: 1px solid var(--line); }
+.exam-form .form-block:first-of-type { border-top: 0; padding-top: 4px; }
+.exam-form h3 { font-size: 16px; margin: 0 0 12px; }
+.exam-basics { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; }
+.exam-basics .field-row { max-width: none; margin: 0; }
+.rubric-fields.compact { max-width: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+.rubric-fields.compact .rubric-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; border: 0; position: relative; }
+.rubric-fields.compact .rubric-row label { font-size: 14px; color: var(--body); min-height: 2.9em; }
+.rubric-fields.compact .rubric-row input { width: 100%; }
+.rubric-fields.compact .pct { text-align: left; font-size: 14px; }
+.rubric-fields.compact .field-hint { grid-column: 1 / -1; margin: 0; }
+.picker-table { margin-top: 8px; }
+.picker-table th { white-space: nowrap; }
+.picker-table .pick-cell { width: 44px; }
+.picker-table td { padding: 10px 12px; }
+.picker-table label { cursor: pointer; font-weight: 600; }
+.picker-table .is-chosen td { background: var(--sel); }
+.picker-table .problem-row details { margin: 2px 0 0; }
+.th-sort { border: 0; background: transparent; padding: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; }
+.th-sort:hover { color: var(--red); }
+th[aria-sort='ascending'] .th-sort::after { content: ' ↑'; }
+.picker-table input[type='number'] { width: 84px; }
+.form-footer { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; padding: 14px 0; border-top: 1px solid var(--line); background: var(--bg); }
+@media (max-width: 900px) {
+  .exam-basics { grid-template-columns: 1fr 1fr; }
+  .exam-basics .exam-title-field { grid-column: 1 / -1; }
+  .rubric-fields.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .exam-basics { grid-template-columns: 1fr; }
+  .picker-table tr.problem-row { grid-template-columns: 32px 1fr; align-items: start; }
+  .picker-table .pick-cell { width: auto; display: block; padding-top: 6px; }
+  .picker-table td.name { display: block; grid-column: 2; }
+  .picker-table td[data-l] { grid-column: 1 / -1; padding-left: 32px; }
+  .picker-table td:empty { display: none; }
+}

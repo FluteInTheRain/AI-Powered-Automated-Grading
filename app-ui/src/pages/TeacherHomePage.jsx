@@ -7,7 +7,6 @@ import RubricFields, { DEFAULT_RUBRIC, isValidRubric, rubricToNumbers, rubricToS
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const studentUrl = (path) => `${window.location.origin}${path}`
-const excerpt = (text) => (text.length <= 120 ? text : `${text.slice(0, 120)}…`)
 
 async function copy(text) {
   try {
@@ -118,30 +117,44 @@ export default function TeacherHomePage() {
           </table>
         )}
 
-        <section className="form-sec" id="tao-bai">
+        <section className="form-sec exam-form" id="tao-bai">
           <h2>Tạo bài kiểm tra</h2>
-          <div className="field-row">
-            <label htmlFor="exam-title">Tiêu đề</label>
-            <input id="exam-title" name="title" type="text" autoComplete="off" value={title} onChange={(e) => setTitle(e.target.value)} />
+
+          <div className="form-block">
+            <div className="exam-basics">
+              <div className="field-row exam-title-field">
+                <label htmlFor="exam-title">Tiêu đề</label>
+                <input id="exam-title" name="title" type="text" autoComplete="off" value={title} onChange={(e) => setTitle(e.target.value)} />
+              </div>
+              <div className="field-row">
+                <label htmlFor="exam-minutes">Thời gian (phút)</label>
+                <input id="exam-minutes" name="minutes" type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+              </div>
+              <div className="field-row">
+                <label htmlFor="exam-deadline">Hạn chót</label>
+                <input id="exam-deadline" name="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+              </div>
+            </div>
           </div>
-          <div className="field-row">
-            <label htmlFor="exam-minutes">Thời gian (phút)</label>
-            <input id="exam-minutes" name="minutes" type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+
+          <div className="form-block">
+            <h3>Trọng số tiêu chí chấm</h3>
+            <RubricFields value={rubric} onChange={setRubric} compact />
           </div>
-          <div className="field-row">
-            <label htmlFor="exam-deadline">Hạn chót</label>
-            <input id="exam-deadline" name="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+
+          <div className="form-block">
+            <h3>Câu hỏi</h3>
+            <ProblemPicker
+              problems={bank} chosen={chosen} onToggle={toggle}
+              onWeight={(id, value) => setChosen((prev) => ({ ...prev, [id]: value }))}
+            />
           </div>
-          <h3 style={{ margin: '24px 0 8px' }}>Trọng số tiêu chí chấm</h3>
-          <RubricFields value={rubric} onChange={setRubric} />
-          <p className="field-hint" style={{ marginTop: 24 }}>Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
-          <ProblemPicker
-            problems={bank} chosen={chosen} onToggle={toggle}
-            onWeight={(id, value) => setChosen((prev) => ({ ...prev, [id]: value }))}
-          />
-          <div className="submit-row">
-            <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
+
+          <div className="form-footer">
+            <span className="muted num">{selected.length === 0 ? 'Chưa chọn câu hỏi nào' : `Đã chọn ${selected.length} câu`}</span>
+            <span className="sp" />
             {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}
+            <button className="btn btn-primary" onClick={handleCreate} disabled={!canCreate}>Tạo bài kiểm tra</button>
           </div>
           {created && (
             <p className="status-success" aria-live="polite">

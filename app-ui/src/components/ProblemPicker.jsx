@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { DIFFICULTY_LABEL, categoriesOf, filterProblems, sortProblems } from '../catalog.js'
 
+const SORTABLE = [['title', 'Tiêu đề'], ['category', 'Loại'], ['difficulty', 'Độ khó']]
+
 /** Chooses the questions of an exam: search, filters and sorting; `chosen` maps problem id -> weight and is never filtered. */
 export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) {
   const [search, setSearch] = useState('')
@@ -47,29 +49,48 @@ export default function ProblemPicker({ problems, chosen, onToggle, onWeight }) 
         {chosenCount > 0 && <span>{` — Đã chọn ${chosenCount} bài`}</span>}
       </p>
 
-      {shown.length === 0 && <p className="status-line">Không có bài nào khớp bộ lọc</p>}
-      {shown.map((p) => (
-        <div key={p.id} className="problem-row">
-          <div className="problem-main">
-            <label>
-              <input type="checkbox" checked={p.id in chosen} onChange={(e) => onToggle(p.id, e.target.checked)} />
-              <span>{p.title}</span>
-            </label>
-            <span className="muted">{p.category}</span>
-            <span className={`diff diff-${p.difficulty}`}>{DIFFICULTY_LABEL[p.difficulty]}</span>
-            {p.id in chosen && (
-              <input
-                type="number" min="0" step="any" aria-label={`Trọng số ${p.title}`}
-                value={chosen[p.id]} onChange={(e) => onWeight(p.id, e.target.value)}
-              />
-            )}
-          </div>
-          <details>
-            <summary>Xem đề</summary>
-            <p className="statement-preview">{p.statement}</p>
-          </details>
-        </div>
-      ))}
+      <table className="picker-table stack">
+        <thead>
+          <tr>
+            <th />
+            {SORTABLE.map(([key, label]) => (
+              <th key={key} aria-sort={sort === key ? 'ascending' : undefined}>
+                <button type="button" className="th-sort" onClick={() => setSort(key)}>{label}</button>
+              </th>
+            ))}
+            <th>Trọng số</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.length === 0 && (
+            <tr><td colSpan={5} className="status-line">Không có bài nào khớp bộ lọc</td></tr>
+          )}
+          {shown.map((p) => (
+            <tr key={p.id} className={`problem-row${p.id in chosen ? ' is-chosen' : ''}`}>
+              <td className="pick-cell">
+                <input id={`pick-${p.id}`} type="checkbox" checked={p.id in chosen} onChange={(e) => onToggle(p.id, e.target.checked)} />
+              </td>
+              <td className="name">
+                <label htmlFor={`pick-${p.id}`}>{p.title}</label>
+                <details>
+                  <summary>Xem đề</summary>
+                  <p className="statement-preview">{p.statement}</p>
+                </details>
+              </td>
+              <td className="muted" data-l="Loại">{p.category}</td>
+              <td data-l="Độ khó"><span className={`diff diff-${p.difficulty}`}>{DIFFICULTY_LABEL[p.difficulty]}</span></td>
+              <td data-l="Trọng số">
+                {p.id in chosen && (
+                  <input
+                    type="number" min="0" step="any" aria-label={`Trọng số ${p.title}`}
+                    value={chosen[p.id]} onChange={(e) => onWeight(p.id, e.target.value)}
+                  />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

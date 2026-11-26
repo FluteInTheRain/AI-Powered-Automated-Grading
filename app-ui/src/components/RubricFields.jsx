@@ -15,10 +15,10 @@ export const isValidRubric = (value) => RUBRIC_FIELDS.every((f) => !Number.isNaN
 export const rubricToNumbers = (value) => Object.fromEntries(RUBRIC_FIELDS.map((f) => [f.key, toNumber(value[f.key])]))
 export const rubricToStrings = (rubric) => Object.fromEntries(RUBRIC_FIELDS.map((f) => [f.key, String(rubric[f.key])]))
 
-export default function RubricFields({ value, onChange }) {
+export default function RubricFields({ value, onChange, compact = false }) {
   const sum = total(value)
   return (
-    <div className="rubric-fields">
+    <div className={`rubric-fields${compact ? ' compact' : ''}`}>
       {RUBRIC_FIELDS.map((f) => {
         const n = toNumber(value[f.key])
         return (
