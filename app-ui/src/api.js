@@ -38,8 +38,8 @@ export const retryQuestion = (token, attemptId, problemId) =>
   post(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/retry`, {})
 export const runTests = (token, attemptId, problemId, code) =>
   post(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/run`, { code })
-export const submitQuestion = (token, attemptId, problemId, code) =>
-  post(`/api/exam/${token}/attempts/${attemptId}/questions/${problemId}/submit`, { code })
+export const submitExam = (token, attemptId, answers) =>
+  post(`/api/exam/${token}/attempts/${attemptId}/submit`, { answers })
 export const getAttemptByReceipt = (token, receipt) => request(`/api/exam/${token}/attempts/by-receipt/${receipt}`)
 export const checkSyntax = (code) => post('/api/syntax-check', { code })
 

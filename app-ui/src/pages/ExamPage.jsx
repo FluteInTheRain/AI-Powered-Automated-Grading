@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useParams } from 'react-router-dom'
 import {
-  getAttemptByReceipt, getExam, getQuestionStatus, resumeAttempt, retryQuestion, runTests, startAttempt, submitQuestion,
+  getAttemptByReceipt, getExam, getQuestionStatus, resumeAttempt, retryQuestion, runTests, startAttempt, submitExam,
 } from '../api.js'
 import CodeEditor from '../components/CodeEditor.jsx'
 import ResultPanel from '../components/ResultPanel.jsx'
@@ -12,6 +12,7 @@ import TurnstileWidget from '../components/TurnstileWidget.jsx'
 
 // phase: 'loading' | 'closed' | 'name_gate' | 'in_progress' | 'error' (the exam could not be loaded)
 // per-question status: 'none' | 'queued' | 'grading' | 'done' | 'failed'
+// The whole exam is submitted at once: before that every status is 'none'; after it each question is graded on its own.
 
 const POLL_MS = 2000
 const GIVE_UP_MS = 5 * 60 * 1000
@@ -36,7 +37,7 @@ function writeStored(token, value) {
 
 const blankQuestion = (q) => ({
   code: q.starter_code, status: q.status ?? 'none', result: null, runResult: null,
-  running: false, submitting: false, error: null, gaveUp: false,
+  running: false, error: null, gaveUp: false, stuck: false, retryable: undefined,
 })
 
 export default function ExamPage() {
@@ -53,6 +54,9 @@ export default function ExamPage() {
   const [qs, setQs] = useState({}) // problem_id -> per-question state
   const [active, setActive] = useState(0)
   const [durationSeconds, setDurationSeconds] = useState(0)
+  const [submitted, setSubmitted] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const [total, setTotal] = useState(null)
   const [lookupCode, setLookupCode] = useState('')
   const [lookup, setLookup] = useState(null)
@@ -61,7 +65,7 @@ export default function ExamPage() {
   // Refs let long-lived callbacks (timer expiry, polling loops) read the latest values.
   const qsRef = useRef(qs)
   const attemptRef = useRef(attempt)
-  const sentRef = useRef(new Set()) // problem ids with a submit already started
+  const submitRef = useRef(false) // true once a submit started: the button and the timer share this guard
   const pollingRef = useRef(new Set()) // problem ids with a poll loop running
   const aliveRef = useRef(true)
   qsRef.current = qs
@@ -88,11 +92,7 @@ export default function ExamPage() {
         }
         if (s.status === 'done') return patch(problemId, { status: 'done', result: s, error: null, stuck: false })
         if (s.status === 'failed') return patch(problemId, { status: 'failed', error: s.error, retryable: s.retryable, stuck: false })
-        if (s.status === 'none') {
-          // Nothing was stored (e.g. the other submit that held the claim failed): let the student submit again.
-          sentRef.current.delete(problemId)
-          return patch(problemId, { status: 'none', error: null, stuck: false })
-        }
+        if (s.status === 'none') return patch(problemId, { status: 'none', error: null, stuck: false }) // nothing was stored
         patch(problemId, { status: s.status, stuck: !!s.stuck })
       }
       if (aliveRef.current) patch(problemId, { gaveUp: true })
@@ -112,7 +112,7 @@ export default function ExamPage() {
     }
   }, [token, patch])
 
-  const enterExam = useCallback((att, qList, remainingSeconds) => {
+  const enterExam = useCallback((att, qList, remainingSeconds, wasSubmitted) => {
     attemptRef.current = att
     setAttempt(att)
     setQuestions(qList)
@@ -120,15 +120,12 @@ export default function ExamPage() {
     qsRef.current = initial
     setQs(initial)
     setDurationSeconds(remainingSeconds)
+    submitRef.current = !!wasSubmitted
+    setSubmitted(!!wasSubmitted)
     setPhase('in_progress')
     qList.forEach((q) => {
-      if (q.status === 'queued' || q.status === 'grading') {
-        sentRef.current.add(q.problem_id)
-        watch(q.problem_id)
-      } else if (q.status === 'done' || q.status === 'failed') {
-        sentRef.current.add(q.problem_id)
-        settle(q.problem_id, att.attempt_id)
-      }
+      if (q.status === 'queued' || q.status === 'grading') watch(q.problem_id)
+      else if (q.status === 'done' || q.status === 'failed') settle(q.problem_id, att.attempt_id)
     })
   }, [watch, settle])
 
@@ -149,7 +146,7 @@ export default function ExamPage() {
       if (stored?.attempt_id) {
         try {
           const r = await resumeAttempt(token, stored.attempt_id)
-          if (!cancelled) enterExam({ attempt_id: stored.attempt_id, receipt_code: r.receipt_code }, r.questions, r.remaining_seconds)
+          if (!cancelled) enterExam({ attempt_id: stored.attempt_id, receipt_code: r.receipt_code }, r.questions, r.remaining_seconds, r.submitted)
           return
         } catch (err) {
           if (err.status !== 404) {
@@ -165,30 +162,38 @@ export default function ExamPage() {
     return () => { cancelled = true }
   }, [token, enterExam])
 
-  const submitOne = useCallback(async (problemId) => {
-    if (sentRef.current.has(problemId) || !attemptRef.current) return
-    sentRef.current.add(problemId)
-    patch(problemId, { submitting: true, error: null })
+  /** Submits every answer in one call. Shared by the confirm button and the timer, guarded so it runs once. */
+  const submitWholeExam = useCallback(async () => {
+    if (submitRef.current || !attemptRef.current) return
+    submitRef.current = true
+    setConfirming(false)
+    setSubmitError(null)
+    const answers = Object.fromEntries(questions.map((q) => [q.problem_id, qsRef.current[q.problem_id].code]))
+    const markSubmitted = () => {
+      setQs((prev) => Object.fromEntries(Object.entries(prev).map(([id, st]) => [id, { ...st, status: 'queued', error: null }])))
+      setSubmitted(true)
+      questions.forEach((q) => watch(q.problem_id))
+    }
     try {
-      await submitQuestion(token, attemptRef.current.attempt_id, problemId, qsRef.current[problemId].code)
-      patch(problemId, { submitting: false, status: 'queued' })
-      watch(problemId)
+      await submitExam(token, attemptRef.current.attempt_id, answers)
+      markSubmitted()
     } catch (e) {
       if (/already submitted|in progress/i.test(e.message)) {
-        patch(problemId, { submitting: false, status: 'queued' }) // it is on the server already: just watch it
-        watch(problemId)
+        markSubmitted() // it is on the server already: just watch it
       } else {
-        sentRef.current.delete(problemId) // let the student retry
-        patch(problemId, { submitting: false, error: e.message })
+        submitRef.current = false // let the student try again
+        setSubmitError(e.message)
       }
     }
-  }, [token, patch, watch])
+  }, [token, questions, watch])
 
-  const submitAll = useCallback(() => {
-    questions.forEach((q) => {
-      if (qsRef.current[q.problem_id]?.status === 'none') submitOne(q.problem_id)
-    })
-  }, [questions, submitOne])
+  // If the server says nothing was stored for any question, the exam is open again.
+  useEffect(() => {
+    if (submitted && questions.length > 0 && questions.every((q) => qs[q.problem_id]?.status === 'none')) {
+      submitRef.current = false
+      setSubmitted(false)
+    }
+  }, [submitted, questions, qs])
 
   const handleRetry = async (problemId) => {
     patch(problemId, { error: null, status: 'queued', stuck: false, retryable: undefined, gaveUp: false })
@@ -221,7 +226,7 @@ export default function ExamPage() {
       const r = await startAttempt(token, studentName.trim(), turnstileToken || undefined)
       const att = { attempt_id: r.attempt_id, receipt_code: r.receipt_code }
       writeStored(token, att)
-      enterExam(att, r.questions, r.remaining_seconds)
+      enterExam(att, r.questions, r.remaining_seconds, r.submitted)
     } catch (e) {
       setErrorMessage(e.message)
       setTurnstileToken('')
@@ -231,8 +236,8 @@ export default function ExamPage() {
     }
   }
 
-  const allSubmitted = questions.length > 0 && questions.every((q) => qs[q.problem_id]?.status && qs[q.problem_id].status !== 'none')
-  const allDone = questions.length > 0 && questions.every((q) => qs[q.problem_id]?.status === 'done')
+  const gradedCount = questions.filter((q) => qs[q.problem_id]?.status === 'done').length
+  const allDone = questions.length > 0 && gradedCount === questions.length
   useEffect(() => {
     if (!allDone || !attempt) return
     getAttemptByReceipt(token, attempt.receipt_code).then((r) => setTotal(r.total)).catch(() => {})
@@ -254,14 +259,13 @@ export default function ExamPage() {
 
   const question = questions[active]
   const state = question ? qs[question.problem_id] : null
-  const waiting = state && (state.submitting || state.status === 'queued' || state.status === 'grading')
   const canRetry = state && ((state.status === 'failed' && state.retryable !== false) || (state.stuck && state.status !== 'done'))
 
   return (
     <div className="app app-wide">
       <header className="app-header">
         <h1>{exam.title}</h1>
-        {phase === 'in_progress' && <Timer durationSeconds={durationSeconds} isRunning={!allSubmitted} onExpire={submitAll} />}
+        {phase === 'in_progress' && <Timer durationSeconds={durationSeconds} isRunning={!submitted} onExpire={submitWholeExam} />}
       </header>
 
       {phase === 'name_gate' && (
@@ -306,13 +310,33 @@ export default function ExamPage() {
           <p className="hidden-note">
             Mã biên nhận của bạn: <code>{attempt.receipt_code}</code> — hãy lưu lại để xem điểm sau, kể cả khi tải lại trang.
           </p>
+
+          {submitted ? (
+            <div className="result-panel">
+              <p>Đã chấm {gradedCount}/{questions.length} câu{allDone ? '' : '…'}</p>
+              {allDone && total !== null && <p className="final-score-value">Tổng điểm: {total}</p>}
+            </div>
+          ) : (
+            <div className="submit-row">
+              {confirming ? (
+                <>
+                  <span>Nộp bài? Sau khi nộp không thể sửa.</span>
+                  <button className="btn btn-primary" onClick={submitWholeExam}>Xác nhận nộp</button>
+                  <button className="btn btn-secondary" onClick={() => setConfirming(false)}>Hủy</button>
+                </>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setConfirming(true)}>Nộp bài</button>
+              )}
+              {submitError && <span className="status-error">Không nộp được: {submitError}</span>}
+            </div>
+          )}
+
           <div className="submit-row">
             {questions.map((q, i) => (
               <button key={q.problem_id} className={`btn ${i === active ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActive(i)}>
                 Câu {i + 1}
               </button>
             ))}
-            {allDone && total !== null && <span className="final-score-value">Tổng điểm: {total}</span>}
           </div>
           <div className="solve-grid">
             <div className="solve-left">
@@ -338,21 +362,14 @@ export default function ExamPage() {
             <div className="solve-right">
               <div className="submit-row">
                 {state.status === 'failed' && <span className="status-error">{state.error}</span>}
-                {state.status === 'none' && state.error && <span className="status-error">Grading failed: {state.error}</span>}
                 <button className="btn btn-secondary" onClick={() => handleRun(question.problem_id)} disabled={state.status !== 'none' || state.running}>
                   {state.running ? 'Running…' : 'Run Tests'}
                 </button>
-                {canRetry ? (
-                  <button className="btn btn-primary" onClick={() => handleRetry(question.problem_id)}>Chấm lại</button>
-                ) : (
-                  <button className="btn btn-primary" onClick={() => submitOne(question.problem_id)} disabled={state.status !== 'none' || state.submitting}>
-                    {waiting ? 'Grading…' : state.status === 'done' ? 'Đã chấm' : state.status === 'failed' ? 'Đã nộp' : 'Submit'}
-                  </button>
-                )}
+                {canRetry && <button className="btn btn-primary" onClick={() => handleRetry(question.problem_id)}>Chấm lại</button>}
               </div>
               <CodeEditor
                 filename={`solution_${active + 1}.py`} value={state.code}
-                onChange={(code) => patch(question.problem_id, { code })} readOnly={state.status !== 'none' || state.submitting}
+                onChange={(code) => patch(question.problem_id, { code })} readOnly={state.status !== 'none'}
               />
               <TestRunPanel runResult={state.runResult} />
             </div>
