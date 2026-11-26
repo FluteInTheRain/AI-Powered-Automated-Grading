@@ -6,6 +6,7 @@ import { client, fakeGrader, jsonRes } from "./helpers";
 
 const RUBRIC = { correctness: 40, efficiency: 20, code_style: 20, edge_case_handling: 20 };
 const NEW_PROBLEM = {
+  title: "Add numbers", category: "Math", difficulty: "easy",
   statement: "Add two numbers", func_name: "add", param_names: ["a", "b"], rubric: RUBRIC,
   reference_solution: "def add(a, b):\n    return a + b\n",
   test_cases: [{ args: [1, 2], expected: 3, is_public: true }, { args: [2, 2], expected: 4, is_public: false }],
@@ -28,6 +29,42 @@ describe("question bank and teacher problems", () => {
     expect(r.text).not.toContain("SECRET REF");
     expect(q).not.toHaveProperty("reference_solution");
     expect(q).not.toHaveProperty("test_cases");
+  });
+
+  it("a bank row without catalog columns lists with a fallback title, Other and medium", async () => {
+    const r = await client(fakeGrader(() => jsonRes({})).binding)("GET", "/api/teacher/bank", { as: "fb@x.com" });
+    expect(r.json.find((p: any) => p.id === "bank:t7")).toMatchObject({ title: "Bank q", category: "Other", difficulty: "medium" });
+  });
+
+  it("a bank row with catalog columns lists them", async () => {
+    await env.DB.prepare(
+      "INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty)" +
+        " VALUES ('bank:t8', NULL, 'system', 'S','f','[]','{}','r','[]','c','2026-01-01T00:00:00Z','Two Sum','Arrays & Search','medium')").run();
+    const r = await client(fakeGrader(() => jsonRes({})).binding)("GET", "/api/teacher/bank", { as: "fb2@x.com" });
+    expect(r.json.find((p: any) => p.id === "bank:t8")).toMatchObject({ title: "Two Sum", category: "Arrays & Search", difficulty: "medium" });
+  });
+
+  it("an own problem lists its title, category and difficulty", async () => {
+    const call = client(fakeGrader(() => jsonRes({ ok: true })).binding);
+    await call("POST", "/api/teacher/problems", { as: "meta1@x.com", body: { ...NEW_PROBLEM, title: "My title", category: "My topic", difficulty: "hard" } });
+    const list = await call("GET", "/api/teacher/problems", { as: "meta1@x.com" });
+    expect(list.json[0]).toMatchObject({ title: "My title", category: "My topic", difficulty: "hard" });
+  });
+
+  it.each([
+    ["missing title", { ...NEW_PROBLEM, title: undefined }],
+    ["blank title", { ...NEW_PROBLEM, title: "   " }],
+    ["81-char title", { ...NEW_PROBLEM, title: "x".repeat(81) }],
+    ["non-string title", { ...NEW_PROBLEM, title: 5 }],
+    ["missing category", { ...NEW_PROBLEM, category: undefined }],
+    ["41-char category", { ...NEW_PROBLEM, category: "x".repeat(41) }],
+    ["unknown difficulty", { ...NEW_PROBLEM, difficulty: "expert" }],
+    ["missing difficulty", { ...NEW_PROBLEM, difficulty: undefined }],
+  ])("rejects %s before the grader", async (_n, body) => {
+    const g = fakeGrader(() => jsonRes({ ok: true }));
+    const r = await client(g.binding)("POST", "/api/teacher/problems", { as: "meta2@x.com", body });
+    expect(r.status).toBe(400);
+    expect(g.calls.length).toBe(0);
   });
 
   it("create problem calls validate then inserts as private", async () => {

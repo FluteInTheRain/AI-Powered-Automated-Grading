@@ -47,6 +47,7 @@ export const checkSyntax = (code) => post('/api/syntax-check', { code })
 
 export const getMe = () => request('/api/teacher/me')
 export const listBank = () => request('/api/teacher/bank')
+export const listOwnProblems = () => request('/api/teacher/problems')
 export const listExams = () => request('/api/teacher/exams')
 export const createExam = (body) => post('/api/teacher/exams', body)
 export const getExamDetail = (id) => request(`/api/teacher/exams/${id}`)

@@ -11,6 +11,9 @@ Defines 16 programming problems, each with:
 PROBLEMS = [
     {
         "id": "P01_two_sum",
+        "title": "Two Sum",
+        "category": "Arrays & Search",
+        "difficulty": "medium",
         "statement": "Write a function two_sum(nums, target) that returns a list [i, j] (indices) such that nums[i] + nums[j] == target. Assume there is always exactly one answer, and you cannot use the same element twice.",
         "func_name": "two_sum",
         "rubric": {
@@ -90,6 +93,9 @@ def two_sum(nums, target):
     },
     {
         "id": "P02_is_prime",
+        "title": "Is Prime",
+        "category": "Math",
+        "difficulty": "easy",
         "statement": "Write a function is_prime(n) that returns True if n is a prime number, False otherwise. n can be negative, 0, or 1.",
         "func_name": "is_prime",
         "rubric": {"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10},
@@ -158,6 +164,9 @@ def is_prime(n):
     },
     {
         "id": "P03_reverse_string",
+        "title": "Reverse a String",
+        "category": "Strings",
+        "difficulty": "easy",
         "statement": "Write a function reverse_string(s) that returns the string s reversed, without using [::-1] slicing or the built-in reversed() function.",
         "func_name": "reverse_string",
         "rubric": {"correctness": 50, "efficiency": 10, "code_style": 20, "edge_case_handling": 20},
@@ -208,6 +217,9 @@ def reverse_string(s):
     },
     {
         "id": "P04_binary_search",
+        "title": "Binary Search",
+        "category": "Arrays & Search",
+        "difficulty": "medium",
         "statement": "Write a function binary_search(arr, target) over an array arr sorted in ascending order, returning the index of target, or -1 if not found.",
         "func_name": "binary_search",
         "rubric": {"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10},
@@ -282,6 +294,9 @@ def binary_search(arr, target):
     },
     {
         "id": "P05_fibonacci",
+        "title": "Fibonacci",
+        "category": "Math",
+        "difficulty": "easy",
         "statement": "Write a function fib(n) that returns the n-th Fibonacci number (fib(0)=0, fib(1)=1). n >= 0.",
         "func_name": "fib",
         "rubric": {"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10},
@@ -336,6 +351,9 @@ def fib(n):
     },
     {
         "id": "P06_sum_of_digits",
+        "title": "Sum of Digits",
+        "category": "Math",
+        "difficulty": "easy",
         "statement": "Write a function sum_digits(n) that returns the sum of the digits of a positive integer n. If n is negative, take its absolute value before computing.",
         "func_name": "sum_digits",
         "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
@@ -389,6 +407,9 @@ def sum_digits(n):
     },
     {
         "id": "P07_palindrome_check",
+        "title": "Palindrome Check",
+        "category": "Strings",
+        "difficulty": "easy",
         "statement": "Write a function is_palindrome(s) that returns True if the string s is a palindrome, ignoring spaces and case.",
         "func_name": "is_palindrome",
         "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
@@ -436,6 +457,9 @@ def is_palindrome(s):
     },
     {
         "id": "P08_fizzbuzz",
+        "title": "FizzBuzz",
+        "category": "Basics",
+        "difficulty": "easy",
         "statement": "Write a function fizzbuzz(n) that returns a list of strings from 1 to n: 'Fizz' if divisible by 3, 'Buzz' if divisible by 5, 'FizzBuzz' if divisible by both, otherwise the string of the number itself.",
         "func_name": "fizzbuzz",
         "rubric": {"correctness": 60, "efficiency": 10, "code_style": 15, "edge_case_handling": 15},
@@ -512,6 +536,9 @@ def fizzbuzz(n):
     },
     {
         "id": "P09_count_vowels",
+        "title": "Count Vowels",
+        "category": "Strings",
+        "difficulty": "easy",
         "statement": "Write a function count_vowels(s) that returns the number of vowels (a, e, i, o, u, case-insensitive) in the string s. Do not count 'y' as a vowel.",
         "func_name": "count_vowels",
         "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
@@ -561,6 +588,9 @@ def count_vowels(s):
     },
     {
         "id": "P10_is_anagram",
+        "title": "Valid Anagram",
+        "category": "Strings",
+        "difficulty": "medium",
         "statement": "Write a function is_anagram(s1, s2) that returns True if s1 and s2 are anagrams of each other (same letters, same counts, case-insensitive, ignoring spaces), False otherwise.",
         "func_name": "is_anagram",
         "rubric": {"correctness": 55, "efficiency": 15, "code_style": 15, "edge_case_handling": 15},
@@ -626,6 +656,9 @@ def is_anagram(s1, s2):
     },
     {
         "id": "P11_caesar_cipher",
+        "title": "Caesar Cipher",
+        "category": "Strings",
+        "difficulty": "medium",
         "statement": "Write a function caesar_encrypt(s, shift) that shifts every letter in s forward by `shift` positions in the alphabet, wrapping around from z back to a (and Z back to A). Non-letter characters are left unchanged. Preserve the original case of each letter.",
         "func_name": "caesar_encrypt",
         "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
@@ -694,6 +727,9 @@ def caesar_encrypt(s, shift):
     },
     {
         "id": "P12_valid_parentheses",
+        "title": "Valid Parentheses",
+        "category": "Data Structures",
+        "difficulty": "medium",
         "statement": "Write a function valid_parentheses(s) that returns True if every opening bracket in s ('(', '[', '{') has a matching closing bracket in the correct order, False otherwise. s may also contain other characters, which should be ignored.",
         "func_name": "valid_parentheses",
         "rubric": {"correctness": 60, "efficiency": 10, "code_style": 15, "edge_case_handling": 15},
@@ -770,6 +806,9 @@ def valid_parentheses(s):
     },
     {
         "id": "P13_merge_sorted_lists",
+        "title": "Merge Sorted Lists",
+        "category": "Arrays & Search",
+        "difficulty": "medium",
         "statement": "Write a function merge_sorted_lists(a, b) that merges two sorted (ascending) lists of integers into a single sorted (ascending) list, keeping all duplicates.",
         "func_name": "merge_sorted_lists",
         "rubric": {"correctness": 55, "efficiency": 20, "code_style": 10, "edge_case_handling": 15},
@@ -840,6 +879,9 @@ def merge_sorted_lists(a, b):
     },
     {
         "id": "P14_factorial",
+        "title": "Factorial",
+        "category": "Math",
+        "difficulty": "easy",
         "statement": "Write a recursive function factorial(n) that returns n! (the factorial of n). factorial(0) = 1. Assume n >= 0.",
         "func_name": "factorial",
         "rubric": {"correctness": 55, "efficiency": 10, "code_style": 15, "edge_case_handling": 20},
@@ -891,6 +933,9 @@ def factorial(n):
     },
     {
         "id": "P15_gcd_euclidean",
+        "title": "GCD (Euclid)",
+        "category": "Math",
+        "difficulty": "medium",
         "statement": "Write a recursive function gcd(a, b) that returns the greatest common divisor of non-negative integers a and b, using the Euclidean algorithm (gcd(a, 0) = a; gcd(a, b) = gcd(b, a % b) for b != 0).",
         "func_name": "gcd",
         "rubric": {"correctness": 55, "efficiency": 15, "code_style": 15, "edge_case_handling": 15},
@@ -948,6 +993,9 @@ def gcd(a, b):
     },
     {
         "id": "P16_power",
+        "title": "Power",
+        "category": "Math",
+        "difficulty": "medium",
         "statement": "Write a recursive function power(x, n) that returns x raised to the power n (x ** n), where n is a non-negative integer. For full efficiency credit, use fast exponentiation (O(log n)) rather than multiplying x by itself n times.",
         "func_name": "power",
         "rubric": {"correctness": 50, "efficiency": 20, "code_style": 15, "edge_case_handling": 15},

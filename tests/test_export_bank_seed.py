@@ -46,9 +46,27 @@ def test_param_names_match_def(rows):
         assert r["param_names"] == [a.arg for a in fn.args.args], r["id"]
 
 
-def test_sql_loads_into_the_real_schema_twice(rows):
+MIGRATIONS = ["0001_init.sql", "0002_phase2.sql", "0003_rubric_settings.sql", "0004_problem_catalog.sql"]
+
+
+def _schema():
     db = sqlite3.connect(":memory:")
-    db.executescript((ROOT / "app-worker" / "migrations" / "0001_init.sql").read_text())
+    for name in MIGRATIONS:
+        db.executescript((ROOT / "app-worker" / "migrations" / name).read_text())
+    return db
+
+
+def test_every_problem_has_valid_catalog_metadata(rows):
+    for r in rows:
+        assert 1 <= len(r["title"]) <= 80, r["id"]
+        assert 1 <= len(r["category"]) <= 40, r["id"]
+        assert r["difficulty"] in {"easy", "medium", "hard"}, r["id"]
+    assert len({r["title"] for r in rows}) == len(rows)
+    assert {r["category"] for r in rows} == {"Math", "Strings", "Arrays & Search", "Basics", "Data Structures"}
+
+
+def test_sql_loads_into_the_real_schema_twice(rows):
+    db = _schema()
     sql = seed.render_sql(rows)
     db.executescript(sql)
     db.executescript(sql)  # idempotent
@@ -56,3 +74,28 @@ def test_sql_loads_into_the_real_schema_twice(rows):
     stored = db.execute("SELECT test_cases, rubric FROM problems WHERE id = 'bank:P01_two_sum'").fetchone()
     assert json.loads(stored[0])[0]["args"] == [[2, 7, 11, 15], 9]
     assert json.loads(stored[1])["correctness"] == 60
+    assert db.execute("SELECT title, category, difficulty FROM problems WHERE id = 'bank:P01_two_sum'").fetchone() == (
+        "Two Sum", "Arrays & Search", "medium")
+
+
+def test_reseeding_only_refreshes_the_metadata(rows):
+    db = _schema()
+    sql = seed.render_sql(rows)
+    db.executescript(sql)
+    db.execute("UPDATE problems SET statement = 'CHANGED', title = 'Old title' WHERE id = 'bank:P01_two_sum'")
+    db.executescript(sql)
+    statement, title = db.execute("SELECT statement, title FROM problems WHERE id = 'bank:P01_two_sum'").fetchone()
+    assert statement == "CHANGED"  # exams may use the problem: its statement, tests and rubric are never rewritten
+    assert title == "Two Sum"
+
+
+def test_reseeding_works_while_exams_reference_the_problems(rows):
+    db = _schema()
+    sql = seed.render_sql(rows)
+    db.executescript(sql)
+    db.execute("PRAGMA foreign_keys = ON")
+    db.execute("INSERT INTO teachers (id, email, created_at) VALUES ('t', 't@x', 'now')")
+    db.execute("INSERT INTO exams (id, teacher_id, title, student_token, time_limit_seconds, created_at) VALUES ('e','t','T','tok',60,'now')")
+    db.execute("INSERT INTO exam_questions (exam_id, problem_id, position, weight) VALUES ('e','bank:P01_two_sum',0,1)")
+    db.executescript(sql)  # INSERT OR REPLACE would break the foreign key here
+    assert db.execute("SELECT count(*) FROM exam_questions").fetchone()[0] == 1

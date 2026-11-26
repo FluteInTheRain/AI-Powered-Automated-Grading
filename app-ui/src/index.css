@@ -216,3 +216,21 @@ input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--red); }
 .rubric-row .pct { text-align: right; }
 @media (max-width: 720px) { .rubric-row { grid-template-columns: 1fr 84px 48px; } }
 a.word { color: inherit; text-decoration: none; }
+
+/* question picker */
+.picker-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 8px 0; }
+.picker-bar input[type='search'] { flex: 1; min-width: 220px; max-width: 320px; }
+.picker-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+.picker-bar select { min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+.problem-row { padding: 10px 4px; border-top: 1px solid var(--line); }
+.problem-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+.problem-main label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px; cursor: pointer; font-weight: 500; }
+.problem-main input[type='number'] { width: 90px; }
+.diff { font-weight: 600; font-size: 14px; }
+.diff-easy { color: var(--ok); }
+.diff-medium { color: var(--warn); }
+.diff-hard { color: var(--bad); }
+.problem-row details { margin: 4px 0 0 28px; color: var(--body); }
+.problem-row summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.statement-preview { margin: 6px 0 0; max-width: 70ch; }
+@media (max-width: 720px) { .picker-bar input[type='search'] { max-width: none; width: 100%; } .picker-bar label { flex: 1; } }
