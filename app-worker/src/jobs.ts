@@ -7,8 +7,11 @@ const FIXED_ERROR = "Grading service error, please try again.";
 
 type Outcome = "done" | "retry" | "failed";
 
+/** A stored failure message that retrying cannot fix: the student's own code killed the sandbox. */
+export const isPermanentError = (error: string | null) => !!error && error.includes("time/resource");
+
 /** The student's own code killed the sandbox (or the request was malformed): retrying cannot help. */
-const isPermanent = (e: GraderError) => e.status === 400 || e.detail.includes("time/resource");
+const isPermanent = (e: GraderError) => e.status === 400 || isPermanentError(e.detail);
 
 /**
  * Grades one stored submission. Safe to run more than once for the same id (queues deliver at

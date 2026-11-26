@@ -1,13 +1,14 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 import {
-  AlreadySubmitted, NameTaken, attemptByReceipt, attemptInExam, attemptJobStatuses, attemptScores, createAttempt, findSubmissionId,
+  AlreadySubmitted, NameTaken, attemptByReceipt, attemptInExam, attemptJobStatuses, attemptScores, createAttempt, deleteAttempt, findSubmissionId,
   getExamByStudentToken, gradedResult, submissionExists, type QuestionStatus, type StudentExam,
 } from "../db/attempts";
 import { getJob, insertSubmissionWithJob, setJobStatus } from "../db/jobs";
 import type { TestCase } from "../db/problems";
 import { getProblemById } from "../db/problems";
 import type { Env } from "../env";
+import { isPermanentError } from "../jobs";
 import { GraderError, runCases, toClientError } from "../grader";
 import { TOO_MANY, allow, clientIp } from "../limits";
 import type { TurnstileVerifier } from "../turnstile";
@@ -15,7 +16,8 @@ import type { AppEnv } from "../index";
 
 const MAX_NAME = 100;
 const MAX_CODE = 20_000;
-const STUCK_AFTER_MS = 60_000; // a "queued" job older than this is treated as lost and may be retried
+const STUCK_AFTER_MS = 120_000; // a queued or grading job older than this is treated as lost and may be retried
+const DEADLINE_GRACE_MS = 10_000; // run and submit may land this long after the exam deadline (clock and network slack)
 
 type Ctx = Context<AppEnv>;
 type QuestionContext = { exam: StudentExam; attemptId: string; problemId: string; code: string };
@@ -24,7 +26,10 @@ const attemptStub = (env: Env, attemptId: string) => env.ATTEMPT.get(env.ATTEMPT
 
 export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<AppEnv> {
   const r = new Hono<AppEnv>();
-  const closed = (deadline: string | null) => deadline !== null && new Date(deadline).getTime() <= now().getTime();
+  const closed = (deadline: string | null, graceMs = 0) =>
+    deadline !== null && new Date(deadline).getTime() + graceMs <= now().getTime();
+  const isStuck = (job: { status: string; updated_at: string }) =>
+    (job.status === "queued" || job.status === "grading") && now().getTime() - Date.parse(job.updated_at) > STUCK_AFTER_MS;
   const notFound = (c: Ctx, what: string) => c.json({ detail: `Unknown ${what}` }, 404);
   const casesOf = (q: { test_cases: string }) => JSON.parse(q.test_cases) as TestCase[];
 
@@ -63,7 +68,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     if (typeof b?.code !== "string" || b.code.length === 0 || b.code.length > MAX_CODE) {
       return c.json({ detail: "code must be 1-20000 characters" }, 400);
     }
-    if (closed(base.exam.deadline)) return c.json({ detail: "This exam is closed" }, 403);
+    if (closed(base.exam.deadline, DEADLINE_GRACE_MS)) return c.json({ detail: "This exam is closed" }, 403);
     const clock = await attemptStub(c.env, base.attemptId).check(now().getTime());
     if (!clock.running) return c.json({ detail: "Time limit exceeded" }, 403);
     return { ...base, code: b.code };
@@ -104,13 +109,19 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       attempt = await createAttempt(c.env.DB, exam.id, name, now());
     } catch (e) {
       if (e instanceof NameTaken) {
-        return c.json({ detail: "This name is already used in this exam. Use your receipt code to continue or to see your score." }, 409);
+        return c.json({ detail: "This name is already used in this exam. If it was you, continue in the browser where you started, or look up your score with your receipt code." }, 409);
       }
       throw e;
     }
     const stub = attemptStub(c.env, attempt.attempt_id);
-    await stub.begin(exam.time_limit_seconds, now().getTime());
-    const clock = await stub.check(now().getTime());
+    let clock;
+    try {
+      await stub.begin(exam.time_limit_seconds, now().getTime());
+      clock = await stub.check(now().getTime());
+    } catch (e) {
+      await deleteAttempt(c.env.DB, attempt.attempt_id); // an attempt without a clock could never act
+      throw e;
+    }
     return c.json({ ...attempt, remaining_seconds: remainingSeconds(exam, clock.remainingSeconds), questions: exam.questions.map(questionView) });
   });
 
@@ -161,8 +172,10 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     if (q instanceof Response) return q;
     const { attemptId, problemId, code } = q;
     if (await submissionExists(c.env.DB, attemptId, problemId)) return c.json({ detail: "Already submitted" }, 409);
-    // One submit per question at a time. The claim is never released: once a submission exists it is final.
-    if (!(await attemptStub(c.env, attemptId).claim(problemId))) {
+    // One submit per question at a time. After a stored submission the claim no longer matters (a resubmit is a 409
+    // anyway); if storing fails the claim is released, and a claim left by a crash expires on its own.
+    const stub = attemptStub(c.env, attemptId);
+    if (!(await stub.claim(problemId, now().getTime()))) {
       return c.json({ detail: "A submission for this question is already in progress" }, 409);
     }
     let submissionId: string;
@@ -170,6 +183,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       submissionId = await insertSubmissionWithJob(c.env.DB, { attemptId, problemId, code });
     } catch (e) {
       if (e instanceof AlreadySubmitted) return c.json({ detail: "Already submitted" }, 409);
+      await stub.release(problemId);
       throw e;
     }
     const failure = await enqueue(c, submissionId);
@@ -187,8 +201,8 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       const result = await gradedResult(c.env.DB, sid);
       return c.json({ status: "done", ...(result ?? {}) });
     }
-    if (job.status === "failed") return c.json({ status: "failed", error: job.error });
-    return c.json({ status: job.status });
+    if (job.status === "failed") return c.json({ status: "failed", error: job.error, retryable: !isPermanentError(job.error) });
+    return c.json(isStuck(job) ? { status: job.status, stuck: true } : { status: job.status });
   });
 
   /** Grade again after a failure, or recover a job whose queue message was lost. */
@@ -198,8 +212,8 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     if (ctx instanceof Response) return ctx;
     const sid = await findSubmissionId(c.env.DB, ctx.attemptId, ctx.problemId);
     const job = sid ? await getJob(c.env.DB, sid) : null;
-    const stuck = job?.status === "queued" && now().getTime() - Date.parse(job.updated_at) > STUCK_AFTER_MS;
-    if (!sid || !job || !(job.status === "failed" || stuck)) return c.json({ detail: "Nothing to retry" }, 409);
+    const retryable = !!job && ((job.status === "failed" && !isPermanentError(job.error)) || isStuck(job));
+    if (!sid || !job || !retryable) return c.json({ detail: "Nothing to retry" }, 409);
     await setJobStatus(c.env.DB, sid, "queued", { resetAttempts: true });
     const failure = await enqueue(c, sid);
     if (failure) return failure;

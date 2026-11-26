@@ -77,11 +77,11 @@ export function fakeQueue() {
 }
 
 /** Runs the real queue consumer over everything the fake queue received. */
-export async function drain(q: FakeQueue, graderBinding: Fetcher) {
+export async function drain(q: FakeQueue, graderBinding: Fetcher, attempts = 1) {
   const e = { DB: env.DB, GRADER: graderBinding, INTERNAL_TOKEN: "tok", AUDIT: env.AUDIT } as unknown as Env;
   while (q.sent.length) {
     const body = q.sent.shift()!;
-    const batch = { queue: "grading-jobs", messages: [{ id: "m", body, attempts: 1, ack() {}, retry() {} }] };
+    const batch = { queue: "grading-jobs", messages: [{ id: "m", body, attempts, ack() {}, retry() {} }] };
     await queue(batch as unknown as MessageBatch<{ submission_id: string }>, e);
   }
 }

@@ -41,6 +41,11 @@ export async function createAttempt(db: D1Database, examId: string, studentName:
   throw new Error("could not allocate a receipt code");
 }
 
+/** Undo a just-created attempt whose clock could not be started, so the name is free again. */
+export async function deleteAttempt(db: D1Database, attemptId: string): Promise<void> {
+  await db.prepare("DELETE FROM attempts WHERE id = ?").bind(attemptId).run();
+}
+
 export async function attemptInExam(db: D1Database, attemptId: string, examId: string) {
   return db
     .prepare("SELECT id, student_name, receipt_code, started_at FROM attempts WHERE id = ? AND exam_id = ?")

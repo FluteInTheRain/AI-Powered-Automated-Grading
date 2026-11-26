@@ -83,8 +83,22 @@ describe('starting', () => {
     fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
     expect(await screen.findByText(/receipt code to continue/)).toBeInTheDocument()
     api.startAttempt.mockRejectedValueOnce(new Error('Too many requests, slow down.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' })) // the spent token was discarded
     fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
     expect(await screen.findByText(/Too many requests/)).toBeInTheDocument()
+  })
+
+  it('asks for a fresh Turnstile token after a failed start, because tokens are single-use', async () => {
+    api.startAttempt.mockRejectedValueOnce(new Error('This name is already used in this exam.'))
+    renderPage()
+    await screen.findByLabelText('Họ tên')
+    fireEvent.change(screen.getByLabelText('Họ tên'), { target: { value: 'An' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+    fireEvent.click(screen.getByRole('button', { name: /Bắt đầu/ }))
+    await screen.findByText(/already used/)
+    expect(screen.getByRole('button', { name: /Bắt đầu/ })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
+    expect(screen.getByRole('button', { name: /Bắt đầu/ })).toBeEnabled()
   })
 
   it('shows the closed message, and a readable message for an unknown link', async () => {
@@ -113,10 +127,19 @@ describe('resume', () => {
 
   it('an unknown stored attempt is forgotten and the name gate is shown', async () => {
     saved()
-    api.resumeAttempt.mockRejectedValue(new Error('Unknown attempt'))
+    api.resumeAttempt.mockRejectedValue(Object.assign(new Error('Unknown attempt'), { status: 404 }))
     renderPage()
     expect(await screen.findByLabelText('Họ tên')).toBeInTheDocument()
     expect(localStorage.getItem('exam:tok')).toBeNull()
+  })
+
+  it('a resume that fails for another reason keeps the stored attempt and shows the error, not the name gate', async () => {
+    saved()
+    api.resumeAttempt.mockRejectedValue(Object.assign(new Error('Service unavailable'), { status: 503 }))
+    renderPage()
+    expect(await screen.findByText(/Service unavailable/)).toBeInTheDocument()
+    expect(localStorage.getItem('exam:tok')).not.toBeNull()
+    expect(screen.queryByLabelText('Họ tên')).toBeNull()
   })
 
   it('a question that was still being graded keeps being polled and ends with its score', async () => {
@@ -161,6 +184,45 @@ describe('solving', () => {
     await tick(2000)
     expect(api.retryQuestion).toHaveBeenCalledWith('tok', 'att1', 'p1')
     expect(screen.getByText('70.0 / 100')).toBeInTheDocument()
+  })
+
+  it('a job reported stuck offers "Chấm lại", which re-queues it', async () => {
+    api.getQuestionStatus.mockResolvedValueOnce({ status: 'grading', stuck: true }).mockResolvedValue(done(88))
+    api.retryQuestion.mockResolvedValue({ status: 'queued' })
+    renderPage()
+    await startExam()
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
+    await tick(2000)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Chấm lại' })) })
+    await tick(2000)
+    expect(api.retryQuestion).toHaveBeenCalledWith('tok', 'att1', 'p1')
+    expect(screen.getByText('88.0 / 100')).toBeInTheDocument()
+  })
+
+  it('a permanent failure shows the error and no retry button', async () => {
+    api.getQuestionStatus.mockResolvedValue({ status: 'failed', error: 'Grading failed: your submission exceeded the time/resource limit.', retryable: false })
+    renderPage()
+    await startExam()
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
+    await tick(2000)
+    expect(screen.getByText(/time\/resource limit/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Chấm lại' })).toBeNull()
+  })
+
+  it('when another submit is in progress but nothing was stored, the student can submit again', async () => {
+    api.submitQuestion.mockRejectedValueOnce(new Error('A submission for this question is already in progress')).mockResolvedValue({ status: 'queued' })
+    api.getQuestionStatus.mockResolvedValueOnce({ status: 'none' }).mockResolvedValue(done())
+    renderPage()
+    await startExam()
+    vi.useFakeTimers({ shouldAdvanceTime: false })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Submit' })) })
+    await tick(2000)
+    const submit = screen.getByRole('button', { name: 'Submit' })
+    expect(submit).toBeEnabled()
+    await act(async () => { fireEvent.click(submit) })
+    expect(api.submitQuestion).toHaveBeenCalledTimes(2)
   })
 
   it('polling gives up after five minutes with a pointer to the receipt lookup', async () => {

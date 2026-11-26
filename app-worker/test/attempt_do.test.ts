@@ -32,27 +32,30 @@ describe("AttemptDO", () => {
     expect((await s.check(T0 + 100_000)).remainingSeconds).toBe(500);
   });
 
-  it("claim succeeds once per question until released", async () => {
+  it("claim succeeds once per question until released or expired", async () => {
     const s = stub();
-    expect(await s.claim("p1")).toBe(true);
-    expect(await s.claim("p1")).toBe(false);
-    expect(await s.claim("p2")).toBe(true);
+    expect(await s.claim("p1", T0)).toBe(true);
+    expect(await s.claim("p1", T0 + 1_000)).toBe(false);
+    expect(await s.claim("p2", T0)).toBe(true);
     await s.release("p1");
-    expect(await s.claim("p1")).toBe(true);
+    expect(await s.claim("p1", T0 + 2_000)).toBe(true);
+    // a claim left behind by a crashed request frees itself after 30 seconds
+    expect(await s.claim("p2", T0 + 29_000)).toBe(false);
+    expect(await s.claim("p2", T0 + 31_000)).toBe(true);
   });
 
   it("two attempt ids do not share state", async () => {
     const a = stub();
     const b = stub();
     await a.begin(600, T0);
-    await a.claim("p1");
+    await a.claim("p1", T0);
     expect((await b.check(T0)).started).toBe(false);
-    expect(await b.claim("p1")).toBe(true);
+    expect(await b.claim("p1", T0)).toBe(true);
   });
 
   it("concurrent claims have exactly one winner", async () => {
     const s = stub();
-    const results = await Promise.all(Array.from({ length: 5 }, () => s.claim("p1")));
+    const results = await Promise.all(Array.from({ length: 5 }, () => s.claim("p1", T0)));
     expect(results.filter(Boolean)).toHaveLength(1);
   });
 });

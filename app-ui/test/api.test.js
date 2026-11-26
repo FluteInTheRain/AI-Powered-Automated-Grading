@@ -22,6 +22,13 @@ describe('api client', () => {
     await expect(api.getExam('t')).rejects.toThrow('This exam is closed')
   })
 
+  it('an error carries the HTTP status so callers can tell a 404 from an outage', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fail(404, { detail: 'Unknown attempt' })))
+    const err = await api.resumeAttempt('t', 'a').catch((e) => e)
+    expect(err.message).toBe('Unknown attempt')
+    expect(err.status).toBe(404)
+  })
+
   it('a non-JSON error body gives the friendly message', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, type: 'basic', json: async () => { throw new Error('x') } }))
     await expect(api.getExam('t')).rejects.toThrow(/time\/resource limit or the server is busy/)

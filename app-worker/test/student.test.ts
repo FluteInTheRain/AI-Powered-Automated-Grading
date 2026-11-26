@@ -9,10 +9,11 @@ const CASES = JSON.stringify([
 ]);
 const SECRETS = ["PUBEXP", "HIDDENEXP", "SECRET REF"];
 
-let mode: "ok" | "killed" = "ok";
+let mode: "ok" | "killed" | "5xx" = "ok";
 const grader = fakeGrader(async (name, body) => {
   await Promise.resolve();
   if (mode === "killed") return jsonRes({ detail: "Grading failed: your submission exceeded the time/resource limit." }, 502);
+  if (mode === "5xx") return jsonRes({ detail: "stack trace" }, 500);
   if (name === "run") return jsonRes({ status: "ran", message: null, cases: body.cases.map(() => ({ passed: true, error: null })) });
   const score = body.statement.includes("ST_A") ? 80 : 60;
   return jsonRes({
@@ -187,25 +188,89 @@ describe("submit, status and retry", () => {
     const retryPath = qpath(token, a.attempt_id, "bank:sa", "retry");
     expect((await call("POST", retryPath)).status).toBe(409); // too soon: the job may still be in flight
     const before = q.sent.length;
-    expect((await at(120_000)("POST", retryPath)).status).toBe(202);
+    expect((await at(130_000)("POST", retryPath)).status).toBe(202);
     expect(q.sent.length).toBe(before + 1);
     await finish();
     expect((await status(token, a.attempt_id, "bank:sa")).json.status).toBe("done");
   });
 
-  it("a failed job shows the fixed error and retry grades it again", async () => {
+  it("a transient failure is retryable and retry grades it again", async () => {
     const { token } = await newExam("s14@x.com");
+    const a = (await start(token)).json;
+    mode = "5xx";
+    await submit(token, a.attempt_id, "bank:sa");
+    await drain(q, grader.binding, 3); // third delivery: out of attempts
+    mode = "ok";
+    const failed = await status(token, a.attempt_id, "bank:sa");
+    expect(failed.json).toMatchObject({ status: "failed", error: "Grading service error, please try again.", retryable: true });
+    expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(202);
+    await finish();
+    expect((await status(token, a.attempt_id, "bank:sa")).json.status).toBe("done");
+  });
+
+  it("a sandbox kill is permanent: not retryable, and retry is refused", async () => {
+    const { token } = await newExam("s14b@x.com");
     const a = (await start(token)).json;
     mode = "killed";
     await submit(token, a.attempt_id, "bank:sa");
     await finish();
     mode = "ok";
     const failed = await status(token, a.attempt_id, "bank:sa");
-    expect(failed.json.status).toBe("failed");
+    expect(failed.json).toMatchObject({ status: "failed", retryable: false });
     expect(failed.json.error).toContain("time/resource");
+    const calls = grader.calls.length;
+    expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(409);
+    expect(grader.calls.length).toBe(calls);
+  });
+
+  it("a job stuck in queued or grading is reported stuck and can be retried", async () => {
+    const { token } = await newExam("s14c@x.com");
+    const a = (await start(token)).json;
+    await submit(token, a.attempt_id, "bank:sa");
+    expect((await status(token, a.attempt_id, "bank:sa")).json).toEqual({ status: "queued" });
+    await env.DB.prepare("UPDATE grading_jobs SET status = 'grading', updated_at = '2000-01-01T00:00:00Z' WHERE submission_id = (SELECT id FROM submissions WHERE attempt_id = ?)").bind(a.attempt_id).run();
+    expect((await status(token, a.attempt_id, "bank:sa")).json).toEqual({ status: "grading", stuck: true });
     expect((await call("POST", qpath(token, a.attempt_id, "bank:sa", "retry"))).status).toBe(202);
     await finish();
     expect((await status(token, a.attempt_id, "bank:sa")).json.status).toBe("done");
+  });
+
+  it("a storage error after the claim releases it, so the student can submit again", async () => {
+    const { token } = await newExam("s14d@x.com");
+    const a = (await start(token)).json;
+    let broke = false;
+    const flaky = new Proxy(env.DB, {
+      get(t, k) {
+        if (k === "batch") return async (st: D1PreparedStatement[]) => { if (!broke) { broke = true; throw new Error("D1_ERROR transient"); } return t.batch(st); };
+        const v = (t as any)[k];
+        return typeof v === "function" ? v.bind(t) : v;
+      },
+    }) as D1Database;
+    const c = client(grader.binding, undefined, flaky, { GRADING_QUEUE: q.binding });
+    expect((await submit(token, a.attempt_id, "bank:sa", "x", c)).status).toBe(500);
+    expect((await submit(token, a.attempt_id, "bank:sa", "x", c)).status).toBe(202);
+    await finish();
+  });
+
+  it("if the attempt clock cannot be started the attempt is removed and the name is free again", async () => {
+    const { token } = await newExam("s14e@x.com");
+    const broken = { idFromName: () => "x", get: () => ({ begin: async () => { throw new Error("DO down"); }, check: async () => ({}) }) };
+    const bad = await start(token, "Dina", client(grader.binding, undefined, undefined, { GRADING_QUEUE: q.binding, ATTEMPT: broken }));
+    expect(bad.status).toBe(500);
+    expect((await start(token, "Dina")).status).toBe(200);
+  });
+
+  it("run and submit allow ten seconds of grace after the exam deadline, starting does not", async () => {
+    const e = await newExam("s14f@x.com");
+    const a = (await start(e.token)).json;
+    const justPast = new Date(Date.now() - 5_000).toISOString();
+    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "s14f@x.com", body: { deadline: justPast } });
+    expect((await submit(e.token, a.attempt_id, "bank:sa")).status).toBe(202);
+    expect((await start(e.token, "Late One")).status).toBe(403);
+    const longPast = new Date(Date.now() - 30_000).toISOString();
+    await call("PATCH", `/api/teacher/exams/${e.id}`, { as: "s14f@x.com", body: { deadline: longPast } });
+    expect((await submit(e.token, a.attempt_id, "bank:sb")).status).toBe(403);
+    await finish();
   });
 
   it("retry on a finished or never-submitted question is 409", async () => {

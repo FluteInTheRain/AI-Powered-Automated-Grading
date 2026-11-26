@@ -15,12 +15,11 @@ async function request(path, options = {}) {
   if (!res.ok) {
     // Non-JSON bodies (e.g. platform limit pages from the edge) get a plain message.
     const body = await res.json().catch(() => null)
-    if (body === null) {
-      throw new Error(
-        'Your submission exceeded the time/resource limit or the server is busy. Please try again.',
-      )
-    }
-    throw new Error(body.detail || `Request failed: ${res.status}`)
+    const message =
+      body === null
+        ? 'Your submission exceeded the time/resource limit or the server is busy. Please try again.'
+        : body.detail || `Request failed: ${res.status}`
+    throw Object.assign(new Error(message), { status: res.status })
   }
   return res.json()
 }

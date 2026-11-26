@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./env";
 
 const GRACE_MS = 10_000; // slack for network latency on the last request
+const CLAIM_TTL_MS = 30_000; // a claim left by a crashed request frees itself after this long
 
 /**
  * One object per exam attempt (addressed by the attempt id): the authoritative clock and a
@@ -26,11 +27,12 @@ export class AttemptDO extends DurableObject<Env> {
     };
   }
 
-  /** True for the first caller per question; false while the claim is held. */
-  async claim(problemId: string): Promise<boolean> {
+  /** True for the first caller per question; false while a recent claim is held. A claim older than the TTL is stale. */
+  async claim(problemId: string, nowMs: number): Promise<boolean> {
     const key = `claim:${problemId}`;
-    if (await this.ctx.storage.get<boolean>(key)) return false;
-    await this.ctx.storage.put(key, true);
+    const at = await this.ctx.storage.get<number>(key);
+    if (at !== undefined && nowMs - at < CLAIM_TTL_MS) return false;
+    await this.ctx.storage.put(key, nowMs);
     return true;
   }
 

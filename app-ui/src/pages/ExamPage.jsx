@@ -46,6 +46,7 @@ export default function ExamPage() {
   const [errorMessage, setErrorMessage] = useState(null)
   const [studentName, setStudentName] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [challenge, setChallenge] = useState(0) // bumped to mount a fresh widget: a Turnstile token works only once
   const [starting, setStarting] = useState(false)
   const [attempt, setAttempt] = useState(null) // { attempt_id, receipt_code }
   const [questions, setQuestions] = useState([])
@@ -85,9 +86,14 @@ export default function ExamPage() {
         } catch {
           continue // a network blip must not end the poll
         }
-        if (s.status === 'done') return patch(problemId, { status: 'done', result: s, error: null })
-        if (s.status === 'failed') return patch(problemId, { status: 'failed', error: s.error })
-        patch(problemId, { status: s.status })
+        if (s.status === 'done') return patch(problemId, { status: 'done', result: s, error: null, stuck: false })
+        if (s.status === 'failed') return patch(problemId, { status: 'failed', error: s.error, retryable: s.retryable, stuck: false })
+        if (s.status === 'none') {
+          // Nothing was stored (e.g. the other submit that held the claim failed): let the student submit again.
+          sentRef.current.delete(problemId)
+          return patch(problemId, { status: 'none', error: null, stuck: false })
+        }
+        patch(problemId, { status: s.status, stuck: !!s.stuck })
       }
       if (aliveRef.current) patch(problemId, { gaveUp: true })
     } finally {
@@ -100,7 +106,7 @@ export default function ExamPage() {
     try {
       const s = await getQuestionStatus(token, attemptId, problemId)
       if (s.status === 'done') patch(problemId, { status: 'done', result: s })
-      else if (s.status === 'failed') patch(problemId, { status: 'failed', error: s.error })
+      else if (s.status === 'failed') patch(problemId, { status: 'failed', error: s.error, retryable: s.retryable })
     } catch {
       /* the receipt lookup still shows the score */
     }
@@ -145,8 +151,13 @@ export default function ExamPage() {
           const r = await resumeAttempt(token, stored.attempt_id)
           if (!cancelled) enterExam({ attempt_id: stored.attempt_id, receipt_code: r.receipt_code }, r.questions, r.remaining_seconds)
           return
-        } catch {
-          writeStored(token, null) // unknown attempt: forget it and start fresh
+        } catch (err) {
+          if (err.status !== 404) {
+            // An outage or a blip: keep the stored attempt so the student can reload and continue.
+            if (!cancelled) { setErrorMessage(`Không thể tải lại bài làm: ${err.message}`); setPhase('error') }
+            return
+          }
+          writeStored(token, null) // the server does not know this attempt: forget it and start fresh
         }
       }
       if (!cancelled) setPhase('name_gate')
@@ -180,7 +191,7 @@ export default function ExamPage() {
   }, [questions, submitOne])
 
   const handleRetry = async (problemId) => {
-    patch(problemId, { error: null, status: 'queued', gaveUp: false })
+    patch(problemId, { error: null, status: 'queued', stuck: false, retryable: undefined, gaveUp: false })
     try {
       await retryQuestion(token, attempt.attempt_id, problemId)
       watch(problemId)
@@ -213,6 +224,8 @@ export default function ExamPage() {
       enterExam(att, r.questions, r.remaining_seconds)
     } catch (e) {
       setErrorMessage(e.message)
+      setTurnstileToken('')
+      setChallenge((n) => n + 1)
     } finally {
       setStarting(false)
     }
@@ -242,6 +255,7 @@ export default function ExamPage() {
   const question = questions[active]
   const state = question ? qs[question.problem_id] : null
   const waiting = state && (state.submitting || state.status === 'queued' || state.status === 'grading')
+  const canRetry = state && ((state.status === 'failed' && state.retryable !== false) || (state.stuck && state.status !== 'done'))
 
   return (
     <div className="app app-wide">
@@ -256,7 +270,7 @@ export default function ExamPage() {
           <div className="name-gate">
             <label htmlFor="student-name">Họ tên</label>
             <input id="student-name" type="text" value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="Nhập họ tên của bạn" />
-            {needsTurnstile && <TurnstileWidget siteKey={exam.turnstile_site_key} onToken={setTurnstileToken} />}
+            {needsTurnstile && <TurnstileWidget key={challenge} siteKey={exam.turnstile_site_key} onToken={setTurnstileToken} />}
             <button className="btn btn-primary btn-start" onClick={handleStart} disabled={!canStart}>
               Bắt đầu ({Math.round(exam.time_limit_seconds / 60)} phút)
             </button>
@@ -328,11 +342,11 @@ export default function ExamPage() {
                 <button className="btn btn-secondary" onClick={() => handleRun(question.problem_id)} disabled={state.status !== 'none' || state.running}>
                   {state.running ? 'Running…' : 'Run Tests'}
                 </button>
-                {state.status === 'failed' ? (
+                {canRetry ? (
                   <button className="btn btn-primary" onClick={() => handleRetry(question.problem_id)}>Chấm lại</button>
                 ) : (
                   <button className="btn btn-primary" onClick={() => submitOne(question.problem_id)} disabled={state.status !== 'none' || state.submitting}>
-                    {waiting ? 'Grading…' : state.status === 'done' ? 'Đã chấm' : 'Submit'}
+                    {waiting ? 'Grading…' : state.status === 'done' ? 'Đã chấm' : state.status === 'failed' ? 'Đã nộp' : 'Submit'}
                   </button>
                 )}
               </div>
