@@ -22,17 +22,22 @@ export async function getExamByStudentToken(db: D1Database, token: string) {
   return { ...exam, questions: results } as StudentExam;
 }
 
+export class NameTaken extends Error {}
+
 export async function createAttempt(db: D1Database, examId: string, studentName: string, startedAt: Date) {
+  const nameKey = studentName.trim().toLowerCase();
   for (let i = 0; i < 5; i++) {
     const id = newId();
     const receipt = newReceiptCode();
     try {
       await db
-        .prepare("INSERT INTO attempts (id, exam_id, student_name, receipt_code, started_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, examId, studentName, receipt, startedAt.toISOString()).run();
+        .prepare("INSERT INTO attempts (id, exam_id, student_name, name_key, receipt_code, started_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(id, examId, studentName, nameKey, receipt, startedAt.toISOString()).run();
       return { attempt_id: id, receipt_code: receipt };
     } catch (e) {
-      if (!String(e).includes("UNIQUE")) throw e; // receipt collision: draw another code
+      const msg = String(e);
+      if (msg.includes("name_key")) throw new NameTaken(); // same name already used in this exam
+      if (!msg.includes("UNIQUE")) throw e; // a receipt collision just draws another code
     }
   }
   throw new Error("could not allocate a receipt code");

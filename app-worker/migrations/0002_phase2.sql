@@ -1,0 +1,14 @@
+-- Phase 2: background grading jobs and one attempt per student name in an exam.
+ALTER TABLE attempts ADD COLUMN name_key TEXT;
+UPDATE attempts SET name_key = lower(trim(student_name));
+CREATE UNIQUE INDEX idx_attempts_exam_name ON attempts(exam_id, name_key);
+
+-- Mutable on purpose (unlike submissions and score_revisions): it tracks the state of the grading work.
+CREATE TABLE grading_jobs (
+    submission_id TEXT PRIMARY KEY REFERENCES submissions(id),
+    status TEXT NOT NULL CHECK (status IN ('queued', 'grading', 'done', 'failed')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    audit_key TEXT,                        -- R2 key of the LLM call log
+    updated_at TEXT NOT NULL
+);
