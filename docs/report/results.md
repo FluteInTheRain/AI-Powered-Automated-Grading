@@ -184,3 +184,34 @@ Raw data: `results/ablation.json` (7B, current) and
   3/65 samples is likely small but has not been verified — rerun
   `experiments/ablation.py` before citing ρ=0.88 as reflecting the current
   pipeline exactly.
+
+## Style prompt change (2026-11-26)
+
+**Problem.** The `code_style` prompt only said "naming, structure, readability" and never mentioned comments. On
+Qwen2.5-Coder-32B (Workers AI) every correct, uncommented sample came out `medium` (score 0.6), so correct code lost
+points for having no comments. The same prompt also barely separated poor from acceptable style.
+
+**Change.** `prompts/code_style.txt` now says comments, docstrings and type hints are optional and must never lower the
+level, defines `clean` / `medium` / `poor`, and judges only names, structure and formatting. `prompts/feedback.txt` no
+longer nags about missing comments. The schema, the level-to-score mapping and the aggregation are unchanged.
+
+**Measurement** (one call per sample, temperature 0, seed 1, `@cf/qwen/qwen2.5-coder-32b-instruct`, 2026-11-26; 16
+correct submissions without comments = the first submission of each dataset problem, and the 5 `*_correct_poor_style`
+submissions):
+
+| Samples | Level | Before | After |
+|---|---|---|---|
+| 16 correct, no comments | clean | 0 | 13 |
+| | medium | 16 | 3 |
+| | poor | 0 | 0 |
+| 5 correct but poorly formatted | clean | 0 | 0 |
+| | medium | 4 | 4 |
+| | poor | 1 | 1 |
+
+The 3 correct samples still at `medium` (`reverse_string`, `is_anagram`, `caesar_cipher`) use one-letter parameter names,
+a lambda assignment or dense expressions, so `medium` is defensible. The poor-formatting samples still never reach
+`clean`, but 4 of 5 stay `medium` rather than `poor`, so this dimension discriminates weakly at the poor end.
+
+**Caveats.** One run per sample, not a consistency test. The consistency (n=100) and ablation numbers elsewhere in this
+report were measured with the previous `code_style` prompt and have not been rerun. The labels for `code_style` remain
+single-rater (see `data/script.md`).

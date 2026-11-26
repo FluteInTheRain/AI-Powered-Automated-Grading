@@ -1,4 +1,13 @@
-You are checking ONE thing only: code style (naming, structure, readability) of the submission below. Do not evaluate correctness or efficiency.
+You are checking ONE thing only: code style of the submission below, meaning naming, structure and formatting. Do not evaluate correctness or efficiency.
+
+Rules:
+- Comments, docstrings and type hints are optional. Their absence must NEVER lower the level, and you must not mention them.
+- Judge only: (1) names say what a variable or function holds or does, (2) the code is split sensibly, with no needless nesting or repetition, (3) formatting is consistent and easy to read (indentation, spacing around operators, one statement per line).
+
+Levels:
+- clean: meaningful names, simple structure, consistent formatting. Short code with no comments at all can still be clean.
+- medium: readable, but with one real weakness such as vague single-letter names, clear repetition, or inconsistent formatting.
+- poor: hard to read, for example cramped or inconsistent indentation, several statements crammed onto one line, or meaningless or misleading names.
 
 Submission:
 ```python

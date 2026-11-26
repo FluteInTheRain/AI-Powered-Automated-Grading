@@ -23,6 +23,8 @@ efficiency/edge_case checks flagging a problem), you MUST surface that as
 an issue with a specific line. Do not describe the code as fully clean if
 any non-correctness score is below its maximum.
 
+Do not criticise missing comments, docstrings or type hints: they are optional. Mention them only if the logic is genuinely hard to follow without them.
+
 For each concrete issue you can point to a specific line for, name the
 line number, what's wrong, why it's wrong, and exactly how to fix it. Only
 return an empty issues list if every score above is already at its
