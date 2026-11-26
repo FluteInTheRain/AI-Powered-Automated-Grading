@@ -433,3 +433,30 @@ describe("receipt lookup and teacher results", () => {
     expect(c.count()).toBeLessThanOrEqual(6);
   });
 });
+
+describe("exam rubric reaches the student view and the grader", () => {
+  const W = { correctness: 70, efficiency: 10, code_style: 10, edge_case_handling: 10 };
+
+  it("the student payload shows the exam rubric", async () => {
+    const e = await newExam("rubst1@x.com", { rubric: W });
+    const s = await start(e.token, "Rub St");
+    expect(s.json.questions.map((x: any) => x.rubric)).toEqual([W, W]);
+    expect((await call("GET", `/api/exam/${e.token}`)).status).toBe(200);
+  });
+
+  it("an exam without a rubric still shows each problem's own rubric", async () => {
+    const e = await newExam("rubst2@x.com");
+    const s = await start(e.token, "Rub St2");
+    expect(s.json.questions.map((x: any) => x.rubric)).toEqual([{ correctness: 100 }, { correctness: 100 }]);
+  });
+
+  it("the grading job sends the exam rubric to the grader", async () => {
+    const e = await newExam("rubst3@x.com", { rubric: W });
+    const s = await start(e.token, "Rub St3");
+    const before = grader.calls.length;
+    await submitAll(e.token, s.json.attempt_id);
+    await finish();
+    const sent = grader.calls.slice(before).filter((c) => c.name === "grade").map((c) => c.body.rubric);
+    expect(sent).toEqual([W, W]);
+  });
+});

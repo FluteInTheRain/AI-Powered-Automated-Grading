@@ -92,3 +92,32 @@ describe("unique attempt names", () => {
     await expect(newAttempt("je2", "Shared Name")).resolves.toHaveProperty("receipt_code");
   });
 });
+
+describe("effective rubric in the grading bundle", () => {
+  const PROBLEM_RUBRIC = { correctness: 100, efficiency: 0, code_style: 0, edge_case_handling: 0 };
+  const EXAM_RUBRIC = { correctness: 10, efficiency: 20, code_style: 30, edge_case_handling: 40 };
+
+  beforeAll(async () => {
+    await run(
+      "INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at)" +
+        " VALUES ('jr', NULL, 'system', 'stmt','fn','[]',?, 'r','[]','c',?)", JSON.stringify(PROBLEM_RUBRIC), NOW);
+    await run("INSERT INTO exams (id, teacher_id, title, student_token, deadline, time_limit_seconds, created_at, rubric) VALUES ('jre1','jt','T','tok-jre1',NULL,600,?,?)", NOW, JSON.stringify(EXAM_RUBRIC));
+    await run("INSERT INTO exams (id, teacher_id, title, student_token, deadline, time_limit_seconds, created_at) VALUES ('jre2','jt','T','tok-jre2',NULL,600,?)", NOW);
+  });
+
+  const bundleFor = async (exam: string, name: string) => {
+    const a = await createAttempt(env.DB, exam, name, new Date());
+    const sid = await insertSubmissionWithJob(env.DB, { attemptId: a.attempt_id, problemId: "jr", code: "x" });
+    return (await getSubmissionBundle(env.DB, sid))!;
+  };
+
+  it("uses the exam's rubric when the exam has one", async () => {
+    expect((await bundleFor("jre1", "Rub One")).problem.rubric).toEqual(EXAM_RUBRIC);
+  });
+
+  it("uses the problem's own rubric when the exam has none, and never changes the problem row", async () => {
+    expect((await bundleFor("jre2", "Rub Two")).problem.rubric).toEqual(PROBLEM_RUBRIC);
+    const row = await env.DB.prepare("SELECT rubric FROM problems WHERE id = 'jr'").first<{ rubric: string }>();
+    expect(JSON.parse(row!.rubric)).toEqual(PROBLEM_RUBRIC);
+  });
+});

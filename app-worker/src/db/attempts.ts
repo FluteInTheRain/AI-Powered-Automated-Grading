@@ -8,16 +8,19 @@ export type StudentExam = {
 };
 
 export async function getExamByStudentToken(db: D1Database, token: string) {
-  const exam = await db
-    .prepare("SELECT id, title, deadline, student_token, time_limit_seconds FROM exams WHERE student_token = ?")
-    .bind(token).first<Omit<StudentExam, "questions">>();
-  if (!exam) return null;
+  const row = await db
+    .prepare("SELECT id, title, deadline, student_token, time_limit_seconds, rubric FROM exams WHERE student_token = ?")
+    .bind(token).first<Omit<StudentExam, "questions"> & { rubric: string | null }>();
+  if (!row) return null;
+  const { rubric: examRubric, ...exam } = row;
   const { results } = await db
     .prepare(
       "SELECT q.problem_id, q.position, q.weight, p.statement, p.starter_code, p.test_cases, p.rubric FROM exam_questions q" +
         " JOIN problems p ON p.id = q.problem_id WHERE q.exam_id = ? ORDER BY q.position",
     ).bind(exam.id).all<StudentExam["questions"][number]>();
-  return { ...exam, questions: results } as StudentExam;
+  // The exam's weights (when it has them) replace each problem's own.
+  const questions = examRubric ? results.map((q) => ({ ...q, rubric: examRubric })) : results;
+  return { ...exam, questions } as StudentExam;
 }
 
 export class NameTaken extends Error {}
