@@ -30,4 +30,9 @@ line number, what's wrong, why it's wrong, and exactly how to fix it. Only
 return an empty issues list if every score above is already at its
 maximum.
 
+Language: write `summary`, `issue` and `explanation` in Vietnamese. Write
+`suggested_fix` in Vietnamese too, but keep any code, identifiers and
+function names exactly as they appear in the submission. Keep the JSON
+keys in English.
+
 Answer with the required JSON only.

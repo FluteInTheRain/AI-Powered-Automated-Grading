@@ -20,6 +20,19 @@ PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "feedback.txt"
 
 _MAX_SCORE = {"efficiency": 1.0, "code_style": 1.0, "edge_case_handling": 1.0}
 
+# The feedback is written in Vietnamese, so "did the model already raise this
+# check?" must also recognise the Vietnamese wording, not just the English id.
+_VI_KEYWORDS = {
+    "efficiency": ("hiệu năng", "hiệu suất", "độ phức tạp"),
+    "code_style": ("phong cách", "đặt tên", "dễ đọc"),
+    "edge_case_handling": ("trường hợp biên", "biên"),
+}
+_VI_LABEL = {
+    "efficiency": "hiệu năng",
+    "code_style": "phong cách code",
+    "edge_case_handling": "xử lý trường hợp biên",
+}
+
 
 def _numbered(code: str) -> str:
     lines = code.strip("\n").split("\n")
@@ -42,16 +55,17 @@ def _fill_missing_issues(
         score = sub_scores_0_to_1.get(check)
         if score is None or score >= max_score:
             continue
-        if any(check.replace("_", " ") in m or check in m for m in mentioned):
+        keywords = (check, check.replace("_", " "), *_VI_KEYWORDS[check])
+        if any(k in m for k in keywords for m in mentioned):
             continue  # model already raised something naming this check
         detail = check_details.get(check, {})
         feedback.issues.append(FeedbackItem(
             line=1,
-            issue=f"{check} scored {score:.2f} (not maximum)",
-            explanation=f"The {check} check flagged this submission "
-                        f"(detail: {json.dumps(detail, ensure_ascii=False)}), but the feedback "
-                        f"model didn't surface a specific line for it.",
-            suggested_fix=f"Review the submission for {check.replace('_', ' ')} issues manually.",
+            issue=f"{_VI_LABEL[check]}: {score:.2f} (chưa đạt tối đa)",
+            explanation=f"Phần kiểm tra {_VI_LABEL[check]} đã ghi nhận vấn đề "
+                        f"(chi tiết: {json.dumps(detail, ensure_ascii=False)}), nhưng mô hình "
+                        f"nhận xét không chỉ ra dòng cụ thể.",
+            suggested_fix=f"Tự xem lại bài nộp về {_VI_LABEL[check]}.",
         ))
     return feedback
 
