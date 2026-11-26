@@ -75,11 +75,12 @@ compared in constant time, fails closed when the secret is unset). A separate Wo
   (`teacher-app-audit`, key `audit/<submission_id>.json`). Delivery is at least once, so a finished job is a no-op.
   Three deliveries, then the job is `failed` in D1 with a fixed message (no dead-letter queue: it costs operations and adds
   nothing here); a student-code sandbox kill fails at once. The student gets a "Chấm lại" button (`POST .../retry`).
-- **Durable Object** (`AttemptDO`, one per attempt): the authoritative clock (10 s grace) and a per-question submit claim.
+- **Durable Object** (`AttemptDO`, one per attempt): the authoritative clock (10 s grace) and a per-question submit claim (a claim left by a crashed request expires after 30 s). A queued or grading job older than
+  120 s is reported `stuck` and can be retried; a sandbox kill is permanent (`retryable: false`).
   Questions are only returned after an attempt exists, and a reload resumes the attempt (`GET .../attempts/:id`) with the
   server's remaining time. Code drafts are not saved, so a resume shows the starter code again.
-- **Rate Limiting** bindings (`RL_START` 5/min per IP, `RL_SYNTAX` 60/min per IP, `RL_ACTION` 30/min per attempt). Counts are
-  per Cloudflare location and approximate.
+- **Rate Limiting** bindings (`RL_START` 60/min and `RL_SYNTAX` 600/min per IP, sized so a classroom behind one public IP is not blocked;
+  `RL_ACTION` 30/min per attempt). Counts are per Cloudflare location and approximate.
 - **Turnstile** on attempt start. Secret `TURNSTILE_SECRET` is a Worker secret, `TURNSTILE_SITE_KEY` and `TURNSTILE_HOSTNAMES`
   are vars. For local runs use Cloudflare's always-pass test keys (site `1x00000000000000000000AA`, secret
   `1x0000000000000000000000000000000AA`) and add `localhost` to `TURNSTILE_HOSTNAMES`.
