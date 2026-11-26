@@ -24,13 +24,14 @@ export const jsonRes = (body: unknown, status = 200) =>
 
 /** Calls the app as a teacher (dev bypass) or anonymously (student routes). */
 export function client(grader: Fetcher, now?: () => Date, db?: D1Database, extra: Record<string, unknown> = {}) {
-  const app = createApp(now ? { now } : {});
+  const { turnstile, ...envExtra } = extra as { turnstile?: (token: string | undefined, ip: string | null) => Promise<boolean> };
+  const app = createApp({ ...(now ? { now } : {}), turnstile: turnstile ? (_e, t, ip) => turnstile(t, ip) : async () => true });
   const allow = { limit: async () => ({ success: true }) };
   const e = {
     DB: db ?? env.DB, GRADER: grader, INTERNAL_TOKEN: "tok", ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", ACCESS_AUD: "a",
     DEV_AUTH_BYPASS: "1", ATTEMPT: env.ATTEMPT, AUDIT: env.AUDIT, GRADING_QUEUE: fakeQueue().binding,
     RL_START: allow, RL_SYNTAX: allow, RL_ACTION: allow, TURNSTILE_SITE_KEY: "", TURNSTILE_SECRET: "", TURNSTILE_HOSTNAMES: "",
-    ...extra,
+    ...envExtra,
   };
   return async (method: string, path: string, opts: { as?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
     const headers: Record<string, string> = { ...opts.headers };

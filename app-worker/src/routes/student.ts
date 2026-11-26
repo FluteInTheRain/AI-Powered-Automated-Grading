@@ -10,6 +10,7 @@ import { getProblemById } from "../db/problems";
 import type { Env } from "../env";
 import { GraderError, runCases, toClientError } from "../grader";
 import { TOO_MANY, allow, clientIp } from "../limits";
+import type { TurnstileVerifier } from "../turnstile";
 import type { AppEnv } from "../index";
 
 const MAX_NAME = 100;
@@ -21,7 +22,7 @@ type QuestionContext = { exam: StudentExam; attemptId: string; problemId: string
 
 const attemptStub = (env: Env, attemptId: string) => env.ATTEMPT.get(env.ATTEMPT.idFromName(attemptId));
 
-export function studentRoutes(now: () => Date): Hono<AppEnv> {
+export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<AppEnv> {
   const r = new Hono<AppEnv>();
   const closed = (deadline: string | null) => deadline !== null && new Date(deadline).getTime() <= now().getTime();
   const notFound = (c: Ctx, what: string) => c.json({ detail: `Unknown ${what}` }, 404);
@@ -95,6 +96,9 @@ export function studentRoutes(now: () => Date): Hono<AppEnv> {
     const name = typeof b?.student_name === "string" ? b.student_name.trim() : "";
     if (!name || name.length > MAX_NAME) return c.json({ detail: "student_name must be 1-100 characters" }, 400);
     if (closed(exam.deadline)) return c.json({ detail: "This exam is closed" }, 403);
+    if (!(await verify(c.env, b?.turnstile_token, c.req.header("CF-Connecting-IP") ?? null))) {
+      return c.json({ detail: "Please complete the verification." }, 400);
+    }
     let attempt;
     try {
       attempt = await createAttempt(c.env.DB, exam.id, name, now());
