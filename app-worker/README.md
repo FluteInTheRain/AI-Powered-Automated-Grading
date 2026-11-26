@@ -23,7 +23,8 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 ## API
 
 Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems`,
-`POST problems/preview`, `GET|POST exams`, `GET|PATCH exams/:id`, `GET exams/:id/results`.
+`POST problems/preview`, `GET|PUT settings` (default weights and time limit), `GET|POST exams`
+(`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Scores are append-only rows in `score_revisions` (revision 0 = the AI score); the schema
@@ -102,6 +103,8 @@ lowers the level. Before this rule, every correct uncommented dataset sample sco
 - Attempts created before Phase 2 have no clock state and can no longer submit.
 - Drafts live only in the browser that typed them. Hidden test cases are protected: students get pass counts only, the LLM feedback prompt sees
   counts, public-test errors are reduced to a generic text, and the exam view carries no test values.
+- An exam's criterion weights are fixed when it is created (migration 0003); there is no endpoint to change them later,
+  because one exam must never be graded two ways. Exams made before 0003 keep each problem's own weights.
 - Resubmitting a question is rejected (409). Teacher results use one D1 query (the Free plan caps queries per invocation).
 - The CI deploy token needs Workers Scripts, D1, Queues, R2 and Durable Objects edit; if the Deploy workflow fails on a
   permission, recreate the token and replace the repository secret.

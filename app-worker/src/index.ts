@@ -7,6 +7,7 @@ import { syntaxRoutes } from "./routes/syntax";
 import { studentRoutes } from "./routes/student";
 import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
+import { teacherSettingsRoutes } from "./routes/teacher_settings";
 import type { Env, Teacher } from "./env";
 
 export type AppDeps = { keyResolver?: JWTVerifyGetKey; now?: () => Date; turnstile?: TurnstileVerifier };
@@ -21,6 +22,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.get("/api/teacher/me", (c) => c.json(c.get("teacher")));
   app.route("/api/teacher", teacherProblemRoutes());
   app.route("/api/teacher", teacherExamRoutes());
+  app.route("/api/teacher", teacherSettingsRoutes());
   return app;
 }
 

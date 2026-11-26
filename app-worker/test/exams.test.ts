@@ -102,3 +102,44 @@ describe("teacher exams", () => {
     expect(a.json.student_token).not.toBe(b.json.student_token);
   });
 });
+
+describe("exam rubric", () => {
+  const W = { correctness: 70, efficiency: 10, code_style: 10, edge_case_handling: 10 };
+  const D = { correctness: 40, efficiency: 20, code_style: 30, edge_case_handling: 10 };
+  const detail = async (as: string, id: string) => (await call("GET", `/api/teacher/exams/${id}`, { as })).json;
+
+  it("stores an explicit rubric and returns it in the detail", async () => {
+    const r = await mkExam("rb1@x.com", { title: "T", rubric: W, questions: Q("bank:e1") });
+    expect(r.status).toBe(200);
+    expect((await detail("rb1@x.com", r.json.id)).rubric).toEqual(W);
+  });
+
+  it("uses the teacher's default rubric when none is sent", async () => {
+    await call("PUT", "/api/teacher/settings", { as: "rb2@x.com", body: { default_rubric: D } });
+    const r = await mkExam("rb2@x.com", { title: "T", questions: Q("bank:e1") });
+    expect((await detail("rb2@x.com", r.json.id)).rubric).toEqual(D);
+  });
+
+  it("an explicit rubric wins over the teacher's default", async () => {
+    await call("PUT", "/api/teacher/settings", { as: "rb3@x.com", body: { default_rubric: D } });
+    const r = await mkExam("rb3@x.com", { title: "T", rubric: W, questions: Q("bank:e1") });
+    expect((await detail("rb3@x.com", r.json.id)).rubric).toEqual(W);
+  });
+
+  it("stays null (each problem's own rubric) without an explicit rubric or a default", async () => {
+    const r = await mkExam("rb4@x.com", { title: "T", questions: Q("bank:e1") });
+    expect((await detail("rb4@x.com", r.json.id)).rubric).toBeNull();
+  });
+
+  it.each([
+    ["all-zero", { correctness: 0, efficiency: 0, code_style: 0, edge_case_handling: 0 }],
+    ["total above 100", { ...W, correctness: 71 }],
+    ["total below 100", { ...W, correctness: 69 }],
+    ["negative", { ...W, correctness: -1 }],
+    ["float", { ...W, correctness: 70.5 }],
+    ["missing key", { correctness: 1, efficiency: 1, code_style: 1 }],
+    ["extra key", { ...W, bonus: 1 }],
+  ])("rejects a %s rubric", async (_n, rubric) => {
+    expect((await mkExam("rb5@x.com", { title: "T", rubric, questions: Q("bank:e1") })).status).toBe(400);
+  });
+});

@@ -2,21 +2,21 @@ import { newId, newToken } from "../ids";
 
 export type ExamRow = {
   id: string; teacher_id: string; title: string; student_token: string;
-  deadline: string | null; time_limit_seconds: number; created_at: string;
+  deadline: string | null; time_limit_seconds: number; created_at: string; rubric: string | null;
 };
 export type QuestionRow = { exam_id: string; problem_id: string; position: number; weight: number };
 
 export async function insertExam(
   db: D1Database,
-  e: { teacherId: string; title: string; deadline: string | null; timeLimitSeconds: number; questions: { problem_id: string; weight: number }[] },
+  e: { teacherId: string; title: string; deadline: string | null; timeLimitSeconds: number; rubric: Record<string, number> | null; questions: { problem_id: string; weight: number }[] },
 ): Promise<{ id: string; student_token: string }> {
   const id = newId();
   const token = newToken();
   const now = new Date().toISOString();
   await db.batch([
     db.prepare(
-      "INSERT INTO exams (id, teacher_id, title, student_token, deadline, time_limit_seconds, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ).bind(id, e.teacherId, e.title, token, e.deadline, e.timeLimitSeconds, now),
+      "INSERT INTO exams (id, teacher_id, title, student_token, deadline, time_limit_seconds, created_at, rubric) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(id, e.teacherId, e.title, token, e.deadline, e.timeLimitSeconds, now, e.rubric ? JSON.stringify(e.rubric) : null),
     ...e.questions.map((q, i) =>
       db.prepare("INSERT INTO exam_questions (exam_id, problem_id, position, weight) VALUES (?, ?, ?, ?)")
         .bind(id, q.problem_id, i, q.weight)),

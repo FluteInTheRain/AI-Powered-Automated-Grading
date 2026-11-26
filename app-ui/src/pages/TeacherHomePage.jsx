@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createExam, getMe, listBank, listExams } from '../api.js'
+import { createExam, getMe, getSettings, listBank, listExams } from '../api.js'
 import Icon from '../components/Icon.jsx'
+import RubricFields, { DEFAULT_RUBRIC, isValidRubric, rubricToNumbers, rubricToStrings } from '../components/RubricFields.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const studentUrl = (path) => `${window.location.origin}${path}`
@@ -26,17 +27,25 @@ export default function TeacherHomePage() {
   const [chosen, setChosen] = useState({}) // problem_id -> weight string
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState(null)
+  const [rubric, setRubric] = useState(DEFAULT_RUBRIC)
+  const prefilled = useRef(false) // the form takes the teacher's defaults once, so reloading the list never wipes typed values
 
   const load = useCallback(() => {
-    Promise.all([getMe(), listExams(), listBank()])
-      .then(([m, e, b]) => { setMe(m); setExams(e); setBank(b) })
+    Promise.all([getMe(), listExams(), listBank(), getSettings()])
+      .then(([m, e, b, s]) => {
+        setMe(m); setExams(e); setBank(b)
+        if (prefilled.current) return
+        prefilled.current = true
+        if (s?.default_rubric) setRubric(rubricToStrings(s.default_rubric))
+        if (s?.default_time_limit_seconds) setMinutes(String(Math.round(s.default_time_limit_seconds / 60)))
+      })
       .catch((e) => setErrorMessage(e.message))
   }, [])
   useEffect(() => { load() }, [load])
 
   const selected = bank.filter((q) => q.id in chosen)
   const weightsOk = selected.every((q) => Number(chosen[q.id]) > 0)
-  const canCreate = title.trim() !== '' && selected.length > 0 && weightsOk && Number(minutes) > 0 && !creating
+  const canCreate = title.trim() !== '' && selected.length > 0 && weightsOk && Number(minutes) > 0 && isValidRubric(rubric) && !creating
 
   const toggle = (id, on) =>
     setChosen((prev) => {
@@ -51,7 +60,7 @@ export default function TeacherHomePage() {
     setErrorMessage(null)
     try {
       const body = {
-        title: title.trim(), time_limit_seconds: Math.round(Number(minutes) * 60),
+        title: title.trim(), time_limit_seconds: Math.round(Number(minutes) * 60), rubric: rubricToNumbers(rubric),
         questions: selected.map((q) => ({ problem_id: q.id, weight: Number(chosen[q.id]) })),
       }
       if (deadline) body.deadline = new Date(deadline).toISOString()
@@ -75,6 +84,7 @@ export default function TeacherHomePage() {
         <span className="word">AI Grader</span>
         <span className="sp" />
         <span className="muted hide-s">{me.email}</span>
+        <Link className="link" to="/teacher/settings">Cài đặt</Link>
         <ThemeToggle />
       </header>
       <div className="wrap">
@@ -121,7 +131,9 @@ export default function TeacherHomePage() {
             <label htmlFor="exam-deadline">Hạn chót</label>
             <input id="exam-deadline" name="deadline" type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
-          <p className="field-hint">Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
+          <h3 style={{ margin: '24px 0 8px' }}>Trọng số tiêu chí chấm</h3>
+          <RubricFields value={rubric} onChange={setRubric} />
+          <p className="field-hint" style={{ marginTop: 24 }}>Chọn các câu từ kho (mỗi câu có trọng số, mặc định 1):</p>
           {bank.map((q) => (
             <div key={q.id} className="bank-row">
               <label>

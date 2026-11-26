@@ -77,5 +77,10 @@ export async function getSubmissionBundle(
   const submission = await db.prepare("SELECT * FROM submissions WHERE id = ?").bind(submissionId).first<SubmissionRow>();
   if (!submission) return null;
   const problem = await getProblemById(db, submission.problem_id);
-  return problem ? { submission, problem } : null;
+  if (!problem) return null;
+  // The exam's weights (when it has them) replace the problem's own for this grading run.
+  const exam = await db
+    .prepare("SELECT e.rubric FROM attempts a JOIN exams e ON e.id = a.exam_id WHERE a.id = ?")
+    .bind(submission.attempt_id).first<{ rubric: string | null }>();
+  return { submission, problem: exam?.rubric ? { ...problem, rubric: JSON.parse(exam.rubric) } : problem };
 }
