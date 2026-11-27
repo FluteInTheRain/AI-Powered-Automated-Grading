@@ -27,6 +27,15 @@ Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST proble
 (`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
+Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;
+message up to 1000 characters; Turnstile + `RL_ACTION`); teacher `GET exams/:id/appeals`, `GET appeals/:id` (message, code, score
+history, AI call log from R2), `POST appeals/:id/review`, `POST appeals/:id/decision` (`upheld`, `rejected`, or `adjusted` with a
+0-100 `score`, plus a note). Statuses: `open`, `under_review`, `upheld`, `adjusted`, `rejected`, `expired`. An adjustment appends a
+teacher row to `score_revisions` in the same D1 batch as the status change, so of two concurrent decisions exactly one wins.
+A daily cron (03:17 UTC, `triggers.crons` in `wrangler.jsonc`) expires `open` appeals older than 14 days. There is no email: the
+student sees the outcome by entering the receipt code (no domain, so no Cloudflare email; Brevo with a Gmail sender is flagged
+as failing DKIM/DMARC). Migration `0005` and the cron trigger go live with the normal CI deploy (it applies D1 migrations, then
+`wrangler deploy`); no manual step.
 Scores are append-only rows in `score_revisions` (revision 0 = the AI score); the schema
 rejects `UPDATE`/`DELETE` on scores and submissions.
 

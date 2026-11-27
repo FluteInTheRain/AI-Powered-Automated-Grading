@@ -198,7 +198,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.3b — style prompt and one-shot submit (2026-11-26).** Comments are optional for the style check (0 -> 13 of 16 correct uncommented samples score clean on the live model); the exam is submitted once and every question is graded in parallel; plan `docs/superpowers/plans/2026-11-26-style-prompt-and-submit-all.md`.
 - [x] **T6.3b — Per-exam rubric weights and teacher Settings (2026-11-26).** `exams.rubric` snapshot + `teachers.settings` (migration 0003), `/teacher/settings` page; spec and plan in `docs/superpowers/`.
 - [x] **T6.3c — Problem catalog (2026-11-26).** Title, category and difficulty on every problem (migration 0004, bank metadata in `data/problems.py`, metadata-only seed upsert), searchable/filterable/sortable picker in the exam form; spec and plan in `docs/superpowers/`.
-- [ ] **T6.4 — Phase 3 plan + build:** appeals, Workflows, Cron, teacher review UI.
+- [x] **T6.4 — Phase 3 (2026-11-27):** appeals (student files by receipt code, teacher reviews the AI trail and decides, adjustments are new score revisions), daily Cron expires stale appeals, teacher appeals page. **Workflows skipped:** waiting for the teacher is one API call updating D1, so a Workflow added nothing. **Email skipped:** no domain; Cloudflare email needs one, Brevo with a Gmail sender fails DKIM/DMARC. Spec and plan in `docs/superpowers/`. Not yet deployed or checked on the live site.
 - [ ] **T6.5 — Phase 4 plan + build:** AI Gateway, Analytics Engine, logs, CI deploy; plus a UI plan.
 
 ## Notes
