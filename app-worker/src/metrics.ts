@@ -20,7 +20,7 @@ export function recordGrading(metrics: AnalyticsEngineDataset | undefined, e: Gr
       blobs: [e.outcome, e.problemId, e.model],
       doubles: [e.durationMs, e.score, e.deliveryAttempt, e.passCount, e.total],
     });
-  } catch {
-    /* dropped on purpose */
+  } catch (err) {
+    console.warn("metrics: a grading event was dropped", err); // best effort, but not silent
   }
 }

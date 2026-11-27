@@ -13,19 +13,26 @@ export async function queryHealth(
   env: Partial<Pick<Env, "CF_ACCOUNT_ID" | "CF_API_TOKEN">>,
   fetchFn: typeof fetch = fetch,
 ): Promise<HealthRow[] | null> {
-  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) return null;
+  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) {
+    console.warn("analytics: CF_ACCOUNT_ID or CF_API_TOKEN is not set; grading health is unavailable");
+    return null;
+  }
   try {
     const res = await fetchFn(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/analytics_engine/sql`, {
       method: "POST", headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` }, body: HEALTH_SQL,
     });
-    if (res.status !== 200) return null;
+    if (res.status !== 200) {
+      console.warn(`analytics: SQL API answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return null;
+    }
     const body = (await res.json()) as { data?: Record<string, unknown>[] };
     if (!Array.isArray(body.data)) return null;
     return body.data.map((r) => ({
       day: String(r.day).slice(0, 10), outcome: String(r.outcome),
       count: Number(r.count), p50_ms: Number(r.p50_ms), p95_ms: Number(r.p95_ms),
     }));
-  } catch {
+  } catch (err) {
+    console.warn("analytics: SQL API call failed", err);
     return null;
   }
 }

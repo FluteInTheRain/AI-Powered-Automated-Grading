@@ -83,10 +83,12 @@ export async function getExamStats(db: D1Database, examId: string): Promise<Exam
     const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
     const criteria: Record<string, number | null> = {};
     for (const c of CRITERIA) criteria[c] = mean(done.map((r) => r[`c_${c}`]).filter((v): v is number => typeof v === "number"));
-    const passed = done.filter((r) => r.total_cases !== null && r.total_cases > 0 && r.pass_count === r.total_cases).length;
+    // A result with no readable execution_result says nothing about passing: leave it out instead of counting it as a fail.
+    const readable = done.filter((r) => r.total_cases !== null);
+    const passed = readable.filter((r) => (r.total_cases as number) > 0 && r.pass_count === r.total_cases).length;
     return {
       problem_id: problemId, position: qs[0].position,
-      pass_rate: done.length ? passed / done.length : null,
+      pass_rate: readable.length ? passed / readable.length : null,
       mean_score: mean(done.map((r) => r.score as number)),
       criteria,
     };

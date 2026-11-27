@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { recordGrading } from "../src/metrics";
 import { drain, fakeMetrics, jsonRes } from "./helpers";
 import { seedGradedAttempt } from "./appeals_fixture";
@@ -16,6 +16,14 @@ describe("recordGrading", () => {
   it("never throws, even when the dataset does", () => {
     const broken = { writeDataPoint: () => { throw new Error("down"); } } as unknown as AnalyticsEngineDataset;
     expect(() => recordGrading(broken, event)).not.toThrow();
+  });
+
+  it("leaves a trace in the log when a write is dropped", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const broken = { writeDataPoint: () => { throw new Error("down"); } } as unknown as AnalyticsEngineDataset;
+    recordGrading(broken, event);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("metrics"), expect.anything());
+    warn.mockRestore();
   });
 
   it("does nothing when the binding is absent", () => {
