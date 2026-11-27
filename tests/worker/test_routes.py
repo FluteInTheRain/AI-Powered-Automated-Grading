@@ -29,7 +29,7 @@ PROBLEM = {
 
 # One canned answer per schema name (the schema's title is in the payload).
 ANSWERS = {
-    "EfficiencyCheck": {"meets_expected_complexity": True, "observed_pattern": "O(1)"},
+    "EfficiencyCheck": {"expected_complexity": "O(1)", "observed_pattern": "O(1)", "meets_expected_complexity": True},
     "StyleCheck": {"level": "clean"},
     "EdgeCaseCheck": {"handled": True, "missing_cases": []},
     "CodeFeedback": {"summary": "ok", "issues": []},

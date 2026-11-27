@@ -26,6 +26,12 @@ def _load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.txt").read_text(encoding="utf-8")
 
 
+def _same_complexity(a: str, b: str) -> bool:
+    """Case- and whitespace-insensitive equality of two complexity strings ('O(log n)' == ' o(log  N) ')."""
+    squash = lambda t: "".join(t.lower().split())
+    return squash(a) == squash(b)
+
+
 def check_efficiency(client: LLMClient, statement: str, submission_code: str) -> tuple[float, EfficiencyCheck]:
     """Returns (score, raw_result). The raw result carries the *reason* behind
     the score (e.g. observed_pattern) — callers that only need the number can
@@ -37,6 +43,9 @@ def check_efficiency(client: LLMClient, statement: str, submission_code: str) ->
         user_prompt=prompt,
         schema=EfficiencyCheck,
     )
+    if _same_complexity(result.expected_complexity, result.observed_pattern):
+        # The model's own two answers agree, so a "does not meet" verdict contradicts itself: correct it.
+        result = result.model_copy(update={"meets_expected_complexity": True})
     score = 1.0 if result.meets_expected_complexity else 0.4
     return score, result
 
