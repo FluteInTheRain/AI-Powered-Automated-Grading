@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import ExamStatsPage from './pages/ExamStatsPage.jsx'
 import ExamAppealsPage from './pages/ExamAppealsPage.jsx'
 import ExamPage from './pages/ExamPage.jsx'
 import ExamResultsPage from './pages/ExamResultsPage.jsx'
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/teacher" element={<TeacherHomePage />} />
         <Route path="/teacher/settings" element={<SettingsPage />} />
         <Route path="/teacher/exams/:id" element={<ExamResultsPage />} />
+        <Route path="/teacher/exams/:id/stats" element={<ExamStatsPage />} />
         <Route path="/teacher/exams/:id/appeals" element={<ExamAppealsPage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
