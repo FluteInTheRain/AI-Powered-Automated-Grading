@@ -67,6 +67,16 @@ describe('TeacherHomePage', () => {
     })
   })
 
+  it('refuses a deadline in the past and tells the teacher, without calling the API', async () => {
+    renderHome()
+    fireEvent.change(await screen.findByLabelText('Tiêu đề'), { target: { value: 'Midterm' } })
+    fireEvent.change(screen.getByLabelText('Hạn chót'), { target: { value: '2020-01-01T10:00' } })
+    fireEvent.click(await screen.findByLabelText(/Add numbers/))
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo bài kiểm tra' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Hạn chót.*đã qua/)
+    expect(api.createExam).not.toHaveBeenCalled()
+  })
+
   it('shows the error when creating fails', async () => {
     api.createExam.mockRejectedValue(new Error('Unknown problem_id: bank:zzz'))
     renderHome()

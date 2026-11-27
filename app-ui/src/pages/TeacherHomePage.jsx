@@ -63,7 +63,14 @@ export default function TeacherHomePage() {
         title: title.trim(), time_limit_seconds: Math.round(Number(minutes) * 60), rubric: rubricToNumbers(rubric),
         questions: selected.map((q) => ({ problem_id: q.id, weight: Number(chosen[q.id]) })),
       }
-      if (deadline) body.deadline = new Date(deadline).toISOString()
+      if (deadline) {
+        const at = new Date(deadline)
+        if (at.getTime() <= Date.now()) {
+          setErrorMessage('Hạn chót đã qua. Chọn một thời điểm trong tương lai hoặc để trống.')
+          return
+        }
+        body.deadline = at.toISOString()
+      }
       setCreated(await createExam(body))
       setTitle('')
       setChosen({})

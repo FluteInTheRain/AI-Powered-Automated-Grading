@@ -38,6 +38,7 @@ describe("teacher exams", () => {
     ["blank title", { title: "  ", questions: Q("bank:e1") }],
     ["title over 120 chars", { title: "x".repeat(121), questions: Q("bank:e1") }],
     ["bad deadline", { title: "T", deadline: "not a date", questions: Q("bank:e1") }],
+    ["a deadline already in the past", { title: "T", deadline: "2020-01-01T00:00:00Z", questions: Q("bank:e1") }],
   ])("rejects %s with 400", async (_n, body) => {
     expect((await mkExam("ex2@x.com", body)).status).toBe(400);
   });

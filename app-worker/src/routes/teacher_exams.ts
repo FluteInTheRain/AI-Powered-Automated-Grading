@@ -32,6 +32,8 @@ export function teacherExamRoutes(): Hono<AppEnv> {
     if (!b || typeof b.title !== "string" || !b.title.trim() || b.title.length > 120) return bad("title must be 1-120 characters");
     const deadline = parseDeadline(b.deadline);
     if (deadline === undefined) return bad("deadline must be an ISO date");
+    // Only at creation: PATCH may set a past time on purpose, to close an exam now.
+    if (deadline !== null && new Date(deadline).getTime() <= Date.now()) return bad("deadline is already in the past");
     const limit = b.time_limit_seconds ?? DEFAULT_TIME_LIMIT_SECONDS;
     if (!Number.isInteger(limit) || limit <= 0) return bad("time_limit_seconds must be a positive integer");
     if (!Array.isArray(b.questions) || b.questions.length === 0) return bad("At least one question is required");
