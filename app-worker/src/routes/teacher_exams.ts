@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getVisibleProblem } from "../db/problems";
 import { getOwnExam, insertExam, listExamQuestions, listOwnExams, setDeadline, type ExamRow } from "../db/exams";
 import { listResults } from "../db/attempts";
+import { getExamStats } from "../db/stats";
 import { getSettings } from "../db/teachers";
 import type { AppEnv } from "../index";
 import { parseRubric } from "../rubric";
@@ -84,6 +85,12 @@ export function teacherExamRoutes(): Hono<AppEnv> {
     if (!exam) return c.json({ detail: "Unknown exam" }, 404);
     const rows = await listResults(c.env.DB, exam.id);
     return c.json(rows);
+  });
+
+  r.get("/exams/:id/stats", async (c) => {
+    const exam = await getOwnExam(c.env.DB, c.get("teacher").id, c.req.param("id"));
+    if (!exam) return c.json({ detail: "Unknown exam" }, 404);
+    return c.json(await getExamStats(c.env.DB, exam.id));
   });
 
   r.patch("/exams/:id", async (c) => {
