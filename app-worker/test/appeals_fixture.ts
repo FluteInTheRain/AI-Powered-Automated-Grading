@@ -7,7 +7,7 @@ let n = 0;
  * A one-question exam with one submitted attempt. With `graded` (the default) the queue is drained, so revision 0
  * and the R2 audit object exist; without it the job stays queued and the question has no score yet.
  */
-export async function seedGradedAttempt(opts: { teacher?: string; name?: string; graded?: boolean } = {}) {
+export async function seedGradedAttempt(opts: { teacher?: string; name?: string; graded?: boolean; code?: string } = {}) {
   const problemId = `bank:ap${++n}`;
   await env.DB.prepare(
     "INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric," +
@@ -30,7 +30,7 @@ export async function seedGradedAttempt(opts: { teacher?: string; name?: string;
   const token = exam.json.student_token as string;
   const att = await call("POST", `/api/exam/${token}/attempts`, { body: { student_name: opts.name ?? "Stu" } });
   const attemptId = att.json.attempt_id as string;
-  await call("POST", `/api/exam/${token}/attempts/${attemptId}/submit`, { body: { answers: { [problemId]: "def f(x): return 3" } } });
+  await call("POST", `/api/exam/${token}/attempts/${attemptId}/submit`, { body: { answers: { [problemId]: opts.code ?? "def f(x): return 3" } } });
   if (opts.graded ?? true) await drain(q, grader.binding);
 
   const sub = await env.DB.prepare("SELECT id FROM submissions WHERE attempt_id = ?").bind(attemptId).first<{ id: string }>();

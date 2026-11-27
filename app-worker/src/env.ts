@@ -5,6 +5,8 @@ export type Env = {
   GRADING_QUEUE: Queue<{ submission_id: string }>;
   ATTEMPT: DurableObjectNamespace<AttemptDO>;
   AUDIT: R2Bucket;
+  /** Analytics Engine dataset `grading_events`; optional so a missing binding never breaks grading. */
+  METRICS?: AnalyticsEngineDataset;
   RL_START: RateLimit;
   RL_SYNTAX: RateLimit;
   RL_ACTION: RateLimit;

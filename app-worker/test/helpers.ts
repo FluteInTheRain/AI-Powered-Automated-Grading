@@ -81,11 +81,17 @@ export function fakeQueue() {
 }
 
 /** Runs the real queue consumer over everything the fake queue received. */
-export async function drain(q: FakeQueue, graderBinding: Fetcher, attempts = 1) {
-  const e = { DB: env.DB, GRADER: graderBinding, INTERNAL_TOKEN: "tok", AUDIT: env.AUDIT } as unknown as Env;
+export async function drain(q: FakeQueue, graderBinding: Fetcher, attempts = 1, extra: Record<string, unknown> = {}) {
+  const e = { DB: env.DB, GRADER: graderBinding, INTERNAL_TOKEN: "tok", AUDIT: env.AUDIT, ...extra } as unknown as Env;
   while (q.sent.length) {
     const body = q.sent.shift()!;
     const batch = { queue: "grading-jobs", messages: [{ id: "m", body, attempts, ack() {}, retry() {} }] };
     await queue(batch as unknown as MessageBatch<{ submission_id: string }>, e);
   }
+}
+
+/** An Analytics Engine dataset that records what was written. */
+export function fakeMetrics() {
+  const points: { indexes?: string[]; blobs?: string[]; doubles?: number[] }[] = [];
+  return { points, binding: { writeDataPoint: (p: (typeof points)[number]) => { points.push(p); } } as unknown as AnalyticsEngineDataset };
 }
