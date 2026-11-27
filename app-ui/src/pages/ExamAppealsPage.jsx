@@ -109,13 +109,17 @@ export default function ExamAppealsPage() {
   useEffect(() => { load() }, [load])
 
   const openAppeal = async (row) => {
+    setErrorMessage(null)
+    if (row.status === 'open') {
+      // A 409 means another tab or the cron got there first: the detail below shows the real state, and the list is refreshed.
+      try { await startAppealReview(row.id) } catch { /* handled by the refresh */ }
+    }
     try {
-      if (row.status === 'open') await startAppealReview(row.id)
       setSelected(await getAppeal(row.id))
-      if (row.status === 'open') load()
     } catch (e) {
       setErrorMessage(e.message)
     }
+    if (row.status === 'open') load()
   }
   const decided = () => {
     setSelected(null)
@@ -158,7 +162,7 @@ export default function ExamAppealsPage() {
             ))}
           </tbody>
         </table>
-        {selected && <Detail appeal={selected} onDecided={decided} />}
+        {selected && <Detail key={selected.id} appeal={selected} onDecided={decided} />}
       </div>
     </>
   )

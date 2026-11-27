@@ -288,9 +288,11 @@ export default function ExamPage() {
     setAppealing(null)
     const receipt = lookupCode.trim()
     try {
-      const [result, filed] = await Promise.all([getAttemptByReceipt(token, receipt), listAppeals(token, receipt)])
-      setLookup(result)
-      setAppeals(filed)
+      const [result, filed] = await Promise.allSettled([getAttemptByReceipt(token, receipt), listAppeals(token, receipt)])
+      if (result.status === 'rejected') throw result.reason
+      setLookup(result.value)
+      setAppeals(filed.status === 'fulfilled' ? filed.value : [])
+      if (filed.status === 'rejected') setLookupError('Không tải được trạng thái khiếu nại. Điểm vẫn hiển thị bình thường.')
       setLookupReceipt(receipt)
     } catch (e) {
       setLookupError(e.message)
@@ -298,11 +300,14 @@ export default function ExamPage() {
   }
 
   const handleAppealFiled = async () => {
+    const problemId = appealing
     setAppealing(null)
     try {
       setAppeals(await listAppeals(token, lookupReceipt))
-    } catch (e) {
-      setLookupError(e.message)
+    } catch {
+      // The appeal is filed; only the refresh failed. Show it as waiting so the student does not file it twice.
+      setAppeals((prev) => [...prev, { problem_id: problemId, status: 'open', message: '', decision_note: null, created_at: '', decided_at: null, score: null }])
+      setLookupError('Khiếu nại đã gửi, nhưng chưa tải lại được trạng thái.')
     }
   }
 
