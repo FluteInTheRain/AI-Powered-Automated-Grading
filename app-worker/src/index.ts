@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { JWTVerifyGetKey } from "jose";
 import { requireTeacher } from "./auth";
 import { APPEAL_EXPIRY_DAYS, expireStaleAppeals } from "./db/appeals";
+import { runCanary } from "./canary";
 import { queue } from "./jobs";
 import { verifyTurnstile, type TurnstileVerifier } from "./turnstile";
 import { syntaxRoutes } from "./routes/syntax";
@@ -33,9 +34,13 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
 
 export { AttemptDO } from "./attempt_do";
 
-/** Daily cron: open appeals nobody decided within APPEAL_EXPIRY_DAYS become expired. */
+/** Daily cron: open appeals nobody decided within APPEAL_EXPIRY_DAYS become expired, then the determinism canary runs. */
 async function scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-  await expireStaleAppeals(env.DB, new Date(Date.now() - APPEAL_EXPIRY_DAYS * 86_400_000));
+  try {
+    await expireStaleAppeals(env.DB, new Date(Date.now() - APPEAL_EXPIRY_DAYS * 86_400_000));
+  } finally {
+    await runCanary(env, new Date()); // never throws, and runs even if the expiry failed
+  }
 }
 
 export default { fetch: createApp().fetch, queue, scheduled };
