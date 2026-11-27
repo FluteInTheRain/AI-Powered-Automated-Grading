@@ -234,3 +234,8 @@ a.word { color: inherit; text-decoration: none; }
 .problem-row summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .statement-preview { margin: 6px 0 0; max-width: 70ch; }
 @media (max-width: 720px) { .picker-bar input[type='search'] { max-width: none; width: 100%; } .picker-bar label { flex: 1; } }
+
+/* Appeals */
+textarea { font: inherit; color: var(--text); padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); resize: vertical; }
+.appeal-row { margin-top: 10px; }
+.appeal-form { display: grid; gap: 8px; }

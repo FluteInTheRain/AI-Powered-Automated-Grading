@@ -41,6 +41,9 @@ export const runTests = (token, attemptId, problemId, code) =>
 export const submitExam = (token, attemptId, answers) =>
   post(`/api/exam/${token}/attempts/${attemptId}/submit`, { answers })
 export const getAttemptByReceipt = (token, receipt) => request(`/api/exam/${token}/attempts/by-receipt/${receipt}`)
+export const listAppeals = (token, receipt) => request(`/api/exam/${token}/attempts/by-receipt/${receipt}/appeals`)
+export const fileAppeal = (token, receipt, problemId, message, turnstileToken) =>
+  post(`/api/exam/${token}/attempts/by-receipt/${receipt}/appeals`, { problem_id: problemId, message, turnstile_token: turnstileToken })
 export const checkSyntax = (code) => post('/api/syntax-check', { code })
 
 // --- Teacher (behind Cloudflare Access) ------------------------------------
