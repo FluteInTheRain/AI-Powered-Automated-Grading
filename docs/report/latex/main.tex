@@ -628,8 +628,7 @@ nhất quán này có thật (không phải sự cố ngẫu nhiên một lần 
 thử đó), tần suất của nó đủ thấp để không xuất hiện trong 100 lần chạy trên
 4 mẫu cụ thể này. Bảng kết quả trên nên được đọc là ``không phát hiện mất
 nhất quán ở $N$ này'', chứ không phải ``đã chứng minh luôn nhất quán'' —
-đây là một hạn chế cần được nêu lại ở chương Hạn chế (T5.4,
-\texttt{docs/roadmap.md}, chưa viết tại thời điểm này).
+đây là một hạn chế được nêu lại ở Mục~\ref{sec:limitations}.
 
 \textbf{Phạm vi áp dụng của kết quả (không nên diễn giải rộng hơn):}
 \begin{itemize}
@@ -751,8 +750,97 @@ có cơ sở vững hơn so với điểm tổng hợp.
     $\rho=0.88$ như số liệu phản ánh đúng pipeline hiện tại.
 \end{itemize}
 
-% ============================================================
-% Chương Hạn chế (T5.4 trong docs/roadmap.md) sẽ được thêm vào tiếp theo.
+\section{Hạn chế}
+\label{sec:limitations}
+
+Chương này gom các hạn chế đã biết của dự án. Một số đã xuất hiện rải rác ở
+các mục trước; ở đây chúng được nêu lại một chỗ để người đọc không phải
+đoán. Dự án này là một dự án nghiên cứu cá nhân, chưa được dùng trên bài
+nộp thật của sinh viên.
+
+\subsection{Dữ liệu: nhãn do một người tự gán, không có giám khảo độc lập}
+
+\begin{itemize}
+  \item Bộ dữ liệu thí điểm (16 bài toán, 65 mẫu; Mục~\ref{sec:pilot-dataset})
+    là mã do chính tác giả viết, có cài lỗi cố ý, không phải bài làm của
+    sinh viên thật. Nhãn \texttt{correctness} và \texttt{edge\_case\_handling}
+    là kết quả thực thi sandbox thật. Nhãn \texttt{efficiency} và
+    \texttt{code\_style} do một người (chính tác giả) tự gán theo luật, nên
+    \textbf{không phải ground truth độc lập} (\texttt{data/script.md}).
+  \item Việc nhờ giảng viên hoặc trợ giảng chấm độc lập một tập con (T3.2)
+    và việc tính hệ số kappa hoặc ICC (T3.3) \textbf{chưa được thực hiện}: cả
+    hai đều bị hoãn theo quyết định của tác giả. Vì vậy mọi con số về độ
+    đồng thuận (ví dụ $\rho=0.88$ của \texttt{hybrid\_decomposed},
+    Mục~\ref{sec:results-ablation}) chỉ là độ đồng thuận với nhãn tham
+    chiếu theo luật, \emph{không} phải với giám khảo con người, và chỉ nên
+    được đọc như một phép kiểm tra tính đúng đắn của pipeline.
+  \item Chất lượng ground truth của \texttt{correctness} bị chặn trên bởi độ
+    phủ của bộ test. Hai bài nộp được thiết kế là có lỗi
+    (\texttt{P01\_two\_sum\_\_S3}, \texttt{P02\_is\_prime\_\_S4}) vẫn qua
+    100\% test, và một ca tương tự (\texttt{P12\_valid\_parentheses\_\_S3})
+    chỉ bị bắt sau khi thêm test. Bộ test yếu thì điểm sandbox cũng sai.
+  \item Dữ liệu khiếu nại trong ứng dụng giáo viên (tỉ lệ khiếu nại bị đảo
+    điểm) không thể thay cho giám khảo độc lập: chỉ những bài sinh viên chủ
+    động khiếu nại mới xuất hiện (lệch do chọn mẫu) và chỉ một giáo viên
+    quyết định.
+\end{itemize}
+
+\subsection{Tính nhất quán: bằng chứng hẹp}
+
+\begin{itemize}
+  \item Phép kiểm định exact-match (Mục~\ref{sec:results-consistency}) chạy
+    $N=100$ trên 8 mẫu (4 mẫu dễ và 4 mẫu khó hơn), với mô hình 7B và 1.5B
+    chạy trên llama.cpp. Kết quả đọc là ``không phát hiện mất nhất quán ở
+    $N$ này'', không phải ``đã chứng minh luôn nhất quán''.
+  \item Một trường hợp mất nhất quán thật đã được quan sát ngoài giao thức
+    trên: hai lần gọi \texttt{check\_edge\_case\_handling} cùng đầu vào, cùng
+    seed, cho hai phán quyết \texttt{handled} khác nhau.
+  \item Kết quả đo cho cách triển khai continuous batching của llama.cpp,
+    chưa chắc khái quát sang vLLM hay mức đồng thời cao hơn.
+  \item \textbf{Ứng dụng giáo viên chạy một mô hình khác với mô hình trong các
+    thí nghiệm:} bản triển khai trên Cloudflare dùng
+    \texttt{@cf/qwen/qwen2.5-coder-32b-instruct} qua Workers AI, không phải mô
+    hình dưới 7B được đo ở trên. Tính nhất quán của bản triển khai này chưa
+    được đo ở quy mô $N$ đó; một bài chuẩn chạy mỗi ngày (lưu trong D1, so
+    điểm và dấu vân tay phản hồi thô với mốc) đã được cài để đo dần, nhưng
+    \textbf{chưa có kết quả}.
+\end{itemize}
+
+\subsection{Độ tin cậy của các kiểm tra bằng LLM}
+
+\begin{itemize}
+  \item Ba kiểm tra ngoài correctness vẫn có thể sai theo cách khó thấy. Ví
+    dụ đã gặp ngày 2026-11-27: với một bài tìm kiếm nhị phân đúng độ phức tạp
+    O(log n) nhưng có lỗi vòng lặp, kiểm tra \texttt{efficiency} trả về
+    \texttt{meets\_expected\_complexity=false} bên cạnh
+    \texttt{observed\_pattern="O(log n)"}, và điểm hiệu năng bị trừ nhầm
+    (0.4). Nguyên nhân là đề không nêu độ phức tạp mong đợi và schema đặt kết
+    luận trước phần giải thích. Đã sửa (nêu kỳ vọng và cách làm trước, kết
+    luận sau cùng, thêm bước Python sửa kết luận tự mâu thuẫn) và xác nhận
+    trên một bài nộp thật (0.4 lên 1.0). Đây là \textbf{một} ca, chưa phải
+    phép đo trên cả bộ dữ liệu.
+  \item Kiểm tra \texttt{edge\_case\_handling} có lúc liệt kê các trường hợp mà
+    code thật ra xử lý đúng (mảng rỗng, phần tử đầu tiên) và cùng một lỗi có
+    thể bị trừ điểm đồng thời ở \texttt{correctness} lẫn
+    \texttt{edge\_case\_handling}. Chưa được xử lý.
+  \item Nhiều số liệu lưu trữ có trước các bản sửa: số liệu 1.5B được lưu
+    trước khi sửa công thức \texttt{edge\_case\_handling}, và $\rho=0.88$
+    được tính trước khi \texttt{pipeline.grade()} ép các tiêu chí ngoài
+    correctness về 0 cho bài chưa từng chạy đúng
+    (Mục~\ref{sec:results-open-items}). Cả hai chưa được chạy lại.
+\end{itemize}
+
+\subsection{Phạm vi}
+
+\begin{itemize}
+  \item Chỉ có mã Python, hàm đơn lẻ, bài toán nhỏ; chưa thử bài nhiều tệp
+    hay ngôn ngữ khác.
+  \item Fine-tuning (LoRA) không được đánh giá: quyết định không làm ở T4.1
+    vì ngưỡng nhất quán đã đạt, chứ không phải vì đã so sánh được.
+  \item Cô lập sandbox đủ cho nghiên cứu nhưng chưa được rà soát để dùng
+    trên bài nộp thật (xem \texttt{docs/productionization.md}).
+\end{itemize}
+
 
 % ============================================================
 % Tài liệu tham khảo — inline thebibliography (không cần bibtex/biber).

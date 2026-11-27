@@ -176,10 +176,12 @@ source of truth for project status, not a one-off plan to read once.
   (3/65 samples affected, not yet rerun). Not compiled/verified to build —
   same missing XeLaTeX/LuaLaTeX+polyglossia toolchain issue as T5.2.
 
-- [ ] **T5.4 — Limitations section.**
-  Must include the dataset caveat from `data/script.md` (single-rater
-  labels) and the T3.3 outcome, whichever way it went.
-  ~half day.
+- [x] **T5.4 — Limitations section (2026-11-27).**
+  `\section{Hạn chế}` in `docs/report/latex/main.tex` (label `sec:limitations`): single-rater labels,
+  T3.2/T3.3 skipped (no kappa/ICC), test-suite coverage bound, consistency evidence limited to N=100 on
+  8 samples, the deployed model (Qwen2.5-Coder-32B on Workers AI) differs from the sub-7B models measured,
+  the efficiency-check contradiction found and fixed on 2026-11-27 (one case, not a dataset measurement),
+  and results that predate later fixes. Compiles with XeLaTeX (20 pages, no undefined references).
 
 ## Phase 6 — Teacher app on Cloudflare (new direction, 2026-11-25)
 
@@ -200,6 +202,22 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.3c — Problem catalog (2026-11-26).** Title, category and difficulty on every problem (migration 0004, bank metadata in `data/problems.py`, metadata-only seed upsert), searchable/filterable/sortable picker in the exam form; spec and plan in `docs/superpowers/`.
 - [x] **T6.4 — Phase 3 (2026-11-27):** appeals (student files by receipt code, teacher reviews the AI trail and decides, adjustments are new score revisions), daily Cron expires stale appeals, teacher appeals page. **Workflows skipped:** waiting for the teacher is one API call updating D1, so a Workflow added nothing. **Email skipped:** no domain; Cloudflare email needs one, Brevo with a Gmail sender fails DKIM/DMARC. Spec and plan in `docs/superpowers/`. Deployed 2026-11-27.
 - [x] **T6.5 — Phase 4 (2026-11-27, deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Checked live: one real submission graded through the Gateway with structured output, and the Analytics Engine SQL returned its point. Still to check: the first Cron canary run (03:17 UTC) and the Gateway log lines in the dashboard. CI deploy already existed (T6.1b).
+
+## Open items (noted 2026-11-27, not scheduled)
+
+- [ ] **Check the first daily canary run.** The Cron runs at 03:17 UTC; from 2026-11-28 read the "Độ ổn định" table
+  on `/teacher/admin` (or `canary_runs` in D1). A `LỆCH` row means score or raw LLM responses differ from the baseline.
+  Also decide whether the style score change seen on 2026-11-27 (0.6 to 1.0 on a resubmission whose code may have
+  differed) was nondeterminism or a different input.
+- [ ] **Edge-case check overlaps with correctness.** One loop bug is penalised twice (correctness and
+  `edge_case_handling`), and the check can list cases the code handles (observed: "Empty array", "first element" for a
+  binary search that handles both). Whether to separate the two is a design decision; changing the prompt needs a
+  measurement on the live model first, which needs a Workers AI API token (the `wrangler` OAuth token was not used).
+- [ ] **Efficiency fix only confirmed on one submission.** Re-measure over the whole dataset (`experiments/`) once a
+  Workers AI token is available, then report it in the Limitations section instead of "one case".
+- [ ] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
+  `readAudit` and log it, log the cron's expired count, show "adjusted to X" to the student, rate-limit appeals by
+  IP + receipt, `DecisionForm` should refresh on a 409, rename the "pipeline"/"ai" labels in the score history.
 
 ## Notes
 

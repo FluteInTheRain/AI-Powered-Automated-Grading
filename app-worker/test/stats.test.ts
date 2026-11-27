@@ -79,4 +79,13 @@ describe("exam stats", () => {
     expect(s).toMatchObject({ submitted: 1, mean_total: 60, grading: 0, failed: 0 });
     expect(s.questions[0].mean_score).toBe(60);
   });
+
+  it("shows no pass rate, not 0%, when the stored result has no execution_result", async () => {
+    const f = await seedGradedAttempt({ graded: false });
+    const odd = { fetch: async () => jsonRes({ result: { final_score_0_to_100: 50, sub_scores_0_to_1: { correctness: 0.5 }, check_details: null, feedback: null }, call_log: [] }) } as unknown as Fetcher;
+    await drain(f.queue, odd);
+    const s = await getExamStats(env.DB, f.examId);
+    expect(s.questions[0].pass_rate).toBeNull();
+    expect(s.questions[0].mean_score).toBe(50);
+  });
 });

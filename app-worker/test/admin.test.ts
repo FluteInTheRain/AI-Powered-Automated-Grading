@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isAdmin } from "../src/admin";
 import { queryHealth } from "../src/analytics_sql";
 import { createAppeal, decideAppeal } from "../src/db/appeals";
@@ -49,6 +49,16 @@ describe("queryHealth", () => {
     ["a body without data", async () => jsonRes({ nope: 1 })],
   ])("returns null on %s", async (_n, h) => {
     expect(await queryHealth(creds, h as unknown as typeof fetch)).toBeNull();
+  });
+
+  it("logs the HTTP status when the SQL API refuses, so a bad token can be told from a missing one", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await queryHealth(creds, (async () => jsonRes({ errors: [] }, 401)) as unknown as typeof fetch);
+    expect(warn.mock.calls.flat().join(" ")).toContain("401");
+    warn.mockClear();
+    await queryHealth({}, (async () => jsonRes({})) as unknown as typeof fetch);
+    expect(warn.mock.calls.flat().join(" ")).toContain("CF_API_TOKEN");
+    warn.mockRestore();
   });
 
   it("returns null without credentials and does not call fetch", async () => {

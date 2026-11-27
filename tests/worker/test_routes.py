@@ -354,6 +354,23 @@ class _EnvMiddleware:
         await self.app(scope, receive, send)
 
 
+def test_missing_gateway_id_is_logged_and_grading_runs_without_the_gateway(monkeypatch, caplog):
+    monkeypatch.setattr(bridges, "_default_run_sync", lambda: ident)
+    env = SimpleNamespace(DB=FakeD1(), AI=FakeAI(), SANDBOX=SwitchBinding(), LLM_MODEL="@cf/some/model")
+    app = FastAPI()
+    clients = []
+
+    @app.get("/probe")
+    async def probe(client=Depends(routes.get_llm_client)):
+        clients.append(client)
+        return {}
+
+    with caplog.at_level(logging.WARNING, logger=routes.logger.name):
+        TestClient(_EnvMiddleware(app, env)).get("/probe")
+    assert "GATEWAY_ID is not set" in caplog.text
+    assert clients[0].gateway_id is None
+
+
 def test_real_dependencies_read_the_worker_env(monkeypatch, caplog):
     monkeypatch.setattr(bridges, "_default_run_sync", lambda: ident)
     worker_env = SimpleNamespace(DB=FakeD1(), AI=FakeAI(), SANDBOX=SwitchBinding(), LLM_MODEL=None)
