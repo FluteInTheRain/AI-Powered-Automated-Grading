@@ -39,6 +39,29 @@ def _numbered(code: str) -> str:
     return "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
 
 
+_STYLE_VI = {"clean": "Tốt", "medium": "Trung bình", "poor": "Kém"}
+
+
+def _describe(check: str, detail: dict) -> str:
+    """One plain Vietnamese sentence for what a rubric check found, built from its structured result (never raw JSON)."""
+    if check == "efficiency":
+        observed = detail.get("observed_pattern")
+        expected = detail.get("expected_complexity")
+        if observed and expected:
+            return f"AI nhận định thuật toán chạy ở mức {observed}, trong khi bài này cần {expected}."
+        if observed:
+            return f"AI nhận định thuật toán chạy ở mức {observed}, chưa đạt độ phức tạp mong đợi."
+    elif check == "code_style":
+        level = detail.get("level")
+        if level:
+            return f"Mức phong cách code: {_STYLE_VI.get(level, level)}."
+    elif check == "edge_case_handling":
+        missing = detail.get("missing_cases") or []
+        if missing:
+            return "Chưa xử lý các trường hợp: " + ", ".join(missing) + "."
+    return "Phần kiểm tra này chưa cho điểm tối đa."
+
+
 def _fill_missing_issues(
     feedback: CodeFeedback, sub_scores_0_to_1: dict, check_details: dict | None
 ) -> CodeFeedback:
@@ -62,9 +85,7 @@ def _fill_missing_issues(
         feedback.issues.append(FeedbackItem(
             line=1,
             issue=f"{_VI_LABEL[check]}: {score:.2f} (chưa đạt tối đa)",
-            explanation=f"Phần kiểm tra {_VI_LABEL[check]} đã ghi nhận vấn đề "
-                        f"(chi tiết: {json.dumps(detail, ensure_ascii=False)}), nhưng mô hình "
-                        f"nhận xét không chỉ ra dòng cụ thể.",
+            explanation=f"{_describe(check, detail)} Mô hình nhận xét không chỉ ra dòng cụ thể.",
             suggested_fix=f"Tự xem lại bài nộp về {_VI_LABEL[check]}.",
         ))
     return feedback
