@@ -6,6 +6,7 @@ import { verifyTurnstile, type TurnstileVerifier } from "./turnstile";
 import { syntaxRoutes } from "./routes/syntax";
 import { studentRoutes } from "./routes/student";
 import { studentAppealRoutes } from "./routes/student_appeals";
+import { teacherAppealRoutes } from "./routes/teacher_appeals";
 import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
 import { teacherSettingsRoutes } from "./routes/teacher_settings";
@@ -25,6 +26,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route("/api/teacher", teacherProblemRoutes());
   app.route("/api/teacher", teacherExamRoutes());
   app.route("/api/teacher", teacherSettingsRoutes());
+  app.route("/api/teacher", teacherAppealRoutes());
   return app;
 }
 
