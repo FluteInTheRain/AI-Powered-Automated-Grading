@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { recordGrading } from "../src/metrics";
 import { drain, fakeMetrics, jsonRes } from "./helpers";
@@ -51,5 +52,15 @@ describe("events from the queue consumer", () => {
     await drain(f.queue, down, 3, { METRICS: m.binding });
     expect(m.points.map((p) => p.blobs![0])).toEqual(["retry", "failed"]);
     expect(m.points.map((p) => p.doubles![2])).toEqual([1, 3]);
+  });
+
+  it("a malformed grader result cannot make a stored grade retry or fail", async () => {
+    const f = await seedGradedAttempt({ graded: false });
+    const odd = { fetch: async () => jsonRes({ result: { final_score_0_to_100: 50, sub_scores_0_to_1: { correctness: 0.5 }, check_details: null, feedback: null }, call_log: [] }) } as unknown as Fetcher;
+    const m = fakeMetrics();
+    await drain(f.queue, odd, 1, { METRICS: m.binding });
+    const job = await env.DB.prepare("SELECT status FROM grading_jobs WHERE submission_id = ?").bind(f.submissionId).first<any>();
+    expect(job.status).toBe("done");
+    expect(f.queue.sent).toHaveLength(0);
   });
 });

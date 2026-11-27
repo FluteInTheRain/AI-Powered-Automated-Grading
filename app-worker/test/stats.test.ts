@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createAppeal, decideAppeal } from "../src/db/appeals";
 import { getExamStats } from "../src/db/stats";
 import { seedGradedAttempt } from "./appeals_fixture";
+import { drain, jsonRes } from "./helpers";
 
 describe("exam stats", () => {
   it("summarizes one graded question", async () => {
@@ -59,5 +60,23 @@ describe("exam stats", () => {
     await decideAppeal(env.DB, { id, decision: "adjusted", note: "n", score: 80, teacherEmail: f.teacher, now: new Date() });
     const s = await getExamStats(env.DB, f.examId);
     expect(s.appeals).toEqual({ filed: 1, decided: 1, adjusted: 1 });
+  });
+
+  it("keeps a failed question out of the mean and the histogram but flags it for review", async () => {
+    const f = await seedGradedAttempt({ graded: false });
+    const bad = { fetch: async () => jsonRes({ detail: "bad" }, 400) } as unknown as Fetcher;
+    await drain(f.queue, bad);
+    const s = await getExamStats(env.DB, f.examId);
+    expect(s).toMatchObject({ failed: 1, mean_total: null, needs_review: 1, submitted: 1 });
+    expect(s.histogram).toEqual(Array(10).fill(0));
+    expect(s.questions[0].mean_score).toBeNull();
+  });
+
+  it("counts a Phase 1 submission (a score but no job row) as graded", async () => {
+    const f = await seedGradedAttempt();
+    await env.DB.prepare("DELETE FROM grading_jobs WHERE submission_id = ?").bind(f.submissionId).run();
+    const s = await getExamStats(env.DB, f.examId);
+    expect(s).toMatchObject({ submitted: 1, mean_total: 60, grading: 0, failed: 0 });
+    expect(s.questions[0].mean_score).toBe(60);
   });
 });

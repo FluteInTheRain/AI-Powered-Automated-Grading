@@ -65,17 +65,23 @@ export async function processJob(env: Env, submissionId: string, deliveryAttempt
   const bundle = await getSubmissionBundle(env.DB, submissionId);
   if (!bundle) return "failed";
   const { submission, problem } = bundle;
-  const emit = (outcome: GradingEvent["outcome"], rest: Partial<Omit<GradingEvent, "outcome" | "problemId" | "deliveryAttempt">> = {}) =>
-    recordGrading(env.METRICS, {
-      outcome, problemId: problem.id, deliveryAttempt, model: "", durationMs: 0, score: 0, passCount: 0, total: 0, ...rest,
-    });
+  // The event fields are read lazily and inside the try: a metrics fault must never turn a stored grade into a retry.
+  const emit = (outcome: GradingEvent["outcome"], rest?: () => Partial<Omit<GradingEvent, "outcome" | "problemId" | "deliveryAttempt">>) => {
+    try {
+      recordGrading(env.METRICS, {
+        outcome, problemId: problem.id, deliveryAttempt, model: "", durationMs: 0, score: 0, passCount: 0, total: 0, ...rest?.(),
+      });
+    } catch {
+      /* dropped on purpose */
+    }
+  };
 
   await setJobStatus(env.DB, submissionId, "grading", { bumpAttempts: true });
   try {
     if (submission.code.trim() === problem.starter_code.trim()) {
       const zero = zeroResult(problem, "ran");
       await settle(env, submissionId, zero, [], { status: "done" });
-      emit("blank", { total: zero.execution_result.total });
+      emit("blank", () => ({ total: zero.execution_result.total }));
       return "done";
     }
     const startedAt = Date.now();
@@ -85,10 +91,10 @@ export async function processJob(env: Env, submissionId: string, deliveryAttempt
     });
     const durationMs = Date.now() - startedAt;
     await settle(env, submissionId, out.result, out.call_log, { status: "done" });
-    emit("done", {
+    emit("done", () => ({
       model: out.call_log[0]?.model ?? "", durationMs, score: out.result.final_score_0_to_100,
       passCount: out.result.execution_result.pass_count, total: out.result.execution_result.total,
-    });
+    }));
     return "done";
   } catch (e) {
     if (e instanceof GraderError && isPermanent(e)) {
@@ -96,7 +102,7 @@ export async function processJob(env: Env, submissionId: string, deliveryAttempt
         // No verified behaviour: score zero (so the exam still gets a total) and keep the failure visible.
         const zero = zeroResult(problem, "failed");
         await settle(env, submissionId, zero, [], { status: "failed", error: e.detail });
-        emit("failed", { total: zero.execution_result.total });
+        emit("failed", () => ({ total: zero.execution_result.total }));
         return "failed";
       } catch {
         /* storing the zero failed: handle it like a transient error below */

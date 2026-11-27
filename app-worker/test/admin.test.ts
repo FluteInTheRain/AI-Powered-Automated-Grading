@@ -38,6 +38,8 @@ describe("queryHealth", () => {
     expect(seen[0].init.method).toBe("POST");
     expect((seen[0].init.headers as Record<string, string>).Authorization).toBe("Bearer tok1");
     expect(String(seen[0].init.body)).toContain("grading_events");
+    expect(String(seen[0].init.body)).toContain("quantileExactWeighted(0.95)(");
+    expect(String(seen[0].init.body)).toContain("now()");
   });
 
   it.each([

@@ -21,7 +21,7 @@ export type ExamStats = {
 
 type QuestionRow = {
   attempt_id: string | null; problem_id: string; position: number; weight: number;
-  job_status: string | null; score: number | null; pass_count: number | null; total_cases: number | null;
+  job_status: string | null; has_sub: number; score: number | null; pass_count: number | null; total_cases: number | null;
 } & Record<string, number | string | null>;
 
 /** Aggregates of one exam from D1: three queries (D1 Free caps queries per invocation). Only `done` jobs enter means and pass rates. */
@@ -29,7 +29,7 @@ export async function getExamStats(db: D1Database, examId: string): Promise<Exam
   const critCols = CRITERIA.map((c) => `json_extract(r0.sub_scores, '$.${c}') AS c_${c}`).join(", ");
   const [rows, attemptRow, appealRow] = await db.batch([
     db.prepare(
-      "SELECT a.id AS attempt_id, q.problem_id, q.position, q.weight, j.status AS job_status, sr.score," +
+      "SELECT a.id AS attempt_id, q.problem_id, q.position, q.weight, j.status AS job_status, (s.id IS NOT NULL) AS has_sub, sr.score," +
         " json_extract(r0.detail, '$.execution_result.pass_count') AS pass_count," +
         ` json_extract(r0.detail, '$.execution_result.total') AS total_cases, ${critCols}` +
         " FROM exam_questions q LEFT JOIN attempts a ON a.exam_id = q.exam_id" +
@@ -54,6 +54,8 @@ export async function getExamStats(db: D1Database, examId: string): Promise<Exam
   const byAttempt = new Map<string, QuestionRow[]>();
   let grading = 0, failed = 0;
   for (const r of data) {
+    // Same rule as questionStatus in db/attempts.ts: a Phase 1 submission has a score but no job row, and is done.
+    r.job_status = r.job_status ?? (r.score !== null ? "done" : r.has_sub ? "queued" : null);
     if (r.attempt_id === null || r.job_status === null) continue;
     if (r.job_status === "queued" || r.job_status === "grading") grading++;
     if (r.job_status === "failed") failed++;
@@ -65,7 +67,8 @@ export async function getExamStats(db: D1Database, examId: string): Promise<Exam
   const histogram = Array(10).fill(0);
   const weights = new Map(data.map((r) => [r.problem_id, r.weight]));
   for (const rs of byAttempt.values()) {
-    const complete = rs.length === weights.size && rs.every((r) => r.score !== null);
+    // A failed question is stored as a zero score; it must not drag the mean, so only fully done attempts count.
+    const complete = rs.length === weights.size && rs.every((r) => r.job_status === "done" && r.score !== null);
     const total = complete ? computeTotal(rs.map((r) => ({ weight: r.weight, score: r.score as number }))) : null;
     if (total !== null) {
       totals.push(total);
