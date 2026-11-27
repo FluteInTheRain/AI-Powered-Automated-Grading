@@ -46,6 +46,22 @@ describe('sortProblems', () => {
   })
 })
 
+describe('sortProblems direction, selection and weight', () => {
+  const chosen = { 1: '3', 4: '1' }
+  it('reverses a key with desc', () => {
+    expect(ids(sortProblems(list, 'title', 'desc'))).toEqual(['1', '3', '2', '5', '4'])
+    expect(ids(sortProblems(list, 'difficulty', 'desc'))).toEqual(['4', '1', '3', '2', '5'])
+  })
+  it('puts chosen problems first by selection, ties by title', () => {
+    expect(ids(sortProblems(list, 'selected', 'asc', chosen))).toEqual(['4', '1', '5', '2', '3'])
+    expect(ids(sortProblems(list, 'selected', 'desc', chosen))).toEqual(['5', '2', '3', '4', '1'])
+  })
+  it('sorts by weight and keeps the unchosen ones last in both directions', () => {
+    expect(ids(sortProblems(list, 'weight', 'asc', chosen))).toEqual(['4', '1', '5', '2', '3'])
+    expect(ids(sortProblems(list, 'weight', 'desc', chosen))).toEqual(['1', '4', '5', '2', '3'])
+  })
+})
+
 describe('categoriesOf', () => {
   it('lists each category once, sorted', () => {
     expect(categoriesOf(list)).toEqual(['Arrays & Search', 'Math', 'Strings'])

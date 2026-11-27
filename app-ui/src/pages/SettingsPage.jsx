@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getSettings, putSettings } from '../api.js'
+import Icon from '../components/Icon.jsx'
 import RubricFields, { DEFAULT_RUBRIC, isValidRubric, rubricToNumbers, rubricToStrings } from '../components/RubricFields.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
@@ -65,7 +66,7 @@ export default function SettingsPage() {
             <input id="default-minutes" type="number" min="1" step="1" value={minutes} onChange={(e) => { setMinutes(e.target.value); setSaved(false) }} />
           </div>
           <div className="submit-row">
-            <button className="btn btn-primary" onClick={save} disabled={!canSave}>Lưu cài đặt</button>
+            <button className="btn btn-primary" onClick={save} disabled={!canSave}><Icon name="check" />Lưu cài đặt</button>
             {saved && <span className="status-success" aria-live="polite">Đã lưu</span>}
             {errorMessage && <span className="status-error" role="alert">{errorMessage}</span>}
           </div>

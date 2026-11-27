@@ -163,13 +163,42 @@ describe('ExamResultsPage', () => {
     expect(await screen.findByText(/Error: Unknown exam/)).toBeInTheDocument()
   })
 
-  it('shows the weights of the exam, or says each problem keeps its own', async () => {
+  it('shows the exam weights as rows with their shares, or says each problem keeps its own', async () => {
     api.getExamDetail.mockResolvedValue({ ...detail, rubric: { correctness: 70, efficiency: 10, code_style: 10, edge_case_handling: 10 } })
     const { unmount } = renderResults()
-    expect(await screen.findByText(/Đúng sai 70%/)).toBeInTheDocument()
+    const box = await screen.findByRole('group', { name: 'Trọng số tiêu chí' })
+    expect(within(box).getByText('Đúng sai')).toBeInTheDocument()
+    expect(within(box).getByText('70%')).toBeInTheDocument()
+    expect(within(box).getAllByText('10%')).toHaveLength(3)
     unmount()
     api.getExamDetail.mockResolvedValue({ ...detail, rubric: null })
     renderResults()
     expect(await screen.findByText(/theo từng bài/)).toBeInTheDocument()
+  })
+
+  it('summarises the results: started, average, grading, failed', async () => {
+    renderResults()
+    const summary = await screen.findByRole('region', { name: 'Tóm tắt kết quả' })
+    expect(summary).toHaveTextContent(/Đã bắt đầu\s*3/)
+    expect(summary).toHaveTextContent(/Điểm trung bình\s*65/)
+    expect(summary).toHaveTextContent(/Đang chấm\s*1/)
+    expect(summary).toHaveTextContent(/Lỗi chấm\s*1/)
+  })
+
+  it('describes the score distribution (only finished totals count)', async () => {
+    renderResults()
+    expect(await screen.findByRole('img', { name: /Phân bố điểm.*1 bài từ 50 đến 79.*2 bài chưa có tổng/ })).toBeInTheDocument()
+  })
+
+  it('filters by name and to the rows that need a look', async () => {
+    renderResults()
+    await screen.findByText('An')
+    fireEvent.change(screen.getByLabelText('Tìm học sinh'), { target: { value: 'bin' } })
+    expect(screen.queryByText('An')).toBeNull()
+    expect(screen.getByText('Binh')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Tìm học sinh'), { target: { value: '' } })
+    fireEvent.click(screen.getByLabelText(/Chỉ hiện bài cần xem/))
+    expect(screen.getByText('Chi')).toBeInTheDocument() // has a failed question
+    expect(screen.queryByText('An')).toBeNull()
   })
 })

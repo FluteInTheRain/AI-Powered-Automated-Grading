@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import ProblemPicker from '../src/components/ProblemPicker.jsx'
 
 const problems = [
-  { id: 'a', title: 'Two Sum', category: 'Arrays & Search', difficulty: 'medium', statement: 'Find two numbers that add up to the target.' },
+  { id: 'a', title: 'Two Sum', category: 'Arrays & Search', difficulty: 'medium', statement: '## Ví dụ\n\nFind two numbers that add up to the target.' },
   { id: 'b', title: 'Is Prime', category: 'Math', difficulty: 'easy', statement: 'Return true for primes.' },
   { id: 'c', title: 'Reverse a String', category: 'Strings', difficulty: 'easy', statement: 'Reverse the input.' },
   { id: 'd', title: 'Binary Search', category: 'Arrays & Search', difficulty: 'hard', statement: 'Search a sorted list.' },
@@ -21,7 +21,7 @@ function Harness() {
     />
   )
 }
-const titles = () => screen.getAllByRole('checkbox').map((c) => c.closest('label').textContent)
+const titles = () => screen.getAllByRole('checkbox').map((c) => document.querySelector(`label[for="${c.id}"]`).textContent)
 
 describe('ProblemPicker', () => {
   it('shows title, category and the Vietnamese difficulty per problem and a count', () => {
@@ -79,10 +79,81 @@ describe('ProblemPicker', () => {
     expect(screen.getByLabelText('Trọng số Two Sum')).toHaveValue(3)
   })
 
-  it('reveals the statement under "Xem đề"', () => {
+  it('opens the whole statement, rendered as markdown, in a dialog', () => {
     render(<Harness />)
-    const row = screen.getByLabelText(/Two Sum/).closest('.problem-row')
-    fireEvent.click(within(row).getByText('Xem đề'))
-    expect(within(row).getByText('Find two numbers that add up to the target.')).toBeVisible()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const row = screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')
+    fireEvent.click(within(row).getByRole('button', { name: 'Xem đề' }))
+    const dialog = screen.getByRole('dialog', { name: 'Two Sum' })
+    expect(within(dialog).getByRole('heading', { name: 'Ví dụ' })).toBeInTheDocument() // markdown, not raw "## Ví dụ"
+    expect(within(dialog).getByText('Find two numbers that add up to the target.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Arrays & Search')).toBeInTheDocument()
+    expect(within(dialog).getByText('Vừa')).toBeInTheDocument()
+  })
+
+  it('closes the dialog with the close button and with Escape', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('chooses and unchooses the problem from inside the dialog', () => {
+    render(<Harness />)
+    fireEvent.click(within(screen.getByRole('checkbox', { name: 'Two Sum' }).closest('tr')).getByRole('button', { name: 'Xem đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn câu này' }))
+    expect(screen.getByRole('checkbox', { name: 'Two Sum' })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }))
+    expect(screen.getByRole('checkbox', { name: 'Two Sum' })).not.toBeChecked()
+  })
+
+  it('is a real table with column headers and one row per problem', () => {
+    render(<Harness />)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['', 'Tiêu đề', 'Loại', 'Độ khó', 'Trọng số'])
+    for (const h of screen.getAllByRole('columnheader')) expect(within(h).getByRole('button')).toBeInTheDocument() // every column sorts
+    expect(screen.getAllByRole('row')).toHaveLength(6) // header + 5 problems
+  })
+
+  it('sorts when a column header is clicked and marks it with aria-sort', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    expect(titles()[0]).toBe('Binary Search')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).toHaveAttribute('aria-sort', 'ascending')
+    fireEvent.click(screen.getByRole('button', { name: 'Độ khó' }))
+    expect(titles()[0]).toBe('Factorial')
+    expect(screen.getByRole('columnheader', { name: 'Độ khó' })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('a second click on the same header reverses the order', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tiêu đề' }))
+    expect(titles()[0]).toBe('Two Sum')
+    expect(screen.getByRole('columnheader', { name: 'Tiêu đề' })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sorts by the selection and by weight from their headers', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Reverse a String' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Factorial' }))
+    fireEvent.change(screen.getByLabelText('Trọng số Factorial'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sắp xếp theo câu đã chọn' }))
+    expect(titles().slice(0, 2)).toEqual(['Factorial', 'Reverse a String'])
+    fireEvent.click(screen.getByRole('button', { name: 'Trọng số' }))
+    expect(titles().slice(0, 2)).toEqual(['Reverse a String', 'Factorial']) // weight 1 before weight 5
+    fireEvent.click(screen.getByRole('button', { name: 'Trọng số' }))
+    expect(titles().slice(0, 2)).toEqual(['Factorial', 'Reverse a String'])
+  })
+
+  it('the sort select and the direction button work together (phones have no table header)', () => {
+    render(<Harness />)
+    fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Đảo chiều sắp xếp' }))
+    expect(titles()[0]).toBe('Two Sum')
   })
 })
