@@ -5,6 +5,8 @@ export type Env = {
   GRADING_QUEUE: Queue<{ submission_id: string }>;
   ATTEMPT: DurableObjectNamespace<AttemptDO>;
   AUDIT: R2Bucket;
+  /** Analytics Engine dataset `grading_events`; optional so a missing binding never breaks grading. */
+  METRICS?: AnalyticsEngineDataset;
   RL_START: RateLimit;
   RL_SYNTAX: RateLimit;
   RL_ACTION: RateLimit;
@@ -16,6 +18,11 @@ export type Env = {
   INTERNAL_TOKEN: string;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
+  /** Comma-separated emails allowed on the developer metrics page. Set as a secret, never in wrangler.jsonc. */
+  ADMIN_EMAILS?: string;
+  CF_ACCOUNT_ID?: string;
+  /** Read-only token (Account Analytics: Read) for the Analytics Engine SQL API. */
+  CF_API_TOKEN?: string;
   /** Local development only (.dev.vars). Never set in wrangler.jsonc. */
   DEV_AUTH_BYPASS?: string;
 };

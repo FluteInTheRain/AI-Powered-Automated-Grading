@@ -22,6 +22,8 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AttemptDO"] }],
   // Full LLM prompts and raw responses of every graded submission.
   "r2_buckets": [{ "binding": "AUDIT", "bucket_name": "teacher-app-audit" }],
+  // One data point per grading attempt (outcome, duration, score): read by the developer page.
+  "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "grading_events" }],
   // Once a day (03:17 UTC): expire appeals that sat open too long.
   "triggers": { "crons": ["17 3 * * *"] },
   "ratelimits": [

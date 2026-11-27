@@ -39,6 +39,13 @@ as failing DKIM/DMARC). Migration `0005` and the cron trigger go live with the n
 Scores are append-only rows in `score_revisions` (revision 0 = the AI score); the schema
 rejects `UPDATE`/`DELETE` on scores and submissions.
 
+Metrics (T6.5, `docs/superpowers/specs/2026-11-27-phase4-observability-design.md`, decisions in `docs/adr/`): teacher `GET exams/:id/stats`
+(D1 aggregates: score histogram, per-question pass rate, per-criterion means, appeal counts); admin-only `GET admin/metrics` (canary history,
+overturn signal, grading health from the Analytics Engine SQL API). The queue consumer writes one Analytics Engine point per grading attempt
+(binding `METRICS`, dataset `grading_events`); the daily cron also grades a fixed canary into `canary_runs`. Admin access, the SQL read and the
+Gateway need setup outside the repo: secrets `ADMIN_EMAILS` (comma-separated), `CF_ACCOUNT_ID`, `CF_API_TOKEN` (Account Analytics: Read), set with
+`wrangler secret put` in `app-worker/`; and an AI Gateway named `teacher-app-gateway` (cache off) must exist before the `grading` Worker deploys.
+
 ## Deploy (first time)
 
 Steps marked **(you)** need your Cloudflare login or the dashboard.
