@@ -203,6 +203,22 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.4 — Phase 3 (2026-11-27):** appeals (student files by receipt code, teacher reviews the AI trail and decides, adjustments are new score revisions), daily Cron expires stale appeals, teacher appeals page. **Workflows skipped:** waiting for the teacher is one API call updating D1, so a Workflow added nothing. **Email skipped:** no domain; Cloudflare email needs one, Brevo with a Gmail sender fails DKIM/DMARC. Spec and plan in `docs/superpowers/`. Deployed 2026-11-27.
 - [x] **T6.5 — Phase 4 (2026-11-27, deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Checked live: one real submission graded through the Gateway with structured output, and the Analytics Engine SQL returned its point. Still to check: the first Cron canary run (03:17 UTC) and the Gateway log lines in the dashboard. CI deploy already existed (T6.1b).
 
+## Open items (noted 2026-11-27, not scheduled)
+
+- [ ] **Check the first daily canary run.** The Cron runs at 03:17 UTC; from 2026-11-28 read the "Độ ổn định" table
+  on `/teacher/admin` (or `canary_runs` in D1). A `LỆCH` row means score or raw LLM responses differ from the baseline.
+  Also decide whether the style score change seen on 2026-11-27 (0.6 to 1.0 on a resubmission whose code may have
+  differed) was nondeterminism or a different input.
+- [ ] **Edge-case check overlaps with correctness.** One loop bug is penalised twice (correctness and
+  `edge_case_handling`), and the check can list cases the code handles (observed: "Empty array", "first element" for a
+  binary search that handles both). Whether to separate the two is a design decision; changing the prompt needs a
+  measurement on the live model first, which needs a Workers AI API token (the `wrangler` OAuth token was not used).
+- [ ] **Efficiency fix only confirmed on one submission.** Re-measure over the whole dataset (`experiments/`) once a
+  Workers AI token is available, then report it in the Limitations section instead of "one case".
+- [ ] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
+  `readAudit` and log it, log the cron's expired count, show "adjusted to X" to the student, rate-limit appeals by
+  IP + receipt, `DecisionForm` should refresh on a 409, rename the "pipeline"/"ai" labels in the score history.
+
 ## Notes
 
 - **Productionization ideas are tracked separately, not here.** See
