@@ -374,6 +374,11 @@ export default function ExamPage() {
       <header className="top">
         <span className="word">{exam.title}</span>
         <span className="sp" />
+        {phase === 'in_progress' && attempt && (
+          <span className="receipt" title="Lưu mã này để xem điểm và khiếu nại sau, kể cả khi tải lại trang">
+            <span className="hide-s">Mã biên nhận: </span><code>{attempt.receipt_code}</code>
+          </span>
+        )}
         {inProgress && !submitted && <span className="muted num hide-s">Đã làm {answered} trên {questions.length} câu</span>}
         {phase === 'in_progress' && <Timer durationSeconds={durationSeconds} isRunning={!submitted} onExpire={submitWholeExam} />}
         <ThemeToggle />
@@ -469,9 +474,6 @@ export default function ExamPage() {
                 <p className="hidden-note">
                   {question.public_case_count} public test case(s) — use "Run Tests" to check pass/fail. Your score is based
                   only on the {question.hidden_case_count} hidden test case(s).
-                </p>
-                <p className="hidden-note">
-                  Mã biên nhận của bạn: <code>{attempt.receipt_code}</code> — hãy lưu lại để xem điểm sau, kể cả khi tải lại trang.
                 </p>
                 {state.status === 'done' && state.result && <ResultPanel result={state.result} />}
                 {state.gaveUp && state.status !== 'done' && (

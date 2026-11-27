@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../src/api.js'
@@ -159,6 +159,17 @@ describe('resume', () => {
     expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
     expect(screen.getByText('94.0 / 100')).toBeInTheDocument()
     expect(screen.getByText(/Tổng điểm: 80/)).toBeInTheDocument()
+  })
+})
+
+describe('the receipt code while taking or after submitting the exam', () => {
+  it('sits once in the top bar, always in view, and not again in the problem pane', async () => {
+    localStorage.setItem('exam:tok', JSON.stringify({ attempt_id: 'att1', receipt_code: 'RCPT123' }))
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 300, submitted: false, questions: questions() })
+    renderPage()
+    await screen.findByRole('button', { name: 'Nộp bài' })
+    expect(within(screen.getByRole('banner')).getByText('RCPT123')).toBeInTheDocument()
+    expect(screen.getAllByText('RCPT123')).toHaveLength(1)
   })
 })
 
