@@ -72,4 +72,27 @@ describe('AdminMetricsPage', () => {
     renderPage()
     expect(await screen.findByText('Error: boom')).toBeInTheDocument()
   })
+  it('explains an empty health table instead of showing bare headers', async () => {
+    api.getAdminMetrics.mockResolvedValue(metrics({ health: [] }))
+    renderPage()
+    expect(await screen.findByText(/Chưa có dữ liệu trong 14 ngày/)).toBeInTheDocument()
+  })
+
+  it('warns when the canary has not run for more than a day, and stays quiet when it is fresh', async () => {
+    api.getAdminMetrics.mockResolvedValue(metrics({ canary: [{ ran_at: new Date(Date.now() - 40 * 3600_000).toISOString(), score: 80, status: 'ok', verdict: 'stable', error: null }] }))
+    const { unmount } = renderPage()
+    expect(await screen.findByText(/Bài chuẩn chưa chạy 40 giờ/)).toBeInTheDocument()
+    unmount()
+    api.getAdminMetrics.mockResolvedValue(metrics({ canary: [{ ran_at: new Date(Date.now() - 2 * 3600_000).toISOString(), score: 80, status: 'ok', verdict: 'stable', error: null }] }))
+    renderPage()
+    await screen.findByText('Ổn định')
+    expect(screen.queryByText(/Bài chuẩn chưa chạy/)).toBeNull()
+  })
+
+  it('does not call a canary that has never run stale', async () => {
+    api.getAdminMetrics.mockResolvedValue(metrics({ canary: [] }))
+    renderPage()
+    expect(await screen.findByText(/Chưa có lần chạy nào/)).toBeInTheDocument()
+    expect(screen.queryByText(/Bài chuẩn chưa chạy/)).toBeNull()
+  })
 })

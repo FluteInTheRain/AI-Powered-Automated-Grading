@@ -9,6 +9,8 @@ const VERDICT = {
   mismatch: ['LỆCH', 'canary-bad'],
   error: ['Lỗi chấm bài chuẩn', 'canary-err'],
 }
+const STALE_AFTER_HOURS = 26 // the cron runs daily; a little slack for a late run
+
 const delta = (v) => (v === null ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v * 10) / 10}`)
 
 export default function AdminMetricsPage() {
@@ -24,6 +26,7 @@ export default function AdminMetricsPage() {
   }
   if (!data) return <p className="status-line">Loading…</p>
   const { canary, overturn, health, label } = data
+  const hoursSinceCanary = canary.length ? Math.floor((Date.now() - new Date(canary[0].ran_at).getTime()) / 3600_000) : null
 
   return (
     <>
@@ -38,6 +41,9 @@ export default function AdminMetricsPage() {
         <section aria-label="Độ ổn định">
           <h2>Độ ổn định (bài chuẩn chấm mỗi ngày)</h2>
           <p className="muted">Cùng một bài, cùng điểm. Dòng LỆCH nghĩa là điểm hoặc phản hồi của AI khác với mốc.</p>
+          {hoursSinceCanary !== null && hoursSinceCanary > STALE_AFTER_HOURS && (
+            <p className="status-error" role="alert">{`Bài chuẩn chưa chạy ${hoursSinceCanary} giờ: kiểm tra Cron (03:17 UTC) và log của Worker.`}</p>
+          )}
           <table className="stack">
             <thead><tr><th>Lúc chạy</th><th>Điểm</th><th>Kết quả</th></tr></thead>
             <tbody>
@@ -60,6 +66,8 @@ export default function AdminMetricsPage() {
           <h2>Sức khoẻ chấm bài (14 ngày)</h2>
           {health === null ? (
             <p className="muted">Không có dữ liệu sức khoẻ chấm bài</p>
+          ) : health.length === 0 ? (
+            <p className="muted">Chưa có dữ liệu trong 14 ngày. Nếu đã có bài được chấm, hãy kiểm tra binding METRICS và dataset grading_events.</p>
           ) : (
             <table className="stack">
               <thead><tr><th>Ngày</th><th>Kết quả</th><th>Số lượt</th><th>p50 (ms)</th><th>p95 (ms)</th></tr></thead>
