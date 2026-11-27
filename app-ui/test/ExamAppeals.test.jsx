@@ -102,6 +102,13 @@ describe('ExamAppealsPage', () => {
     expect(api.listExamAppeals.mock.calls.length).toBeGreaterThan(loads)
   })
 
+  it('marks the new score field as out of 100', async () => {
+    await open()
+    await screen.findByText('Please recheck')
+    fireEvent.click(screen.getByLabelText('Chỉnh điểm'))
+    expect(screen.getByText(/thang 100/)).toBeInTheDocument()
+  })
+
   it('keeps the save button disabled until there is a note (and a score when adjusting)', async () => {
     await open()
     await screen.findByText('Please recheck')

@@ -345,7 +345,7 @@ export default function ExamPage() {
               </div>
             ))}
           </div>
-          <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
+          <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}/100`}</p>
           {lookup.questions.map((q, i) => {
             if (q.score === null) return null
             const appeal = appeals.find((a) => a.problem_id === q.problem_id)
@@ -428,7 +428,7 @@ export default function ExamPage() {
           {submitted && (
             <div className="notice" aria-live="polite">
               <p style={{ margin: 0 }}>Đã chấm {gradedCount}/{questions.length} câu{allDone ? '' : '…'}</p>
-              {allDone && total !== null && <p className="final-score-value">Tổng điểm: {total}</p>}
+              {allDone && total !== null && <p className="final-score-value">Tổng điểm: {total}/100</p>}
             </div>
           )}
           {!submitted && confirming && (

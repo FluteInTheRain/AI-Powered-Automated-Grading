@@ -90,6 +90,7 @@ function DecisionForm({ appealId, onDone }) {
         <div className="field-row">
           <label htmlFor="appeal-score">Điểm mới</label>
           <input id="appeal-score" type="number" min="0" max="100" value={score} onChange={(e) => setScore(e.target.value)} />
+          <span className="muted">thang 100</span>
         </div>
       )}
       <label htmlFor="appeal-note">Ghi chú cho sinh viên</label>

@@ -93,7 +93,7 @@ export default function ExamResultsPage() {
         <div className="head">
           <div>
             <h1>{exam.title}</h1>
-            <p className="muted">{exam.deadline ? `Hạn chót ${when(exam.deadline)}` : 'Chưa đặt hạn chót'}</p>
+            <p className="muted">{exam.deadline ? `Hạn chót ${when(exam.deadline)}` : 'Chưa đặt hạn chót'} · Điểm theo thang 100</p>
           </div>
           <span className={`st ${isClosed ? 'st-closed' : 'st-open'}`}>{isClosed ? 'Đã đóng' : 'Đang mở'}</span>
         </div>

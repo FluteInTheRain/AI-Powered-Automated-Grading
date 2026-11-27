@@ -195,6 +195,11 @@ describe('ExamResultsPage', () => {
     expect(summary).toHaveTextContent(/Lỗi chấm\s*1/)
   })
 
+  it('says the scores are on a 0-100 scale', async () => {
+    renderResults()
+    expect(await screen.findByText(/Điểm theo thang 100/)).toBeInTheDocument()
+  })
+
   it('describes the score distribution (only finished totals count)', async () => {
     renderResults()
     expect(await screen.findByRole('img', { name: /Phân bố điểm.*1 bài từ 50 đến 79.*2 bài chưa có tổng/ })).toBeInTheDocument()

@@ -158,7 +158,7 @@ describe('resume', () => {
     await tick(2000)
     expect(screen.getByText(/Đã chấm 2\/2 câu/)).toBeInTheDocument()
     expect(screen.getByText('94.0 / 100')).toBeInTheDocument()
-    expect(screen.getByText(/Tổng điểm: 80/)).toBeInTheDocument()
+    expect(screen.getByText(/Tổng điểm: 80\/100/)).toBeInTheDocument()
   })
 })
 
