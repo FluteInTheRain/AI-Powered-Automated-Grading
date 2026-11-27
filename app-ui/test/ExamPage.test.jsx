@@ -56,6 +56,7 @@ beforeEach(() => {
   api.submitExam.mockResolvedValue({ status: 'queued', problem_ids: ['p1', 'p2'] })
   api.getQuestionStatus.mockResolvedValue(done())
   api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', questions: [], total: 80 })
+  api.listAppeals.mockResolvedValue([])
 })
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks(); localStorage.clear() })
 
@@ -427,5 +428,83 @@ describe('receipt lookup', () => {
     expect(await screen.findByText(/Tổng điểm: 70/)).toBeInTheDocument()
     expect(screen.getByText('80.0')).toBeInTheDocument()
     expect(screen.getByText('60.0')).toBeInTheDocument()
+  })
+})
+
+describe('appeals from the receipt lookup', () => {
+  const lookupWith = async (scores = [80, null], appeals = []) => {
+    api.getAttemptByReceipt.mockResolvedValue({
+      student_name: 'An', total: null, questions: scores.map((score, i) => ({ problem_id: `p${i + 1}`, score, feedback: null })),
+    })
+    api.listAppeals.mockResolvedValue(appeals)
+    renderPage()
+    fireEvent.change(await screen.findByLabelText('Mã biên nhận'), { target: { value: 'RCPT123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Xem điểm' }))
+    await screen.findByText(/Chưa nộp đủ|Tổng điểm/)
+  }
+  const decided = { problem_id: 'p1', status: 'adjusted', message: 'm', decision_note: 'Case was fine', score: 85, created_at: 'x', decided_at: 'y' }
+  const verifyAppeal = () => fireEvent.click(screen.getAllByRole('button', { name: 'Verify' }).at(-1)) // the name gate has its own widget
+
+  it('offers an appeal only for a question that has a score', async () => {
+    await lookupWith([80, null])
+    expect(screen.getByRole('button', { name: 'Khiếu nại câu 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Khiếu nại câu 2' })).not.toBeInTheDocument()
+  })
+
+  it('sends the message and the Turnstile token, then shows the appeal as waiting', async () => {
+    await lookupWith([80, 60])
+    api.fileAppeal.mockResolvedValue({ status: 'open' })
+    fireEvent.click(screen.getByRole('button', { name: 'Khiếu nại câu 1' }))
+    const send = screen.getByRole('button', { name: 'Gửi khiếu nại' })
+    expect(send).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Lý do khiếu nại'), { target: { value: 'Điểm sai' } })
+    expect(send).toBeDisabled()
+    verifyAppeal()
+    expect(send).toBeEnabled()
+    api.listAppeals.mockResolvedValue([{ ...decided, status: 'open', decision_note: null, decided_at: null }])
+    await act(async () => { fireEvent.click(send) })
+    expect(api.fileAppeal).toHaveBeenCalledWith('tok', 'RCPT123', 'p1', 'Điểm sai', 'tok123')
+    expect(await screen.findByText('Đang chờ')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Khiếu nại câu 1' })).not.toBeInTheDocument()
+  })
+
+  it('shows the status and the teacher note of a decided appeal, with no button for that question', async () => {
+    await lookupWith([80, 60], [decided])
+    expect(screen.getByText('Đã chỉnh điểm')).toBeInTheDocument()
+    expect(screen.getByText(/Case was fine/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Khiếu nại câu 1' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Khiếu nại câu 2' })).toBeInTheDocument()
+  })
+
+  it('shows the server message when filing fails', async () => {
+    await lookupWith([80])
+    api.fileAppeal.mockRejectedValue(new Error('This question already has an appeal.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Khiếu nại câu 1' }))
+    fireEvent.change(screen.getByLabelText('Lý do khiếu nại'), { target: { value: 'x' } })
+    verifyAppeal()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Gửi khiếu nại' })) })
+    expect(await screen.findByText('This question already has an appeal.')).toBeInTheDocument()
+  })
+  it('a failing appeals list does not hide the scores, and says the appeals could not be loaded', async () => {
+    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', total: null, questions: [{ problem_id: 'p1', score: 80, feedback: null }] })
+    api.listAppeals.mockRejectedValue(new Error('boom'))
+    renderPage()
+    fireEvent.change(await screen.findByLabelText('Mã biên nhận'), { target: { value: 'RCPT123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Xem điểm' }))
+    expect(await screen.findByText(/Chưa nộp đủ/)).toBeInTheDocument()
+    expect(screen.getByText('An')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/khiếu nại/i)
+  })
+
+  it('when the appeal was filed but the list refresh fails, the question shows it as waiting instead of offering another appeal', async () => {
+    await lookupWith([80])
+    api.fileAppeal.mockResolvedValue({ status: 'open' })
+    fireEvent.click(screen.getByRole('button', { name: 'Khiếu nại câu 1' }))
+    fireEvent.change(screen.getByLabelText('Lý do khiếu nại'), { target: { value: 'x' } })
+    verifyAppeal()
+    api.listAppeals.mockRejectedValue(new Error('boom'))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Gửi khiếu nại' })) })
+    expect(await screen.findByText('Đang chờ')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Khiếu nại câu 1' })).not.toBeInTheDocument()
   })
 })

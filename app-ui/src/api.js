@@ -41,6 +41,9 @@ export const runTests = (token, attemptId, problemId, code) =>
 export const submitExam = (token, attemptId, answers) =>
   post(`/api/exam/${token}/attempts/${attemptId}/submit`, { answers })
 export const getAttemptByReceipt = (token, receipt) => request(`/api/exam/${token}/attempts/by-receipt/${receipt}`)
+export const listAppeals = (token, receipt) => request(`/api/exam/${token}/attempts/by-receipt/${receipt}/appeals`)
+export const fileAppeal = (token, receipt, problemId, message, turnstileToken) =>
+  post(`/api/exam/${token}/attempts/by-receipt/${receipt}/appeals`, { problem_id: problemId, message, turnstile_token: turnstileToken })
 export const checkSyntax = (code) => post('/api/syntax-check', { code })
 
 // --- Teacher (behind Cloudflare Access) ------------------------------------
@@ -56,3 +59,7 @@ export const updateDeadline = (id, deadline) =>
   request(`/api/teacher/exams/${id}`, { method: 'PATCH', body: JSON.stringify({ deadline }) })
 export const getSettings = () => request('/api/teacher/settings')
 export const putSettings = (settings) => request('/api/teacher/settings', { method: 'PUT', body: JSON.stringify(settings) })
+export const listExamAppeals = (id) => request(`/api/teacher/exams/${id}/appeals`)
+export const getAppeal = (appealId) => request(`/api/teacher/appeals/${appealId}`)
+export const startAppealReview = (appealId) => post(`/api/teacher/appeals/${appealId}/review`, {})
+export const decideAppeal = (appealId, body) => post(`/api/teacher/appeals/${appealId}/decision`, body)

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useParams } from 'react-router-dom'
 import {
-  getAttemptByReceipt, getExam, getQuestionStatus, resumeAttempt, retryQuestion, runTests, startAttempt, submitExam,
+  getAttemptByReceipt, getExam, getQuestionStatus, listAppeals, resumeAttempt, retryQuestion, runTests, startAttempt, submitExam,
 } from '../api.js'
+import AppealForm, { APPEAL_STATUS } from '../components/AppealForm.jsx'
 import CodeEditor from '../components/CodeEditor.jsx'
 import Icon from '../components/Icon.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
@@ -87,6 +88,9 @@ export default function ExamPage() {
   const [lookupCode, setLookupCode] = useState('')
   const [lookup, setLookup] = useState(null)
   const [lookupError, setLookupError] = useState(null)
+  const [lookupReceipt, setLookupReceipt] = useState('') // the code the shown lookup was made with
+  const [appeals, setAppeals] = useState([])
+  const [appealing, setAppealing] = useState(null) // problem id whose appeal form is open
   const [mobileTab, setMobileTab] = useState('problem') // phones show the statement or the editor, not both
   const [savedAt, setSavedAt] = useState(null)
 
@@ -281,10 +285,29 @@ export default function ExamPage() {
   const handleLookup = async () => {
     setLookup(null)
     setLookupError(null)
+    setAppealing(null)
+    const receipt = lookupCode.trim()
     try {
-      setLookup(await getAttemptByReceipt(token, lookupCode.trim()))
+      const [result, filed] = await Promise.allSettled([getAttemptByReceipt(token, receipt), listAppeals(token, receipt)])
+      if (result.status === 'rejected') throw result.reason
+      setLookup(result.value)
+      setAppeals(filed.status === 'fulfilled' ? filed.value : [])
+      if (filed.status === 'rejected') setLookupError('Không tải được trạng thái khiếu nại. Điểm vẫn hiển thị bình thường.')
+      setLookupReceipt(receipt)
     } catch (e) {
       setLookupError(e.message)
+    }
+  }
+
+  const handleAppealFiled = async () => {
+    const problemId = appealing
+    setAppealing(null)
+    try {
+      setAppeals(await listAppeals(token, lookupReceipt))
+    } catch {
+      // The appeal is filed; only the refresh failed. Show it as waiting so the student does not file it twice.
+      setAppeals((prev) => [...prev, { problem_id: problemId, status: 'open', message: '', decision_note: null, created_at: '', decided_at: null, score: null }])
+      setLookupError('Khiếu nại đã gửi, nhưng chưa tải lại được trạng thái.')
     }
   }
 
@@ -355,6 +378,24 @@ export default function ExamPage() {
                   ))}
                 </div>
                 <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
+                {lookup.questions.map((q, i) => {
+                  if (q.score === null) return null
+                  const appeal = appeals.find((a) => a.problem_id === q.problem_id)
+                  return (
+                    <div key={q.problem_id} className="appeal-row">
+                      {appeal ? (
+                        <>
+                          <p>Câu {i + 1}: <strong>{APPEAL_STATUS[appeal.status] ?? appeal.status}</strong></p>
+                          {appeal.decision_note && <p className="muted">Giáo viên: {appeal.decision_note}</p>}
+                        </>
+                      ) : appealing === q.problem_id ? (
+                        <AppealForm token={token} receipt={lookupReceipt} problemId={q.problem_id} siteKey={exam?.turnstile_site_key ?? ''} onFiled={handleAppealFiled} />
+                      ) : (
+                        <button className="btn" onClick={() => setAppealing(q.problem_id)}>Khiếu nại câu {i + 1}</button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

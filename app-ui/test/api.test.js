@@ -7,6 +7,23 @@ const fail = (status, body) => ({ ok: false, type: 'basic', status, json: async 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('api client', () => {
+  it('fileAppeal posts the message and token for one question by receipt', async () => {
+    const f = vi.fn().mockResolvedValue(ok({ status: 'open' }))
+    vi.stubGlobal('fetch', f)
+    await api.fileAppeal('tok', 'RCPT', 'p1', 'why', 'ts')
+    const [path, init] = f.mock.calls[0]
+    expect(path).toBe('/api/exam/tok/attempts/by-receipt/RCPT/appeals')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ problem_id: 'p1', message: 'why', turnstile_token: 'ts' })
+  })
+
+  it('listAppeals reads the appeals of a receipt', async () => {
+    const f = vi.fn().mockResolvedValue(ok([]))
+    vi.stubGlobal('fetch', f)
+    expect(await api.listAppeals('tok', 'RCPT')).toEqual([])
+    expect(f.mock.calls[0][0]).toBe('/api/exam/tok/attempts/by-receipt/RCPT/appeals')
+  })
+
   it('startAttempt posts the name to the right path', async () => {
     const f = vi.fn().mockResolvedValue(ok({ attempt_id: 'a', receipt_code: 'R' }))
     vi.stubGlobal('fetch', f)
