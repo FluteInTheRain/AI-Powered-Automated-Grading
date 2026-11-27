@@ -55,6 +55,7 @@ export const listExams = () => request('/api/teacher/exams')
 export const createExam = (body) => post('/api/teacher/exams', body)
 export const getExamDetail = (id) => request(`/api/teacher/exams/${id}`)
 export const getResults = (id) => request(`/api/teacher/exams/${id}/results`)
+export const getAdminMetrics = () => request('/api/teacher/admin/metrics')
 export const getExamStats = (id) => request(`/api/teacher/exams/${id}/stats`)
 export const updateDeadline = (id, deadline) =>
   request(`/api/teacher/exams/${id}`, { method: 'PATCH', body: JSON.stringify({ deadline }) })

@@ -31,6 +31,17 @@ beforeEach(() => {
 afterEach(() => vi.resetAllMocks())
 
 describe('TeacherHomePage', () => {
+  it('shows the AI metrics link only to admins', async () => {
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', is_admin: true })
+    const { unmount } = renderHome()
+    expect(await screen.findByRole('link', { name: /Chỉ số AI/ })).toHaveAttribute('href', '/teacher/admin')
+    unmount()
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', is_admin: false })
+    renderHome()
+    await screen.findByText('t@x.com')
+    expect(screen.queryByRole('link', { name: /Chỉ số AI/ })).toBeNull()
+  })
+
   it('lists own exams with student links and a results link', async () => {
     renderHome()
     expect(await screen.findByText('t@x.com')).toBeInTheDocument()
