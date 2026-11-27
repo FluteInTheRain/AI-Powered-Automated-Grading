@@ -5,6 +5,7 @@ import { queue } from "./jobs";
 import { verifyTurnstile, type TurnstileVerifier } from "./turnstile";
 import { syntaxRoutes } from "./routes/syntax";
 import { studentRoutes } from "./routes/student";
+import { studentAppealRoutes } from "./routes/student_appeals";
 import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
 import { teacherSettingsRoutes } from "./routes/teacher_settings";
@@ -18,6 +19,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.get("/health", (c) => c.json({ ok: true }));
   app.route("/api", syntaxRoutes());
   app.route("/api/exam", studentRoutes(deps.now ?? (() => new Date()), deps.turnstile ?? verifyTurnstile));
+  app.route("/api/exam", studentAppealRoutes(deps.now ?? (() => new Date()), deps.turnstile ?? verifyTurnstile));
   app.use("/api/teacher/*", requireTeacher(deps));
   app.get("/api/teacher/me", (c) => c.json(c.get("teacher")));
   app.route("/api/teacher", teacherProblemRoutes());

@@ -23,6 +23,16 @@ export async function createAppeal(db: D1Database, a: { submissionId: string; me
   return id;
 }
 
+/** The submission of one question and whether it already has a score (an appeal needs one). */
+export async function submissionForAppeal(db: D1Database, attemptId: string, problemId: string): Promise<{ id: string; graded: boolean } | null> {
+  const r = await db
+    .prepare(
+      "SELECT s.id, EXISTS (SELECT 1 FROM score_revisions WHERE submission_id = s.id) AS graded" +
+        " FROM submissions s WHERE s.attempt_id = ? AND s.problem_id = ?",
+    ).bind(attemptId, problemId).first<{ id: string; graded: number }>();
+  return r ? { id: r.id, graded: r.graded === 1 } : null;
+}
+
 export type StudentAppeal = {
   problem_id: string; status: AppealStatus; message: string; decision_note: string | null;
   created_at: string; decided_at: string | null; score: number;
