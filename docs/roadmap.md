@@ -176,10 +176,12 @@ source of truth for project status, not a one-off plan to read once.
   (3/65 samples affected, not yet rerun). Not compiled/verified to build —
   same missing XeLaTeX/LuaLaTeX+polyglossia toolchain issue as T5.2.
 
-- [ ] **T5.4 — Limitations section.**
-  Must include the dataset caveat from `data/script.md` (single-rater
-  labels) and the T3.3 outcome, whichever way it went.
-  ~half day.
+- [x] **T5.4 — Limitations section (2026-11-27).**
+  `\section{Hạn chế}` in `docs/report/latex/main.tex` (label `sec:limitations`): single-rater labels,
+  T3.2/T3.3 skipped (no kappa/ICC), test-suite coverage bound, consistency evidence limited to N=100 on
+  8 samples, the deployed model (Qwen2.5-Coder-32B on Workers AI) differs from the sub-7B models measured,
+  the efficiency-check contradiction found and fixed on 2026-11-27 (one case, not a dataset measurement),
+  and results that predate later fixes. Compiles with XeLaTeX (20 pages, no undefined references).
 
 ## Phase 6 — Teacher app on Cloudflare (new direction, 2026-11-25)
 
