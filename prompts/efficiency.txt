@@ -1,4 +1,4 @@
-You are checking ONE thing only: does this submission meet the expected time-complexity for the problem below. Do not evaluate correctness or style.
+You are checking ONE thing only: does this submission meet the expected time complexity for the problem below. Judge the growth rate of the algorithm as written. Ignore bugs, wrong results and style: correctness is scored elsewhere, so a buggy loop that still halves the search range each step is still logarithmic.
 
 Problem statement:
 {statement}
@@ -7,5 +7,10 @@ Submission:
 ```python
 {submission_code}
 ```
+
+Fill the JSON fields in this order:
+1. expected_complexity: if the statement names a required complexity, use it; otherwise the best time complexity a good solution to this problem should have.
+2. observed_pattern: the complexity of the submission's algorithm as written.
+3. meets_expected_complexity: true only if observed_pattern is as good as expected_complexity or better.
 
 Answer with the required JSON only.

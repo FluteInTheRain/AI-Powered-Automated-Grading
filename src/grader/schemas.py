@@ -22,11 +22,17 @@ class OrdinalLevel(str, Enum):
 
 
 class EfficiencyCheck(BaseModel):
-    """Atomic check: does the submission meet the expected complexity class?"""
-    meets_expected_complexity: bool
-    observed_pattern: str = Field(
-        description="one short phrase, e.g. 'nested loop O(n^2)' or 'hash map O(n)'"
+    """Atomic check: does the submission meet the expected complexity class?
+
+    Field order matters: the model writes the expectation, then what the code does, and only then the verdict.
+    With the verdict first it answered "does not meet" next to "O(log n)" for a binary search."""
+    expected_complexity: str = Field(
+        description="the time complexity a good solution to this problem should have, e.g. 'O(log n)'"
     )
+    observed_pattern: str = Field(
+        description="one short phrase for the algorithm as written, e.g. 'nested loop O(n^2)' or 'hash map O(n)'"
+    )
+    meets_expected_complexity: bool
 
 
 class StyleCheck(BaseModel):
