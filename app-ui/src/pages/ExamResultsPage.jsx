@@ -72,6 +72,7 @@ export default function ExamResultsPage() {
       <header className="top">
         <span className="word">AI Grader</span>
         <span className="sp" />
+        <Link className="link" to={`/teacher/exams/${id}/appeals`}>Khiếu nại</Link>
         <Link className="link" to="/teacher/settings">Cài đặt</Link>
         <ThemeToggle />
       </header>

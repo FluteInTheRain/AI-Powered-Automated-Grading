@@ -173,3 +173,12 @@ describe('ExamResultsPage', () => {
     expect(await screen.findByText(/theo từng bài/)).toBeInTheDocument()
   })
 })
+
+describe('ExamResultsPage appeals link', () => {
+  it('links to the exam appeals page', async () => {
+    api.getExamDetail.mockResolvedValue({ id: 'e1', title: 'Quiz 1', student_path: '/exam/tok1', deadline: null, rubric: null, questions: [] })
+    api.getResults.mockResolvedValue([])
+    renderResults()
+    expect(await screen.findByRole('link', { name: 'Khiếu nại' })).toHaveAttribute('href', '/teacher/exams/e1/appeals')
+  })
+})

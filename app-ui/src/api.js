@@ -59,3 +59,7 @@ export const updateDeadline = (id, deadline) =>
   request(`/api/teacher/exams/${id}`, { method: 'PATCH', body: JSON.stringify({ deadline }) })
 export const getSettings = () => request('/api/teacher/settings')
 export const putSettings = (settings) => request('/api/teacher/settings', { method: 'PUT', body: JSON.stringify(settings) })
+export const listExamAppeals = (id) => request(`/api/teacher/exams/${id}/appeals`)
+export const getAppeal = (appealId) => request(`/api/teacher/appeals/${appealId}`)
+export const startAppealReview = (appealId) => post(`/api/teacher/appeals/${appealId}/review`, {})
+export const decideAppeal = (appealId, body) => post(`/api/teacher/appeals/${appealId}/decision`, body)
