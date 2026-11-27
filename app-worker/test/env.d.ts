@@ -15,6 +15,9 @@ declare namespace Cloudflare {
     INTERNAL_TOKEN: string;
     ACCESS_TEAM_DOMAIN: string;
     ACCESS_AUD: string;
+    ADMIN_EMAILS?: string;
+    CF_ACCOUNT_ID?: string;
+    CF_API_TOKEN?: string;
     DEV_AUTH_BYPASS?: string;
     TEST_MIGRATIONS: import("@cloudflare/vitest-plugin").D1Migration[];
   }

@@ -18,6 +18,11 @@ export type Env = {
   INTERNAL_TOKEN: string;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
+  /** Comma-separated emails allowed on the developer metrics page. Set as a secret, never in wrangler.jsonc. */
+  ADMIN_EMAILS?: string;
+  CF_ACCOUNT_ID?: string;
+  /** Read-only token (Account Analytics: Read) for the Analytics Engine SQL API. */
+  CF_API_TOKEN?: string;
   /** Local development only (.dev.vars). Never set in wrangler.jsonc. */
   DEV_AUTH_BYPASS?: string;
 };
