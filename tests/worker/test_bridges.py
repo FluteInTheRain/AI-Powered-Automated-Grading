@@ -35,6 +35,35 @@ def test_ai_sends_bare_schema_seed_temperature():
     assert p["messages"][0] == {"role": "system", "content": "sys"}
 
 
+def test_ai_gateway_option_skips_cache():
+    class GwAI:
+        def __init__(self):
+            self.args = None
+
+        def run(self, *args):
+            self.args = args
+            return {"response": {"score": 1}}
+
+    ai = GwAI()
+    WorkersAIClient(ai, "m", run_sync=ident, gateway_id="g").structured_call("s", "u", Out)
+    assert len(ai.args) == 3
+    assert ai.args[2] == {"gateway": {"id": "g", "skipCache": True}}
+
+
+def test_ai_without_gateway_keeps_two_argument_call():
+    class GwAI:
+        def __init__(self):
+            self.args = None
+
+        def run(self, *args):
+            self.args = args
+            return {"response": {"score": 1}}
+
+    ai = GwAI()
+    WorkersAIClient(ai, "m", run_sync=ident).structured_call("s", "u", Out)
+    assert len(ai.args) == 2
+
+
 def test_ai_dict_response_logged_as_string():
     c = WorkersAIClient(FakeAI({"score": 3}), "m1", run_sync=ident)
     assert c.structured_call("s", "u", Out).score == 3

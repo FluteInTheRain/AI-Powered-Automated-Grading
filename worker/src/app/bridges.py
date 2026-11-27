@@ -44,10 +44,11 @@ def _to_py(value):
 class WorkersAIClient:
     """Same interface and call_log keys as grader.llm_client.LLMClient."""
 
-    def __init__(self, ai_binding, model: str, seed: int = 1, run_sync=None):
+    def __init__(self, ai_binding, model: str, seed: int = 1, run_sync=None, gateway_id: str | None = None):
         self.ai = ai_binding
         self.model = model
         self.seed = seed
+        self.gateway_id = gateway_id
         self._run_sync = run_sync or _default_run_sync()
         self.call_log: list[dict] = []
 
@@ -63,7 +64,11 @@ class WorkersAIClient:
             # Workers AI reads json_schema as the bare schema itself.
             "response_format": {"type": "json_schema", "json_schema": schema.model_json_schema()},
         }
-        result = _to_py(self._run_sync(self.ai.run(self.model, _to_js(payload))))
+        args = [self.model, _to_js(payload)]
+        if self.gateway_id:
+            # Cache stays off: a cache hit would fake the score consistency the project claims.
+            args.append(_to_js({"gateway": {"id": self.gateway_id, "skipCache": True}}))
+        result = _to_py(self._run_sync(self.ai.run(*args)))
         content = result.get("response") if isinstance(result, dict) else getattr(result, "response", None)
         content = _to_py(content)
         if content is None or content == "":

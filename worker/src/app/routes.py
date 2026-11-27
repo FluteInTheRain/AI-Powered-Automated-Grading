@@ -61,7 +61,7 @@ async def get_llm_client(request: Request):
     if not model:
         logger.warning("LLM_MODEL is not set in the Worker env; using %s", DEFAULT_LLM_MODEL)
         model = DEFAULT_LLM_MODEL
-    return WorkersAIClient(env.AI, model=model)
+    return WorkersAIClient(env.AI, model=model, gateway_id=getattr(env, "GATEWAY_ID", None) or None)
 
 
 async def get_sandbox(request: Request):
