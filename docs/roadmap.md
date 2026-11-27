@@ -199,7 +199,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.3b — Per-exam rubric weights and teacher Settings (2026-11-26).** `exams.rubric` snapshot + `teachers.settings` (migration 0003), `/teacher/settings` page; spec and plan in `docs/superpowers/`.
 - [x] **T6.3c — Problem catalog (2026-11-26).** Title, category and difficulty on every problem (migration 0004, bank metadata in `data/problems.py`, metadata-only seed upsert), searchable/filterable/sortable picker in the exam form; spec and plan in `docs/superpowers/`.
 - [x] **T6.4 — Phase 3 (2026-11-27):** appeals (student files by receipt code, teacher reviews the AI trail and decides, adjustments are new score revisions), daily Cron expires stale appeals, teacher appeals page. **Workflows skipped:** waiting for the teacher is one API call updating D1, so a Workflow added nothing. **Email skipped:** no domain; Cloudflare email needs one, Brevo with a Gmail sender fails DKIM/DMARC. Spec and plan in `docs/superpowers/`. Not yet deployed or checked on the live site.
-- [ ] **T6.5 — Phase 4 plan + build:** AI Gateway, Analytics Engine, logs, CI deploy; plus a UI plan.
+- [ ] **T6.5 — Phase 4 (2026-11-27, built on `feat/phase4-metrics`, not yet deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Left to check live: Gateway with `json_schema`, the Analytics Engine SQL text, the first Cron canary run. CI deploy already existed (T6.1b).
 
 ## Notes
 
