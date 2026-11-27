@@ -11,6 +11,48 @@ const DECISIONS = [
   ['adjusted', 'Chỉnh điểm'],
 ]
 
+const CRITERIA = {
+  correctness: 'Đúng chức năng',
+  efficiency: 'Hiệu năng',
+  code_style: 'Phong cách code',
+  edge_case_handling: 'Trường hợp biên',
+}
+const STYLE_LEVEL = { clean: 'Tốt', medium: 'Trung bình', poor: 'Kém' }
+
+/** One line of plain Vietnamese for what the AI found on each criterion; null when the check has no detail. */
+function finding(key, detail) {
+  if (!detail) return null
+  if (key === 'efficiency') return `${detail.meets_expected_complexity ? 'Đạt' : 'Không đạt'} (${detail.observed_pattern})`
+  if (key === 'code_style') return STYLE_LEVEL[detail.level] ?? detail.level
+  if (key === 'edge_case_handling') return detail.handled ? 'Đã xử lý' : `Thiếu: ${(detail.missing_cases ?? []).join(', ') || 'không rõ'}`
+  return null
+}
+
+function AiResult({ result }) {
+  if (!result) return <p className="muted">Không có kết quả chấm chi tiết cho bài này.</p>
+  const { execution_result: run, sub_scores_0_to_1: subs = {}, check_details: checks, feedback } = result
+  return (
+    <>
+      {run && <p>{`Test ẩn đạt: ${run.pass_count}/${run.total}`}</p>}
+      <ul>
+        {Object.entries(CRITERIA).map(([key, label]) => {
+          if (!(key in subs)) return null
+          const note = finding(key, checks?.[key])
+          return <li key={key}>{`${label} (${Math.round(subs[key] * 100)}/100)${note ? `: ${note}` : ''}`}</li>
+        })}
+      </ul>
+      {feedback?.summary && <p>{feedback.summary}</p>}
+      {feedback?.issues?.length > 0 && (
+        <ul>
+          {feedback.issues.map((it, i) => (
+            <li key={i}>{`Dòng ${it.line}: ${it.issue}. ${it.explanation} Gợi ý: ${it.suggested_fix}`}</li>
+          ))}
+        </ul>
+      )}
+    </>
+  )
+}
+
 function DecisionForm({ appealId, onDone }) {
   const [decision, setDecision] = useState('upheld')
   const [note, setNote] = useState('')
@@ -71,16 +113,20 @@ function Detail({ appeal, onDecided }) {
           <li key={r.revision}>#{r.revision} · {r.source} · {r.score} · {r.author}{r.reason ? ` · ${r.reason}` : ''}</li>
         ))}
       </ul>
-      <h3>Dấu vết chấm của AI</h3>
-      {appeal.audit === null && <p className="muted">Không còn dữ liệu chấm của AI cho bài này.</p>}
-      {appeal.audit?.call_log.map((c, i) => (
-        <details key={i}>
-          <summary>{c.kind} · {c.schema} · {c.model}</summary>
-          <pre>{c.system_prompt}</pre>
-          <pre>{c.user_prompt}</pre>
-          <pre>{c.raw_response}</pre>
-        </details>
-      ))}
+      <h3>AI đã chấm thế nào</h3>
+      <AiResult result={appeal.ai_result} />
+      <details>
+        <summary>Chi tiết kỹ thuật (prompt và phản hồi thô của AI)</summary>
+        {appeal.audit === null && <p className="muted">Không còn dữ liệu chấm của AI cho bài này.</p>}
+        {appeal.audit?.call_log.map((c, i) => (
+          <details key={i}>
+            <summary>{c.kind} · {c.schema} · {c.model}</summary>
+            <pre>{c.system_prompt}</pre>
+            <pre>{c.user_prompt}</pre>
+            <pre>{c.raw_response}</pre>
+          </details>
+        ))}
+      </details>
       {PENDING.includes(appeal.status) ? (
         <DecisionForm appealId={appeal.id} onDone={onDecided} />
       ) : (

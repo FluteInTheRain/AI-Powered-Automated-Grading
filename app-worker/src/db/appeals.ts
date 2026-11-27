@@ -61,7 +61,7 @@ export async function listExamAppeals(db: D1Database, examId: string): Promise<E
   return results;
 }
 
-export type Revision = { revision: number; source: string; score: number; author: string; reason: string | null; created_at: string };
+export type Revision = { revision: number; source: string; score: number; author: string; reason: string | null; created_at: string; detail: string | null };
 export type AppealDetail = {
   id: string; exam_id: string; teacher_id: string; student_name: string; problem_id: string; submission_id: string;
   status: AppealStatus; message: string; decision_note: string | null; decided_by: string | null;
@@ -79,7 +79,7 @@ export async function getAppealDetail(db: D1Database, appealId: string): Promise
     ).bind(appealId).first<Omit<AppealDetail, "revisions">>();
   if (!row) return null;
   const { results } = await db
-    .prepare("SELECT revision, source, score, author, reason, created_at FROM score_revisions WHERE submission_id = ? ORDER BY revision")
+    .prepare("SELECT revision, source, score, author, reason, created_at, detail FROM score_revisions WHERE submission_id = ? ORDER BY revision")
     .bind(row.submission_id).all<Revision>();
   return { ...row, revisions: results };
 }

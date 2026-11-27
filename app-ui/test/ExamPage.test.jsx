@@ -162,6 +162,37 @@ describe('resume', () => {
   })
 })
 
+describe('a submitted attempt opened again from the exam link', () => {
+  const reopen = async () => {
+    localStorage.setItem('exam:tok', JSON.stringify({ attempt_id: 'att1', receipt_code: 'RCPT123' }))
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 300, submitted: true, questions: questions('done') })
+    renderPage()
+    return screen.findByRole('button', { name: 'Xem điểm / khiếu nại' })
+  }
+
+  it('offers a way to the receipt lookup, prefilled with the saved code, and a way back', async () => {
+    fireEvent.click(await reopen())
+    expect(await screen.findByLabelText('Mã biên nhận')).toHaveValue('RCPT123')
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại bài làm' }))
+    expect(await screen.findByRole('button', { name: 'Xem điểm / khiếu nại' })).toBeInTheDocument()
+  })
+
+  it('lets the student look up the scores and appeal from there', async () => {
+    api.getAttemptByReceipt.mockResolvedValue({ student_name: 'An', total: 80, questions: [{ problem_id: 'p1', score: 80, feedback: null }] })
+    fireEvent.click(await reopen())
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem điểm' }))
+    expect(await screen.findByRole('button', { name: 'Khiếu nại câu 1' })).toBeInTheDocument()
+  })
+
+  it('is not offered while the exam is still being taken', async () => {
+    localStorage.setItem('exam:tok', JSON.stringify({ attempt_id: 'att1', receipt_code: 'RCPT123' }))
+    api.resumeAttempt.mockResolvedValue({ student_name: 'An', receipt_code: 'RCPT123', remaining_seconds: 300, submitted: false, questions: questions() })
+    renderPage()
+    await screen.findByRole('button', { name: 'Nộp bài' })
+    expect(screen.queryByRole('button', { name: 'Xem điểm / khiếu nại' })).toBeNull()
+  })
+})
+
 describe('submitting the whole exam', () => {
   it('has no per-question submit button', async () => {
     renderPage()

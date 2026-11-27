@@ -12,6 +12,17 @@ const detail = (over = {}) => ({
   id: 'a1', exam_id: 'e1', student_name: 'An', problem_id: 'p2', submission_id: 's1', status: 'open', message: 'Please recheck',
   decision_note: null, decided_by: null, created_at: '2026-11-27T01:00:00Z', decided_at: null, code: 'def f(x): return 3',
   revisions: [{ revision: 0, source: 'ai', score: 60, author: 'pipeline', reason: null, created_at: '2026-11-27T00:00:00Z' }],
+  ai_result: {
+    final_score_0_to_100: 60,
+    sub_scores_0_to_1: { correctness: 0.5, efficiency: 0, code_style: 1, edge_case_handling: 0.5 },
+    execution_result: { pass_count: 1, total: 2, status: 'ran', errors: [] },
+    check_details: {
+      efficiency: { meets_expected_complexity: false, observed_pattern: 'nested loop O(n^2)' },
+      code_style: { level: 'clean' },
+      edge_case_handling: { handled: false, missing_cases: ['empty list'] },
+    },
+    feedback: { summary: 'Works on simple inputs only.', issues: [{ line: 2, issue: 'off-by-one', explanation: 'Loop stops early.', suggested_fix: 'use range(n+1)' }] },
+  },
   audit: { call_log: [{ kind: 'check', schema: 'S', model: 'm', system_prompt: 'SYS-PROMPT', user_prompt: 'USER-PROMPT', raw_response: 'RAW-RESPONSE' }] },
   ...over,
 })
@@ -142,5 +153,30 @@ describe('ExamAppealsPage', () => {
     await open()
     expect(await screen.findByText('Please recheck')).toBeInTheDocument()
     expect(api.listExamAppeals).toHaveBeenCalledTimes(2)
+  })
+  it('shows the AI result in plain Vietnamese before any raw log: tests passed, each check, the feedback', async () => {
+    await open()
+    await screen.findByText('Please recheck')
+    expect(screen.getByText(/Test ẩn đạt: 1\/2/)).toBeInTheDocument()
+    expect(screen.getByText(/Hiệu năng/)).toHaveTextContent(/Không đạt.*nested loop O\(n\^2\)/)
+    expect(screen.getByText(/Phong cách code/)).toHaveTextContent(/Tốt/)
+    expect(screen.getByText(/Trường hợp biên/)).toHaveTextContent(/Thiếu.*empty list/)
+    expect(screen.getByText(/Works on simple inputs only/)).toBeInTheDocument()
+    expect(screen.getByText(/dòng 2/i)).toBeInTheDocument()
+  })
+
+  it('keeps the raw prompts and responses in a collapsed technical section', async () => {
+    await open()
+    await screen.findByText('Please recheck')
+    const tech = screen.getByText(/Chi tiết kỹ thuật/).closest('details')
+    expect(tech).not.toHaveAttribute('open')
+    expect(tech).toHaveTextContent('RAW-RESPONSE')
+  })
+
+  it('still opens when the AI result is missing', async () => {
+    api.getAppeal.mockResolvedValue(detail({ ai_result: null }))
+    await open()
+    expect(await screen.findByText('Please recheck')).toBeInTheDocument()
+    expect(screen.getByText(/Không có kết quả chấm chi tiết/)).toBeInTheDocument()
   })
 })

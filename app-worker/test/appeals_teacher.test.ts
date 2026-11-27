@@ -38,6 +38,16 @@ describe("list and detail", () => {
     expect(r.json).not.toHaveProperty("audit_key");
   });
 
+  it("the detail carries the AI's structured result (tests passed, per-check findings, feedback), not inside the revision list", async () => {
+    const s = await withAppeal();
+    const r = await s.call("GET", `/api/teacher/appeals/${s.appealId}`, { as: s.teacher });
+    expect(r.json.ai_result).toMatchObject({
+      final_score_0_to_100: 60, sub_scores_0_to_1: { correctness: 0.6 },
+      execution_result: { pass_count: 1, total: 2 }, feedback: { summary: "ok" },
+    });
+    expect(r.json.revisions[0]).not.toHaveProperty("detail");
+  });
+
   it("a missing R2 audit object still gives a 200 with audit null", async () => {
     const s = await withAppeal();
     await env.AUDIT.delete(`audit/${s.submissionId}.json`);

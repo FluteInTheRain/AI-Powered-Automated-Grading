@@ -90,6 +90,7 @@ export default function ExamPage() {
   const [lookupError, setLookupError] = useState(null)
   const [lookupReceipt, setLookupReceipt] = useState('') // the code the shown lookup was made with
   const [appeals, setAppeals] = useState([])
+  const [viewingLookup, setViewingLookup] = useState(false) // a submitted attempt looking at its scores and appeals
   const [appealing, setAppealing] = useState(null) // problem id whose appeal form is open
   const [mobileTab, setMobileTab] = useState('problem') // phones show the statement or the editor, not both
   const [savedAt, setSavedAt] = useState(null)
@@ -323,6 +324,51 @@ export default function ExamPage() {
   const unanswered = questions.length - answered
   const clock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
+  const lookupSection = (
+    <div className="gate-sec">
+      <div className="field-row">
+        <label htmlFor="receipt-code">Mã biên nhận</label>
+        <input id="receipt-code" name="receipt" type="text" autoComplete="off" spellCheck={false} value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} placeholder="Đã làm bài? Nhập mã để xem điểm…" />
+      </div>
+      <button className="btn" onClick={handleLookup} disabled={!lookupCode.trim()}>
+        Xem điểm
+      </button>
+      {lookupError && <p className="status-error" role="alert">{lookupError}</p>}
+      {lookup && (
+        <div className="result-panel">
+          <p>{lookup.student_name}</p>
+          <div className="score-grid">
+            {lookup.questions.map((q, i) => (
+              <div key={q.problem_id} className="score-card">
+                <div className="score-card-label">Câu {i + 1}</div>
+                <div className="score-card-value">{q.score === null ? '—' : q.score.toFixed(1)}</div>
+              </div>
+            ))}
+          </div>
+          <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
+          {lookup.questions.map((q, i) => {
+            if (q.score === null) return null
+            const appeal = appeals.find((a) => a.problem_id === q.problem_id)
+            return (
+              <div key={q.problem_id} className="appeal-row">
+                {appeal ? (
+                  <>
+                    <p>Câu {i + 1}: <strong>{APPEAL_STATUS[appeal.status] ?? appeal.status}</strong></p>
+                    {appeal.decision_note && <p className="muted">Giáo viên: {appeal.decision_note}</p>}
+                  </>
+                ) : appealing === q.problem_id ? (
+                  <AppealForm token={token} receipt={lookupReceipt} problemId={q.problem_id} siteKey={exam?.turnstile_site_key ?? ''} onFiled={handleAppealFiled} />
+                ) : (
+                  <button className="btn" onClick={() => setAppealing(q.problem_id)}>Khiếu nại câu {i + 1}</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <>
       <header className="top">
@@ -331,6 +377,9 @@ export default function ExamPage() {
         {inProgress && !submitted && <span className="muted num hide-s">Đã làm {answered} trên {questions.length} câu</span>}
         {phase === 'in_progress' && <Timer durationSeconds={durationSeconds} isRunning={!submitted} onExpire={submitWholeExam} />}
         <ThemeToggle />
+        {inProgress && submitted && !viewingLookup && (
+          <button className="btn" onClick={() => { setLookupCode((c) => c || attempt.receipt_code); setViewingLookup(true) }}>Xem điểm / khiếu nại</button>
+        )}
         {inProgress && !submitted && !confirming && (
           <button className="btn btn-primary" onClick={() => setConfirming(true)}><Icon name="send" />Nộp bài</button>
         )}
@@ -357,52 +406,19 @@ export default function ExamPage() {
             </button>
             {errorMessage && <p className="status-error" role="alert">{errorMessage}</p>}
           </div>
-          <div className="gate-sec">
-            <div className="field-row">
-              <label htmlFor="receipt-code">Mã biên nhận</label>
-              <input id="receipt-code" name="receipt" type="text" autoComplete="off" spellCheck={false} value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} placeholder="Đã làm bài? Nhập mã để xem điểm…" />
-            </div>
-            <button className="btn" onClick={handleLookup} disabled={!lookupCode.trim()}>
-              Xem điểm
-            </button>
-            {lookupError && <p className="status-error" role="alert">{lookupError}</p>}
-            {lookup && (
-              <div className="result-panel">
-                <p>{lookup.student_name}</p>
-                <div className="score-grid">
-                  {lookup.questions.map((q, i) => (
-                    <div key={q.problem_id} className="score-card">
-                      <div className="score-card-label">Câu {i + 1}</div>
-                      <div className="score-card-value">{q.score === null ? '—' : q.score.toFixed(1)}</div>
-                    </div>
-                  ))}
-                </div>
-                <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}`}</p>
-                {lookup.questions.map((q, i) => {
-                  if (q.score === null) return null
-                  const appeal = appeals.find((a) => a.problem_id === q.problem_id)
-                  return (
-                    <div key={q.problem_id} className="appeal-row">
-                      {appeal ? (
-                        <>
-                          <p>Câu {i + 1}: <strong>{APPEAL_STATUS[appeal.status] ?? appeal.status}</strong></p>
-                          {appeal.decision_note && <p className="muted">Giáo viên: {appeal.decision_note}</p>}
-                        </>
-                      ) : appealing === q.problem_id ? (
-                        <AppealForm token={token} receipt={lookupReceipt} problemId={q.problem_id} siteKey={exam?.turnstile_site_key ?? ''} onFiled={handleAppealFiled} />
-                      ) : (
-                        <button className="btn" onClick={() => setAppealing(q.problem_id)}>Khiếu nại câu {i + 1}</button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {lookupSection}
         </div>
       )}
 
-      {inProgress && (
+      {inProgress && viewingLookup && (
+        <div className="gate">
+          <h1>{exam.title}</h1>
+          <button className="btn" onClick={() => setViewingLookup(false)}>Quay lại bài làm</button>
+          {lookupSection}
+        </div>
+      )}
+
+      {inProgress && !viewingLookup && (
         <>
           {submitted && (
             <div className="notice" aria-live="polite">

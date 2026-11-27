@@ -7,6 +7,13 @@ const MAX_NOTE = 1000;
 const DECISIONS: readonly string[] = ["upheld", "rejected", "adjusted"];
 const notFound = { detail: "Unknown appeal" } as const;
 
+/** Revision 0 is the AI's grading; its stored JSON is the structured result the teacher reads first. Null when it cannot be read. */
+function aiResult(revisions: { revision: number; detail: string | null }[]): unknown {
+  const first = revisions.find((r) => r.revision === 0);
+  if (!first?.detail) return null;
+  try { return JSON.parse(first.detail); } catch { return null; }
+}
+
 /** The AI call log from R2, or null when the object is missing or unreadable (the detail must still open). */
 async function readAudit(audit: R2Bucket, key: string | null): Promise<{ call_log: unknown[] } | null> {
   if (!key) return null;
@@ -32,8 +39,13 @@ export function teacherAppealRoutes(): Hono<AppEnv> {
   r.get("/appeals/:appealId", async (c) => {
     const d = await getAppealDetail(c.env.DB, c.req.param("appealId"));
     if (!d || d.teacher_id !== c.get("teacher").id) return c.json(notFound, 404);
-    const { teacher_id: _t, audit_key, ...view } = d;
-    return c.json({ ...view, audit: await readAudit(c.env.AUDIT, audit_key) });
+    const { teacher_id: _t, audit_key, revisions, ...view } = d;
+    return c.json({
+      ...view,
+      revisions: revisions.map(({ detail: _d, ...rest }) => rest),
+      ai_result: aiResult(revisions),
+      audit: await readAudit(c.env.AUDIT, audit_key),
+    });
   });
 
   /** Looks the appeal up and answers 404 for someone else's, so an id never reveals another teacher's data. */

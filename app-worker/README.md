@@ -29,7 +29,7 @@ Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;
 message up to 1000 characters; Turnstile + `RL_ACTION`); teacher `GET exams/:id/appeals`, `GET appeals/:id` (message, code, score
-history, AI call log from R2), `POST appeals/:id/review`, `POST appeals/:id/decision` (`upheld`, `rejected`, or `adjusted` with a
+history, `ai_result` = the AI's structured grading from revision 0, AI call log from R2), `POST appeals/:id/review`, `POST appeals/:id/decision` (`upheld`, `rejected`, or `adjusted` with a
 0-100 `score`, plus a note). Statuses: `open`, `under_review`, `upheld`, `adjusted`, `rejected`, `expired`. An adjustment appends a
 teacher row to `score_revisions` in the same D1 batch as the status change, so of two concurrent decisions exactly one wins.
 A daily cron (03:17 UTC, `triggers.crons` in `wrangler.jsonc`) expires `open` appeals older than 14 days. There is no email: the
