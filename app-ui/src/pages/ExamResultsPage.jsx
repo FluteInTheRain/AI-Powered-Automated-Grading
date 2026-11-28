@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { getExamDetail, getResults, updateDeadline } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import { RUBRIC_FIELDS } from '../components/RubricFields.jsx'
+import SimilarityPanel from '../components/SimilarityPanel.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 function toDatetimeLocalValue(iso) {
@@ -202,6 +203,8 @@ export default function ExamResultsPage() {
             ))}
           </tbody>
         </table>
+
+        <SimilarityPanel examId={id} />
       </div>
     </>
   )
