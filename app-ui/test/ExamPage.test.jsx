@@ -487,6 +487,13 @@ describe('appeals from the receipt lookup', () => {
   const decided = { problem_id: 'p1', status: 'adjusted', message: 'm', decision_note: 'Case was fine', score: 85, created_at: 'x', decided_at: 'y' }
   const verifyAppeal = () => fireEvent.click(screen.getAllByRole('button', { name: 'Verify' }).at(-1)) // the name gate has its own widget
 
+  it('hides the appeal form and button when the server turned appeals off', async () => {
+    api.getExam.mockResolvedValue(summary({ appeals_enabled: false }))
+    await lookupWith([80, 70])
+    expect(screen.getByText(/Câu 1/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Khiếu nại câu/ })).not.toBeInTheDocument()
+  })
+
   it('offers an appeal only for a question that has a score', async () => {
     await lookupWith([80, null])
     expect(screen.getByRole('button', { name: 'Khiếu nại câu 1' })).toBeInTheDocument()

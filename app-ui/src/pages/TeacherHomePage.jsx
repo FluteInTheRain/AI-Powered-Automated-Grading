@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { featureOn } from '../features.js'
 import { createExam, getMe, getSettings, listBank, listExams, listOwnProblems } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import ImportDialog from '../components/ImportDialog.jsx'
@@ -155,7 +156,7 @@ export default function TeacherHomePage() {
           <div className="form-block">
             <div className="head">
               <h3>Câu hỏi</h3>
-              <button type="button" className="btn btn-small" onClick={() => setImporting(true)}><Icon name="up" />Nhập từ file</button>
+              {featureOn(me?.features, 'bulk_import') && <button type="button" className="btn btn-small" onClick={() => setImporting(true)}><Icon name="up" />Nhập từ file</button>}
             </div>
             <ProblemPicker
               problems={bank} chosen={chosen} onToggle={toggle}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getExamDetail, getResults, updateDeadline } from '../api.js'
+import { getExamDetail, getMe, getResults, updateDeadline } from '../api.js'
+import { featureOn } from '../features.js'
 import Icon from '../components/Icon.jsx'
 import { RUBRIC_FIELDS } from '../components/RubricFields.jsx'
 import SimilarityPanel from '../components/SimilarityPanel.jsx'
@@ -22,6 +23,7 @@ export default function ExamResultsPage() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [reviewOnly, setReviewOnly] = useState(false)
+  const [features, setFeatures] = useState(null) // null until known; an unknown or failed lookup becomes {}, which hides nothing
 
   const load = useCallback(() => {
     Promise.all([getExamDetail(id), getResults(id)])
@@ -33,6 +35,7 @@ export default function ExamResultsPage() {
       .catch((e) => setErrorMessage(e.message))
   }, [id])
   useEffect(() => { load() }, [load])
+  useEffect(() => { Promise.resolve(getMe()).then((m) => setFeatures(m?.features ?? {})).catch(() => setFeatures({})) }, [])
 
   const save = async (iso) => {
     setSaving(true)
@@ -86,7 +89,7 @@ export default function ExamResultsPage() {
         <Link className="word" to="/teacher">AI Grader</Link>
         <span className="sp" />
         <Link className="link" to={`/teacher/exams/${id}/stats`}>Thống kê</Link>
-        <Link className="link" to={`/teacher/exams/${id}/appeals`}>Khiếu nại</Link>
+        {featureOn(features, 'appeals') && <Link className="link" to={`/teacher/exams/${id}/appeals`}>Khiếu nại</Link>}
         <Link className="link" to="/teacher/settings"><Icon name="gear" />Cài đặt</Link>
         <ThemeToggle />
       </header>
@@ -171,9 +174,11 @@ export default function ExamResultsPage() {
             Chỉ hiện bài cần xem <span className="num muted">({reviewCount})</span>
           </label>
           <span className="sp" />
-          <a className="btn" href={`/api/teacher/exams/${id}/export.csv`} download>
-            <Icon name="download" />Xuất CSV
-          </a>
+          {featureOn(features, 'csv_export') && (
+            <a className="btn" href={`/api/teacher/exams/${id}/export.csv`} download>
+              <Icon name="download" />Xuất CSV
+            </a>
+          )}
           <span className="muted num">{`Hiện ${shown.length} trên ${rows.length} bài làm`}</span>
         </div>
 
@@ -207,7 +212,7 @@ export default function ExamResultsPage() {
           </tbody>
         </table>
 
-        <SimilarityPanel examId={id} />
+        {features && featureOn(features, 'similarity') && <SimilarityPanel examId={id} />}
       </div>
     </>
   )

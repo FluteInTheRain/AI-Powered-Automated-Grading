@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import {
   getAttemptByReceipt, getExam, getQuestionStatus, listAppeals, resumeAttempt, retryQuestion, runTests, startAttempt, submitExam,
 } from '../api.js'
+import { featureOn } from '../features.js'
 import AppealForm, { APPEAL_STATUS } from '../components/AppealForm.jsx'
 import CodeEditor from '../components/CodeEditor.jsx'
 import Icon from '../components/Icon.jsx'
@@ -347,7 +348,7 @@ export default function ExamPage() {
           </div>
           <p className="final-score-value">{lookup.total === null ? 'Chưa nộp đủ các câu' : `Tổng điểm: ${lookup.total}/100`}</p>
           {lookup.questions.map((q, i) => {
-            if (q.score === null) return null
+            if (q.score === null || !featureOn({ appeals: exam?.appeals_enabled }, 'appeals')) return null
             const appeal = appeals.find((a) => a.problem_id === q.problem_id)
             return (
               <div key={q.problem_id} className="appeal-row">
