@@ -65,7 +65,8 @@ def test_every_problem_has_valid_catalog_metadata(rows):
         assert 1 <= len(r["category"]) <= 40, r["id"]
         assert r["difficulty"] in {"easy", "medium", "hard"}, r["id"]
     assert len({r["title"] for r in rows}) == len(rows)
-    assert {r["category"] for r in rows} == {"Math", "Strings", "Arrays & Search", "Basics", "Data Structures"}
+    assert {r["category"] for r in rows} == {"Math", "Strings", "Arrays & Search", "Basics", "Data Structures", "Dynamic Programming",
+                                                  "Matrices", "Recursion & Backtracking"}
 
 
 def test_sql_loads_into_the_real_schema_twice(rows):

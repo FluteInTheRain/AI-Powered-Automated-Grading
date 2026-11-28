@@ -19,7 +19,7 @@ PROBLEMS = [
     {
         "id": "P47_merge_intervals",
         "title": "Merge Overlapping Intervals",
-        "category": "Sorting & Intervals",
+        "category": "Arrays & Search",
         "difficulty": "medium",
         "statement": (
             "Write a function merge_intervals(intervals) that takes a list of closed intervals, each given as a "
