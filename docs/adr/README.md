@@ -9,3 +9,4 @@ One file per decision: context, decision, consequences. Numbered in the order wr
 - [0005](0005-metric-writes-are-best-effort.md) — Metric writes never affect grading
 - [0006](0006-feature-flags-as-kill-switches.md) — Feature flags are kill switches in one env var
 - [0007](0007-difficulty-hint-is-about-the-label.md) — Observed difficulty is a hint about the label and the sample, not about ability
+- [0008](0008-golden-regression-without-a-model.md) — Grading drift is caught in CI by golden files that need no model
