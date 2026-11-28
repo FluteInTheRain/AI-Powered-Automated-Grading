@@ -53,12 +53,37 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   minimum a simple fill-in JSON template — instead of requiring every
   problem to be authored one at a time in the UI from PR-B1.
 
-- [ ] **PR-B3 — Test-suite coverage checker.** There's already a real,
+- [x] **PR-B3 — Test-suite coverage checker.** There's already a real,
   documented finding (`data/script.md`, "Notable finding from running the
   real pipeline") that a weak test suite lets buggy submissions score
   100%. A simple mutation-testing-style checker that warns an instructor
   "this test suite doesn't actually catch bug X" before they use it to
   grade for real would directly address that failure mode.
+
+  Implemented in `src/grader/coverage_check.py` (run it with
+  `python3 scripts/coverage_check.py`; the JSON report goes to
+  `results/coverage_check.json`, gitignored). It takes the first submission
+  of each bank problem as the reference, applies a fixed set of AST
+  mutations (flip a comparison, swap `and`/`or`, swap `+`/`-`, off-by-one
+  on `range()` bounds and integer literals, wrong first/last element, flip a
+  boolean return, drop an early-return guard), runs each mutant through
+  `grader.sandbox` in its own process with a 5 s timeout, and reports
+  killed/total plus the mutants that still pass every test. No LLM is
+  involved and the output is deterministic.
+
+  Result on the 16 bank problems: only `P02_is_prime` scores below 0.8
+  (17 of 32 mutants killed). Its seven tests are all small numbers, so
+  changing the trial-division start, step or bound, or dropping the even
+  check, goes unnoticed; a few large primes and squares of primes (25, 49)
+  would close most of the gap. `P04_binary_search` and `P14_factorial` sit
+  exactly at 0.80, and `P05_fibonacci` (0.88), `P11_caesar_cipher` (0.90)
+  and `P13_merge_sorted_lists` (0.92) have one or two survivors each. The
+  other ten problems kill every mutant. Several survivors are equivalent
+  mutants: `n <= 1` against `n < 1` in factorial and Fibonacci returns the
+  same values, and `<=` against `<` in the merge only changes which equal
+  element comes first. The score is a lower bound on suite strength, so read
+  the survivor list before adding tests. The bank's test cases were left
+  unchanged.
 
 ## C — Student side: submission experience
 
