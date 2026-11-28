@@ -204,6 +204,26 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.5 — Phase 4 (2026-11-27, deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Checked live: one real submission graded through the Gateway with structured output, and the Analytics Engine SQL returned its point. Still to check: the first Cron canary run (03:17 UTC) and the Gateway log lines in the dashboard. CI deploy already existed (T6.1b).
 - [x] **PR-D3 — CSV export of exam results (2026-11-28, not deployed):** `GET /api/teacher/exams/:id/export.csv` (behind Access, owner-only, no token) and a "Xuất CSV" button on the results page. One row per attempt: name, per-question latest score (so appeals adjustments count), total, four rubric-dimension scores (question-weighted mean of the sub-scores, 0-100), start and submit times. UTF-8 BOM, CRLF, quoted fields, apostrophe guard against formula injection. Tracker: `docs/productionization.md`.
 
+## Phase 7 — Engineering depth (noted 2026-11-28, goal: practise senior-level work)
+
+Picked for depth, not for more screens. Each item says what the finished work leaves behind.
+
+- [ ] **T7.1 — Sandbox isolation (PR-A1).** `src/grader/sandbox.py` runs student code with `exec`. Re-read what
+  `sandbox-worker/` actually isolates, write a threat model (imports, infinite loops, memory, output size, access to
+  the Worker's bindings) and a set of hostile submissions as tests. *Leaves behind:* a threat-model doc and a
+  hostile-submission test suite.
+- [ ] **T7.2 — Load and capacity test.** Simulate a class of 30 submitting at once (k6 or a script): queue backlog,
+  time to the last score, Free plan limits hit first, Neurons per submission. *Leaves behind:* real numbers in an ADR
+  and in the README.
+- [ ] **T7.3 — Test-suite check at authoring time.** Expose the mutation checker (`src/grader/coverage_check.py`) as a
+  teacher endpoint plus a "check my tests" button, so a weak suite is flagged before the exam, not after.
+- [ ] **T7.4 — Difficulty calibration from real results.** Compare each problem's declared difficulty with its
+  observed pass rate and flag mislabeled problems on the teacher stats page.
+- [ ] **T7.5 — Grading regression test in CI.** A small golden set run on every PR that touches prompts or the
+  grader, to catch score drift before deploy. Builds on the daily canary.
+- [ ] **T7.6 — Operations basics.** D1 backup and restore (with a restore drill), an incident runbook, and feature
+  flags used as kill switches. Branch `ops/backup-runbook-flags`.
+
 ## Open items (noted 2026-11-27, not scheduled)
 
 - [ ] **Check the first daily canary run.** The Cron runs at 03:17 UTC; from 2026-11-28 read the "Độ ổn định" table
