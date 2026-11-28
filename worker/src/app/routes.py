@@ -20,11 +20,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from grader import coverage_check
 from grader.feedback import generate_feedback
 from grader.pipeline import grade
 from server import rules
 from server.rules import (
-    CreateExamRequest, CreateProblemRequest, ExamRunRequest, ExamSubmitRequest,
+    CreateExamRequest, CreateProblemRequest, ExamRunRequest, ExamSubmitRequest, TestCaseIn,
     PreviewRequest, SyntaxCheckRequest, UpdateExamRequest,
 )
 
@@ -442,3 +443,52 @@ async def internal_run(req: InternalRunRequest, sandbox=Depends(get_sandbox)):
         if case["error"] is not None:
             case["error"] = "Your code raised an error on this test case."
     return response
+
+
+# Caps for /api/internal/check-tests (docs/productionization.md, PR-B3): one sandbox
+# subrequest per mutant plus one for the baseline run stays under the Free plan's
+# 50 subrequests per invocation, and the wall budget stops new mutants early.
+CHECK_MAX_MUTANTS = coverage_check.DEFAULT_MAX_MUTANTS
+CHECK_BUDGET_SECONDS = coverage_check.DEFAULT_BUDGET_SECONDS
+CHECK_MAX_CODE_CHARS = 10_000
+CHECK_MAX_CASES = 200
+
+
+class InternalCheckTestsRequest(BaseModel):
+    func_name: str
+    reference_solution: str
+    test_cases: list[TestCaseIn]
+
+
+@router.post("/api/internal/check-tests", dependencies=[Depends(require_internal_token)])
+async def internal_check_tests(req: InternalCheckTestsRequest, sandbox=Depends(get_sandbox)):
+    """Mutation check of a reference solution against its tests (shared with
+    grader.coverage_check). Persists nothing. Capped: see CHECK_* above."""
+    if len(req.reference_solution) > CHECK_MAX_CODE_CHARS:
+        raise HTTPException(status_code=400, detail="Reference solution is too long to check.")
+    if not req.test_cases or len(req.test_cases) > CHECK_MAX_CASES:
+        raise HTTPException(status_code=400, detail=f"Give between 1 and {CHECK_MAX_CASES} test cases.")
+    cases = [(tuple(tc.args), tc.expected) for tc in req.test_cases]
+
+    def runner(code, func, case_list, timeout):
+        # A killed sandbox (the mutant ran out of CPU, e.g. an infinite loop) counts as
+        # a kill; other sandbox failures abort the whole check.
+        try:
+            res = sandbox.run_submission_cases(code, func, case_list)
+        except SandboxKilled:
+            return None
+        return [c["passed"] for c in res["cases"]] if res["status"] == "ran" else None
+
+    try:
+        report = coverage_check.check_code(
+            req.reference_solution, req.func_name, cases, runner=runner,
+            max_mutants=CHECK_MAX_MUTANTS, budget_seconds=CHECK_BUDGET_SECONDS)
+    except SyntaxError:
+        raise HTTPException(status_code=400, detail="Reference solution is not valid Python.")
+    except SandboxError as e:
+        raise _sandbox_http_error(e, SERVICE_ERROR, f"check_tests func_name={req.func_name}")
+    if report.get("error"):
+        raise HTTPException(status_code=400, detail="The reference solution does not pass its own tests.")
+    report["survivors"] = [{"kind": s["kind"], "description": s["description"]} for s in report["survivors"]]
+    report["weak_threshold"] = coverage_check.WEAK_THRESHOLD
+    return report

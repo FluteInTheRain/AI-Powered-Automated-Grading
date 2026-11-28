@@ -95,3 +95,41 @@ def test_check_problem_with_stub_runner_marks_survivor():
 
     r = cc.check_problem(dict(PROBLEM, test_cases=[((5,), 6)]), runner=runner)
     assert r["killed"] == 0 and len(r["survivors"]) == r["total"] > 0
+
+
+def test_select_mutants_is_deterministic_spread_and_bounded():
+    ms = [("k", f"d{i}", f"s{i}") for i in range(100)]
+    a = cc.select_mutants(ms, 10)
+    assert a == cc.select_mutants(ms, 10) and len(a) == 10
+    assert a[0] == ms[0] and a[-1][1] == "d90"  # spread over the whole list, not the first ten
+    assert cc.select_mutants(ms, None) == ms and cc.select_mutants(ms[:5], 10) == ms[:5]
+
+
+def _pass_all(code, func, cases, timeout):
+    return [True] * len(cases)
+
+
+def test_check_code_cap_sets_capped_and_scores_the_sample():
+    ref = "def f(a, b):\n    return a + b - 1 + 2 * a\n"
+    full = cc.check_code(ref, "f", [((1, 2), 4)], runner=_pass_all)
+    assert full["capped"] is False and full["total"] == full["generated"] > 3
+    r = cc.check_code(ref, "f", [((1, 2), 4)], runner=_pass_all, max_mutants=3)
+    assert r["capped"] is True and r["total"] == 3 and r["generated"] == full["generated"]
+    assert r["killed"] == 0 and r["score"] == 0.0 and r["weak"] is True
+
+
+def test_check_code_wall_budget_stops_new_mutants_but_runs_at_least_one():
+    ref = "def f(a, b):\n    return a + b - 1 + 2 * a\n"
+    ticks = iter(range(0, 1000, 10))  # every clock() call advances 10 "seconds"
+    r = cc.check_code(ref, "f", [((1, 2), 4)], runner=_pass_all, budget_seconds=15, clock=lambda: next(ticks))
+    assert 1 <= r["total"] < r["generated"] and r["capped"] is True
+
+
+def test_check_code_bad_reference_and_no_mutants():
+    assert cc.check_code("def f(x):\n    return x\n", "f", [((1,), 2)], runner=_pass_all_but_ref)["error"]
+    r = cc.check_code("def f():\n    pass\n", "f", [((), None)], runner=_pass_all)
+    assert r["total"] == 0 and r["score"] is None and r["weak"] is False and r["capped"] is False
+
+
+def _pass_all_but_ref(code, func, cases, timeout):
+    return [False] * len(cases)
