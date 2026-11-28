@@ -120,7 +120,7 @@ the student sees one result for the whole exam.
 ![Teacher app architecture on Cloudflare: Access and Turnstile in front of a Worker, Queues, D1, Durable Objects, R2 and the Python grading Worker](docs/img/teacher-app.svg)
 
 **What it does**
-- **Exams.** A catalog of 16 bank problems, each with a title, category and difficulty, shown in a searchable,
+- **Exams.** A catalog of 66 bank problems in 8 topics, each with a title, category and difficulty, shown in a searchable,
   filterable picker, plus teacher-authored problems (through the API, or up to 20 at once from a JSON file with the "Nhập từ file" dialog; the UI has no single-problem authoring form yet). An exam has up
   to 20 weighted questions, a deadline and a time limit.
 - **Rubric weights and Settings.** Each exam stores its own four criterion weights (summing to 100) at creation. The
@@ -148,6 +148,17 @@ the student sees one result for the whole exam.
 - **Similarity signal.** A "Bài giống nhau" panel on the results page lists pairs of submissions whose normalized code
   is very close (renamed variables and comments do not hide a copy). It is a hint to look again, never a verdict, and
   it changes no score. Details in [`docs/similarity-check.md`](docs/similarity-check.md).
+- **Test-suite check.** The import dialog has a "Kiểm tra bộ test" button. It runs a capped set of deterministic
+  mutations of the reference solution (flipped comparisons, off-by-one bounds, dropped guards) against the problem's
+  tests and lists the changes that still pass every test, so a weak suite shows up before the exam. At most 30
+  mutants run per check, and the score is a lower bound because some survivors behave like the original.
+- **Observed difficulty.** The "Độ khó thực tế" page compares each problem's declared difficulty with the share of
+  first attempts that pass every hidden test, across the teacher's own exams, with a confidence interval. It flags a
+  label only when the whole interval sits outside the expected band and shows "not enough data" below 20 attempts.
+  It is a hint about the label and the sample and never changes a label.
+- **Kill switches.** The `DISABLED_FEATURES` variable turns off `similarity`, `csv_export`, `bulk_import` or
+  `appeals` without a code change; a disabled route answers 404 and writes nothing. See
+  [`docs/runbook.md`](docs/runbook.md) and [ADR 0006](docs/adr/0006-feature-flags-as-kill-switches.md).
 - **Developer page** (`/teacher/admin`, limited to an `ADMIN_EMAILS` allowlist). A determinism canary: once a day a
   Cron grades one fixed input and compares the score and a hash of the raw LLM responses with the first run of the same
   model and input version, so a drift shows up as a mismatch. Also grading health for the last 14 days (outcomes,
@@ -195,7 +206,7 @@ the appeals and observability designs are next to it in `docs/superpowers/specs/
 src/grader/        Grading pipeline: sandbox, LLM checks, schemas, aggregation, feedback
 prompts/           One narrowly scoped prompt per rubric dimension (+ ablation baselines)
 experiments/       Consistency test, ablation, metrics
-data/              Pilot dataset source (problems.py) and generator (build_dataset.py)
+data/              Pilot dataset source (problems.py), its generator (build_dataset.py), and bank_extra/ (50 bank-only problems)
 configs/           Model and serving settings that affect determinism
 app-worker/        Teacher app: TypeScript Worker (Hono, D1, Queues, Durable Objects, R2)
 app-ui/            Teacher app UI: React + Vite, built to static files
@@ -203,8 +214,8 @@ worker/            Python grading Worker (+ the original single-question demo AP
 sandbox-worker/    Isolated Cloudflare Worker that runs student code
 server/, frontend/ Original product app: FastAPI + Postgres, React UI
 deploy/            Single-VM deployment (Docker Compose + nginx + llama-server)
-scripts/           Model server helper, question-bank seed generator
-tests/             pytest suite (grader, rules, Workers, prompts, migrations)
+scripts/           Model server helper, bank seed generator, test-suite coverage checker, D1 backup and restore drill
+tests/             pytest suite (grader, rules, Workers, prompts, migrations, golden regression, hostile sandbox submissions)
 docs/              Architecture, roadmap, results, design specs, plans and ADRs
 .github/workflows/ CI and deploy workflows
 ```
@@ -300,7 +311,10 @@ same file with `python3 scripts/export_bank_seed.py`.
   `vitest` runs the TypeScript Worker inside the Workers runtime (real D1, Durable Objects and R2 bindings) and the
   React UI with Testing Library. Features were built test-first.
 - **CI** ([`ci.yml`](.github/workflows/ci.yml)). Every pull request and push to `main` runs three parallel jobs:
-  Python tests, Worker tests plus typecheck, UI tests plus build.
+  Python tests, Worker tests plus typecheck, UI tests plus build. The Python job starts with the golden regression
+  tests: prompt snapshots and a replay of frozen submissions through the real pipeline with recorded model responses.
+  They catch accidental prompt, weight and scoring-rule changes. They do not catch a change in the model's behaviour
+  (see [`docs/golden-regression.md`](docs/golden-regression.md)).
 - **Deploy** ([`deploy.yml`](.github/workflows/deploy.yml)). Every push to `main`, after the same checks, deploys
   the sandbox Worker, the Python grading Worker, applies D1 migrations, builds the UI and deploys the teacher app,
   then smoke-tests the live URLs. Deploys never overlap.
@@ -333,8 +347,12 @@ design and the risks accepted for the Free plan are in
   teacher-issued roster or invitations.
 - **Drafts and devices.** Typed code is kept as a draft in the student's browser only. Clearing storage or changing
   device loses it, and an attempt cannot be continued from another device.
-- **Sandbox.** On Cloudflare the sandbox isolate is reused between requests and student code can make outbound
-  requests; the VM path runs code in-process. Neither setup is hardened for untrusted, high-stakes exams.
+- **Sandbox.** On Cloudflare student code runs with `exec()` in a separate Worker that has no bindings or secrets,
+  but the isolate is reused between requests and the code can still make outbound requests and import `os` or
+  `subprocess`. The threat model lists 22 attacks: 8 mitigated, 8 partly, 6 open. A hostile-submission suite of 85
+  cases keeps 37 known gaps visible as expected failures
+  ([`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md)). The VM path runs code in-process. Neither setup
+  is hardened for untrusted, high-stakes exams.
 - **Appeals are narrow.** A teacher can change a score only by deciding an appeal; there is no standalone regrade.
   The overturn rate on the developer page is a selection-biased, single-rater signal.
 - **The canary is new.** The daily determinism canary was deployed on 2026-11-27 and its first scheduled run was due on 2026-11-28,
@@ -347,10 +365,16 @@ design and the risks accepted for the Free plan are in
   limit counts are per location and approximate, and the Access user cap was not confirmed from the docs. The apps are
   not hardened for high-stakes exams.
 - **Not built yet.** A native .xlsx export, a single-problem authoring form in the UI, and import from CSV or Excel.
-- **Similarity and coverage checks are rough.** The similarity thresholds come from hand-made cases, not real exam data,
-  and reordered statements hide a copy. The test-coverage checker (`scripts/coverage_check.py`) is a script, not a page:
-  it found one weak suite among the 16 bank problems (`P02_is_prime`, 0.53) and its score is a lower bound because
-  some surviving mutants behave the same as the original.
+- **Similarity, coverage and difficulty checks are rough.** The similarity thresholds come from hand-made cases, not
+  real exam data, and reordered statements hide a copy. Over the 66 bank problems the coverage checker scores 8 under
+  0.8. For the 50 added problems the surviving mutants were reviewed and judged equivalent to the original, so the
+  score is a lower bound; `P02_is_prime` (0.53) is the one weak suite left as it was. The live check-tests endpoint
+  has not been timed on Cloudflare, and its mutation step may hit the Free plan CPU limit. The difficulty bands
+  (easy 0.60 to 1.00, medium 0.30 to 0.75, hard 0.00 to 0.50) are working assumptions, and a class of 30 is a small
+  sample.
+- **Golden regression uses hand-written responses.** The recorded model responses in the replay set were written by
+  hand, not captured from a model, because CI has no Workers AI token. A live run against the real model is
+  designed but not built.
 
 The thesis report has a fuller limitations section in Vietnamese
 ([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).
@@ -359,8 +383,10 @@ The thesis report has a fuller limitations section in Vietnamese
 
 The research phases are finished. The teacher app is deployed with login, a problem catalog, exams with per-exam weights,
 background grading, rate limiting, the audit log, appeals, teacher statistics, the developer page and AI Gateway.
-GitHub Actions deploys it on every push to `main`. Still open: checking the first daily canary runs, and re-measuring the
-efficiency fix over the whole dataset once a Workers AI token is available. The task-by-task history and open items
+Since then it gained CSV export, a similarity signal, bulk import, a test-suite check, an observed-difficulty page and
+kill switches, and the bank grew to 66 problems. GitHub Actions deploys it on every push to `main`. Still open:
+checking the first daily canary runs, timing the test-suite check live, opening the CSV in a real Excel, and
+re-measuring the efficiency fix over the whole dataset once a Workers AI token is available. The task-by-task history and open items
 are in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Documentation
@@ -370,7 +396,10 @@ are in [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/architecture.md`](docs/architecture.md) | Why the design is hybrid and decomposed, with citations |
 | [`docs/report/results.md`](docs/report/results.md) | Full experiment tables and caveats |
 | [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history and open items |
-| [`docs/adr/`](docs/adr/) | Decisions behind the metrics, canary and AI Gateway |
+| [`docs/adr/`](docs/adr/) | Decisions behind the metrics, canary, AI Gateway, kill switches, difficulty hint and golden files |
+| [`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md) | Where student code runs, the 22-attack table and what is still open |
+| [`docs/golden-regression.md`](docs/golden-regression.md) | What the CI regression tests catch and what they cannot |
+| [`docs/similarity-check.md`](docs/similarity-check.md) | How the similarity signal works and its thresholds |
 | [`docs/runbook.md`](docs/runbook.md) | Backup and restore, incident playbooks, kill switches |
 | [`app-worker/README.md`](app-worker/README.md) | Teacher app runbook, API and known limits |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`plans/`](docs/superpowers/plans/) | Design documents and implementation plans |
