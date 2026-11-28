@@ -175,6 +175,7 @@ PROBLEMS = [
             ((4,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1]]),
             ((5,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1]]),
             ((6,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1]]),
+            ((7,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1], [1, 6, 15, 20, 15, 6, 1]]),
             ((8,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1],
                     [1, 6, 15, 20, 15, 6, 1], [1, 7, 21, 35, 35, 21, 7, 1]]),
             ((11,), [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1],
@@ -279,7 +280,7 @@ PROBLEMS = [
     {
         "id": "P46_count_n_queens",
         "title": "Count N-Queens Solutions",
-        "category": "Dynamic Programming",
+        "category": "Recursion & Backtracking",
         "difficulty": "hard",
         "statement": (
             "Write a function count_n_queens(n) that returns the number of ways to place n queens on an n by n chessboard "
