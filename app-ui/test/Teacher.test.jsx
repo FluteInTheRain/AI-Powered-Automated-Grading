@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../src/api.js'
@@ -40,6 +40,17 @@ describe('TeacherHomePage', () => {
     renderHome()
     await screen.findByText('t@x.com')
     expect(screen.queryByRole('link', { name: /Chỉ số AI/ })).toBeNull()
+  })
+
+  it('hides the import button when bulk_import is off, shows it otherwise', async () => {
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', features: { bulk_import: false } })
+    const { unmount } = renderHome()
+    await screen.findByText('t@x.com')
+    expect(screen.queryByRole('button', { name: /Nhập từ file/ })).toBeNull()
+    unmount()
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', features: { bulk_import: true } })
+    renderHome()
+    expect(await screen.findByRole('button', { name: /Nhập từ file/ })).toBeInTheDocument()
   })
 
   it('lists own exams with student links and a results link', async () => {
@@ -150,6 +161,23 @@ describe('ExamResultsPage', () => {
     api.getResults.mockResolvedValue(results)
     api.getExamSimilarity.mockResolvedValue({ threshold: 0.85, min_tokens: 40, questions: [] })
     api.updateDeadline.mockResolvedValue({})
+  })
+
+  it('hides CSV export, the similarity panel and the appeals link when those features are off', async () => {
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', features: { similarity: false, csv_export: false, bulk_import: true, appeals: false } })
+    renderResults()
+    await screen.findByText('An')
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Xuất CSV/ })).toBeNull())
+    expect(screen.queryByRole('link', { name: 'Khiếu nại' })).toBeNull()
+    expect(api.getExamSimilarity).not.toHaveBeenCalled()
+    expect(screen.getByRole('link', { name: 'Thống kê' })).toBeInTheDocument()
+  })
+
+  it('shows them when the features are on', async () => {
+    api.getMe.mockResolvedValue({ id: 't1', email: 't@x.com', features: { similarity: true, csv_export: true, bulk_import: true, appeals: true } })
+    renderResults()
+    expect(await screen.findByRole('link', { name: /Xuất CSV/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Khiếu nại' })).toBeInTheDocument()
   })
 
   it('has an export button pointing at the CSV endpoint', async () => {

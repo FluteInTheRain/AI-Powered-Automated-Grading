@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { isEnabled } from "../flags";
 import {
   AlreadySubmitted, NameTaken, attemptByReceipt, attemptInExam, attemptJobStatuses, attemptScores, createAttempt, deleteAttempt, findSubmissionId,
   attemptHasSubmissions, getExamByStudentToken, gradedResult, type QuestionStatus, type StudentExam,
@@ -100,6 +101,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
       title: exam.title, deadline: exam.deadline, time_limit_seconds: exam.time_limit_seconds,
       is_closed: closed(exam.deadline), question_count: exam.questions.length,
       turnstile_site_key: c.env.TURNSTILE_SITE_KEY ?? "",
+      appeals_enabled: isEnabled(c.env, "appeals"),
     });
   });
 
