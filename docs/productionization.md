@@ -102,8 +102,9 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   where the model's rubric-check output looks uncertain, for manual
   instructor review, instead of treating every AI score as final.
 
-- [ ] **PR-E3 — Plagiarism / code-similarity check.** Not present
-  anywhere in the current pipeline; needed before grading counts for real.
+- [x] **PR-E3 — Plagiarism / code-similarity check.** Done as a teacher-only
+  signal ("đáng xem lại", never a verdict, no score change); see
+  `docs/similarity-check.md`. It did not exist in the pipeline before.
 
 ## Where this came from
 

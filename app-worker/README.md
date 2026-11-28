@@ -24,7 +24,7 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 
 Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems` (each problem has `title` up to 80 chars, `category` up to 40 chars as free text, and `difficulty` easy, medium or hard; `POST` requires all three),
 `POST problems/preview`, `GET|PUT settings` (default weights and time limit), `GET|POST exams`
-(`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`.
+(`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`, `GET exams/:id/similarity` (PR-E3 signal, `docs/similarity-check.md`).
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;
