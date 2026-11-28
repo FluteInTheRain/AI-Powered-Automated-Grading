@@ -121,7 +121,7 @@ the student sees one result for the whole exam.
 
 **What it does**
 - **Exams.** A catalog of 16 bank problems, each with a title, category and difficulty, shown in a searchable,
-  filterable picker, plus teacher-authored problems (through the API; the UI has no authoring form yet). An exam has up
+  filterable picker, plus teacher-authored problems (through the API, or up to 20 at once from a JSON file with the "Nhập từ file" dialog; the UI has no single-problem authoring form yet). An exam has up
   to 20 weighted questions, a deadline and a time limit.
 - **Rubric weights and Settings.** Each exam stores its own four criterion weights (summing to 100) at creation. The
   default comes from the teacher's Settings page (default weights and time limit), else from each problem. Weights
@@ -143,6 +143,11 @@ the student sees one result for the whole exam.
   reads the outcome by entering the receipt code again.
 - **Teacher statistics.** A page per exam with the score histogram, pass rate per question, mean per criterion and
   appeal counts, all computed from D1.
+- **CSV export.** The results page has a "Xuất CSV" button: one row per student with the per-question scores (latest
+  revision, so appeal adjustments count), the total and the four criteria, in a file Excel opens with Vietnamese names.
+- **Similarity signal.** A "Bài giống nhau" panel on the results page lists pairs of submissions whose normalized code
+  is very close (renamed variables and comments do not hide a copy). It is a hint to look again, never a verdict, and
+  it changes no score. Details in [`docs/similarity-check.md`](docs/similarity-check.md).
 - **Developer page** (`/teacher/admin`, limited to an `ADMIN_EMAILS` allowlist). A determinism canary: once a day a
   Cron grades one fixed input and compares the score and a hash of the raw LLM responses with the first run of the same
   model and input version, so a drift shows up as a mismatch. Also grading health for the last 14 days (outcomes,
@@ -341,9 +346,11 @@ design and the risks accepted for the Free plan are in
 - **Free plan.** Everything runs on the Cloudflare Free plan, so daily request, query and operation caps apply, rate
   limit counts are per location and approximate, and the Access user cap was not confirmed from the docs. The apps are
   not hardened for high-stakes exams.
-- **Not built yet.** An Excel export and a question-authoring form in the UI.
-- **Planned, not on `main`.** CSV export, a similarity check, bulk question import, a test-coverage checker and
-  appeal polish are in progress on other branches.
+- **Not built yet.** A native .xlsx export, a single-problem authoring form in the UI, and import from CSV or Excel.
+- **Similarity and coverage checks are rough.** The similarity thresholds come from hand-made cases, not real exam data,
+  and reordered statements hide a copy. The test-coverage checker (`scripts/coverage_check.py`) is a script, not a page:
+  it found one weak suite among the 16 bank problems (`P02_is_prime`, 0.53) and its score is a lower bound because
+  some surviving mutants behave the same as the original.
 
 The thesis report has a fuller limitations section in Vietnamese
 ([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).

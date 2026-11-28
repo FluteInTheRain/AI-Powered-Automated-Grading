@@ -120,7 +120,7 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
 
 **App làm được gì**
 - **Bài thi.** Danh mục 16 đề trong kho, mỗi đề có tên, chủ đề và độ khó, chọn qua bộ lọc có tìm kiếm và sắp xếp,
-  cùng đề giáo viên tự soạn (qua API; giao diện chưa có form soạn đề). Bài thi tối đa 20 câu có trọng số, hạn nộp
+  cùng đề giáo viên tự soạn (qua API, hoặc nhập tối đa 20 đề một lúc từ file JSON bằng hộp thoại "Nhập từ file"; giao diện chưa có form soạn từng đề). Bài thi tối đa 20 câu có trọng số, hạn nộp
   và thời gian làm bài.
 - **Trọng số rubric và Cài đặt.** Mỗi bài thi lưu bốn trọng số tiêu chí riêng (tổng 100) lúc tạo. Mặc định lấy từ
   trang Cài đặt của giáo viên (trọng số và thời gian làm bài mặc định), nếu không có thì lấy theo từng đề. Trọng số
@@ -142,6 +142,11 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
   kết quả bằng cách nhập lại mã biên nhận.
 - **Thống kê cho giáo viên.** Mỗi bài thi có một trang với phân bố điểm, tỉ lệ đạt từng câu, điểm trung bình theo
   từng tiêu chí và số khiếu nại, tính hoàn toàn từ D1.
+- **Xuất CSV.** Trang kết quả có nút "Xuất CSV": mỗi học sinh một dòng, gồm điểm từng câu (bản mới nhất, nên điểm
+  đã chỉnh sau khiếu nại được tính), tổng điểm và bốn tiêu chí, ở dạng Excel mở được với tên tiếng Việt.
+- **Tín hiệu bài giống nhau.** Khung "Bài giống nhau" ở trang kết quả liệt kê các cặp bài nộp có code chuẩn hoá rất gần
+  nhau (đổi tên biến hay comment cũng không che được). Đây chỉ là gợi ý xem lại, không phải kết luận, và không đổi
+  điểm nào. Chi tiết ở [`docs/similarity-check.md`](docs/similarity-check.md).
 - **Trang cho người phát triển** (`/teacher/admin`, chỉ các email trong danh sách `ADMIN_EMAILS`). Bài chuẩn kiểm
   tra độ ổn định: mỗi ngày một Cron chấm một đầu vào cố định rồi so điểm và mã băm của các câu trả lời thô của LLM
   với lần chạy đầu tiên cùng model và phiên bản đầu vào, nên độ lệch hiện ra thành một dòng "LỆCH". Trang còn có
@@ -341,9 +346,11 @@ chấp nhận khi dùng gói Free nằm trong
 - **Gói Free.** Mọi thứ chạy trên gói Free của Cloudflare, nên có giới hạn request, truy vấn và thao tác theo
   ngày, bộ đếm giới hạn tần suất tính theo từng điểm trình và chỉ gần đúng, còn giới hạn số người dùng của Access
   chưa được xác nhận từ tài liệu. App chưa đủ an toàn cho kỳ thi quan trọng.
-- **Chưa làm.** Xuất Excel và form soạn câu hỏi trên giao diện.
-- **Dự kiến, chưa có trên `main`.** Xuất CSV, kiểm tra đạo văn, nhập câu hỏi hàng loạt, công cụ kiểm tra độ phủ
-  test và hoàn thiện khiếu nại đang làm trên các nhánh khác.
+- **Chưa làm.** Xuất file .xlsx thật, form soạn từng đề trên giao diện, và nhập từ CSV hay Excel.
+- **Kiểm tra bài giống nhau và độ phủ test còn thô.** Ngưỡng của phần so bài giống chọn từ các ca tự soạn, chưa dựa trên
+  dữ liệu thi thật, và đổi thứ tự câu lệnh sẽ che được việc chép. Công cụ kiểm tra độ phủ test
+  (`scripts/coverage_check.py`) là một script chứ chưa có trang: nó tìm ra một bộ test yếu trong 16 đề của kho
+  (`P02_is_prime`, 0.53), và điểm này là cận dưới vì một số bản đột biến còn sống có hành vi y hệt bản gốc.
 
 Báo cáo luận văn có phần hạn chế đầy đủ hơn, bằng tiếng Việt
 ([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).
