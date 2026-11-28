@@ -317,7 +317,7 @@ def check_problem(problem: dict, reference_code: Optional[str] = None,
     """Coverage report for one problem dict (id, func_name, test_cases,
     submissions). The reference is `reference_code`, or the first submission
     (the bank's correct clean solution) when not given."""
-    ref = reference_code or problem["submissions"][0]["code"]
+    ref = reference_code or problem.get("reference_solution") or problem["submissions"][0]["code"]
     func, cases = problem["func_name"], problem["test_cases"]
     base = runner(ref, func, cases, timeout)
     if base is None or not all(base):
@@ -357,9 +357,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = ap.parse_args(argv)
     root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(root / "data"))
+    from bank_extra import BANK_EXTRA  # noqa: E402
     from problems import PROBLEMS  # noqa: E402
     reports = []
-    for p in PROBLEMS:
+    for p in [*PROBLEMS, *BANK_EXTRA]:
         if args.only and args.only not in p["id"]:
             continue
         r = check_problem(p)

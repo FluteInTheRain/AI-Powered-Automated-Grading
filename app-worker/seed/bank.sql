@@ -181,3 +181,731 @@ INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, pa
     # TODO: your solution here
     pass
 ', '2026-01-01T00:00:00+00:00', 'Power', 'Math', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P17_longest_common_prefix', NULL, 'system', 'Write a function longest_common_prefix(strs) that takes a list of strings and returns the longest string that is a prefix of every string in the list. If the strings share no prefix, or the list is empty, return an empty string. For strs = ["flower", "flow", "flight"] the answer is "fl", and for strs = ["dog", "car"] the answer is "".', 'longest_common_prefix', '["strs"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def longest_common_prefix(strs):
+    if not strs:
+        return ""
+    prefix = strs[0]
+    for word in strs[1:]:
+        while not word.startswith(prefix):
+            prefix = prefix[:-1]
+    return prefix
+', '[{"args": [["flower", "flow", "flight"]], "expected": "fl", "is_public": true}, {"args": [["dog", "racecar", "car"]], "expected": "", "is_public": false}, {"args": [[]], "expected": "", "is_public": false}, {"args": [["alone"]], "expected": "alone", "is_public": false}, {"args": [["", "abc"]], "expected": "", "is_public": false}, {"args": [["abc", ""]], "expected": "", "is_public": false}, {"args": [["same", "same", "same"]], "expected": "same", "is_public": false}, {"args": [["ab", "abc", "abcd"]], "expected": "ab", "is_public": false}, {"args": [["abcd", "abc", "ab"]], "expected": "ab", "is_public": false}, {"args": [["interview", "internet", "interval", "internal"]], "expected": "inter", "is_public": false}, {"args": [["a", "b"]], "expected": "", "is_public": false}, {"args": [["aaa", "aa", "aaaa"]], "expected": "aa", "is_public": false}, {"args": [["xyz", "xyw", "xya"]], "expected": "xy", "is_public": false}]', 'def longest_common_prefix(strs):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Longest Common Prefix', 'Strings', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P18_reverse_words', NULL, 'system', 'Write a function reverse_words(s) that takes a string s made of words separated by spaces and returns the words in reverse order, joined by exactly one space. The input may have leading, trailing or repeated spaces, and none of them should appear in the result. For s = "the sky is blue" the answer is "blue is sky the", and for s = "  hello   world  " the answer is "world hello". A string with no words gives "".', 'reverse_words', '["s"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def reverse_words(s):
+    words = s.split()
+    return " ".join(reversed(words))
+', '[{"args": ["the sky is blue"], "expected": "blue is sky the", "is_public": true}, {"args": ["  hello   world  "], "expected": "world hello", "is_public": false}, {"args": [""], "expected": "", "is_public": false}, {"args": ["   "], "expected": "", "is_public": false}, {"args": ["single"], "expected": "single", "is_public": false}, {"args": [" single "], "expected": "single", "is_public": false}, {"args": ["a b"], "expected": "b a", "is_public": false}, {"args": ["a  b   c"], "expected": "c b a", "is_public": false}, {"args": ["one two three four five"], "expected": "five four three two one", "is_public": false}, {"args": ["   leading"], "expected": "leading", "is_public": false}, {"args": ["trailing   "], "expected": "trailing", "is_public": false}, {"args": ["x y x"], "expected": "x y x", "is_public": false}, {"args": ["abc def"], "expected": "def abc", "is_public": false}]', 'def reverse_words(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Reverse Words in a Sentence', 'Strings', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P19_run_length_encode', NULL, 'system', 'Write a function run_length_encode(s) that compresses a string of lowercase letters by replacing each run of the same letter with the letter followed by the length of the run. Always write the count, even when it is 1. For s = "aaabcc" the answer is "a3b1c2", and for s = "abab" the answer is "a1b1a1b1". Runs longer than 9 use all their digits, so twelve a''s give "a12". The empty string gives "".', 'run_length_encode', '["s"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def run_length_encode(s):
+    parts = []
+    i = 0
+    while i < len(s):
+        j = i
+        while j < len(s) and s[j] == s[i]:
+            j += 1
+        parts.append(s[i] + str(j - i))
+        i = j
+    return "".join(parts)
+', '[{"args": ["aaabcc"], "expected": "a3b1c2", "is_public": true}, {"args": [""], "expected": "", "is_public": false}, {"args": ["a"], "expected": "a1", "is_public": false}, {"args": ["abab"], "expected": "a1b1a1b1", "is_public": false}, {"args": ["aaaaaaaaaaaa"], "expected": "a12", "is_public": false}, {"args": ["zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"], "expected": "z103", "is_public": false}, {"args": ["aabbaa"], "expected": "a2b2a2", "is_public": false}, {"args": ["abc"], "expected": "a1b1c1", "is_public": false}, {"args": ["aaaaaaaaaab"], "expected": "a10b1", "is_public": false}, {"args": ["baaaaaaaaa"], "expected": "b1a9", "is_public": false}, {"args": ["xxyyyz"], "expected": "x2y3z1", "is_public": false}, {"args": ["mississippi"], "expected": "m1i1s2i1s2i1p2i1", "is_public": false}]', 'def run_length_encode(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Run Length Encoding', 'Strings', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P20_first_unique_char', NULL, 'system', 'Write a function first_unique_char(s) that returns the index of the first character in s that appears exactly once in the whole string. If every character repeats, or s is empty, return -1. For s = "leetcode" the answer is 0, for s = "loveleetcode" the answer is 2, and for s = "aabb" the answer is -1.', 'first_unique_char', '["s"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def first_unique_char(s):
+    counts = {}
+    for ch in s:
+        counts[ch] = counts.get(ch, 0) + 1
+    for index, ch in enumerate(s):
+        if counts[ch] == 1:
+            return index
+    return -1
+', '[{"args": ["leetcode"], "expected": 0, "is_public": true}, {"args": ["loveleetcode"], "expected": 2, "is_public": false}, {"args": ["aabb"], "expected": -1, "is_public": false}, {"args": [""], "expected": -1, "is_public": false}, {"args": ["a"], "expected": 0, "is_public": false}, {"args": ["aa"], "expected": -1, "is_public": false}, {"args": ["aab"], "expected": 2, "is_public": false}, {"args": ["abcabcd"], "expected": 6, "is_public": false}, {"args": ["abba"], "expected": -1, "is_public": false}, {"args": ["abbac"], "expected": 4, "is_public": false}, {"args": ["zxyzx"], "expected": 2, "is_public": false}, {"args": ["aabbccdde"], "expected": 8, "is_public": false}, {"args": ["xaax"], "expected": -1, "is_public": false}]', 'def first_unique_char(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'First Non-Repeating Character', 'Strings', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P21_isomorphic_strings', NULL, 'system', 'Write a function is_isomorphic(s, t) that returns True when the characters of s can be replaced one for one to produce t, and False otherwise. Every occurrence of a character must be replaced by the same character, and two different characters of s may not be replaced by the same character. A character may be replaced by itself. The strings have the same length. For s = "egg" and t = "add" the answer is True, for s = "foo" and t = "bar" it is False, and for s = "ab" and t = "aa" it is False.', 'is_isomorphic', '["s", "t"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def is_isomorphic(s, t):
+    forward = {}
+    backward = {}
+    for a, b in zip(s, t):
+        if forward.setdefault(a, b) != b:
+            return False
+        if backward.setdefault(b, a) != a:
+            return False
+    return True
+', '[{"args": ["egg", "add"], "expected": true, "is_public": true}, {"args": ["foo", "bar"], "expected": false, "is_public": false}, {"args": ["ab", "aa"], "expected": false, "is_public": false}, {"args": ["aa", "ab"], "expected": false, "is_public": false}, {"args": ["", ""], "expected": true, "is_public": false}, {"args": ["a", "b"], "expected": true, "is_public": false}, {"args": ["paper", "title"], "expected": true, "is_public": false}, {"args": ["badc", "baba"], "expected": false, "is_public": false}, {"args": ["abc", "abc"], "expected": true, "is_public": false}, {"args": ["abca", "zbxz"], "expected": true, "is_public": false}, {"args": ["abca", "zbxy"], "expected": false, "is_public": false}, {"args": ["abab", "cdcd"], "expected": true, "is_public": false}, {"args": ["abab", "cccc"], "expected": false, "is_public": false}, {"args": ["13", "42"], "expected": true, "is_public": false}]', 'def is_isomorphic(s, t):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Isomorphic Strings', 'Strings', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P22_longest_substring_no_repeat', NULL, 'system', 'Write a function length_of_longest_substring(s) that returns the length of the longest contiguous piece of s in which no character appears twice. For s = "abcabcbb" the answer is 3 (the piece "abc"), for s = "bbbbb" the answer is 1, and for s = "pwwkew" the answer is 3 (the piece "wke"). Note that a piece must be contiguous, so "pwke" does not count. The empty string gives 0. The string can be long, so aim for a single pass.', 'length_of_longest_substring', '["s"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def length_of_longest_substring(s):
+    last_seen = {}
+    start = 0
+    best = 0
+    for index, ch in enumerate(s):
+        if ch in last_seen and last_seen[ch] >= start:
+            start = last_seen[ch] + 1
+        last_seen[ch] = index
+        best = max(best, index - start + 1)
+    return best
+', '[{"args": ["abcabcbb"], "expected": 3, "is_public": true}, {"args": ["bbbbb"], "expected": 1, "is_public": false}, {"args": ["pwwkew"], "expected": 3, "is_public": false}, {"args": [""], "expected": 0, "is_public": false}, {"args": ["a"], "expected": 1, "is_public": false}, {"args": ["au"], "expected": 2, "is_public": false}, {"args": ["dvdf"], "expected": 3, "is_public": false}, {"args": ["abba"], "expected": 2, "is_public": false}, {"args": ["tmmzuxt"], "expected": 5, "is_public": false}, {"args": ["abcdef"], "expected": 6, "is_public": false}, {"args": ["aab"], "expected": 2, "is_public": false}, {"args": ["cdd"], "expected": 2, "is_public": false}, {"args": ["abcb"], "expected": 3, "is_public": false}, {"args": ["a b a"], "expected": 3, "is_public": false}]', 'def length_of_longest_substring(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Longest Substring Without Repeating Characters', 'Strings', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P23_longest_palindromic_substring', NULL, 'system', 'Write a function longest_palindrome(s) that returns the longest contiguous substring of s that reads the same forwards and backwards. If several palindromic substrings share the longest length, return the one that starts earliest in s. For s = "babad" the answer is "bab" ("aba" has the same length but starts later), for s = "cbbd" the answer is "bb", and for s = "abc" the answer is "a". The empty string gives "".', 'longest_palindrome', '["s"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def longest_palindrome(s):
+    best_start, best_len = 0, 0
+    for center in range(2 * len(s) - 1):
+        left = center // 2
+        right = left + center % 2
+        while left >= 0 and right < len(s) and s[left] == s[right]:
+            left -= 1
+            right += 1
+        length = right - left - 1
+        if length > best_len:
+            best_start, best_len = left + 1, length
+    return s[best_start:best_start + best_len]
+', '[{"args": ["babad"], "expected": "bab", "is_public": true}, {"args": ["cbbd"], "expected": "bb", "is_public": false}, {"args": ["abc"], "expected": "a", "is_public": false}, {"args": [""], "expected": "", "is_public": false}, {"args": ["a"], "expected": "a", "is_public": false}, {"args": ["aa"], "expected": "aa", "is_public": false}, {"args": ["racecar"], "expected": "racecar", "is_public": false}, {"args": ["forgeeksskeegfor"], "expected": "geeksskeeg", "is_public": false}, {"args": ["abacdfgdcaba"], "expected": "aba", "is_public": false}, {"args": ["abcbaxyzzyx"], "expected": "xyzzyx", "is_public": false}, {"args": ["xabbay"], "expected": "abba", "is_public": false}, {"args": ["aaaa"], "expected": "aaaa", "is_public": false}, {"args": ["abcdcbefe"], "expected": "bcdcb", "is_public": false}, {"args": ["ac"], "expected": "a", "is_public": false}, {"args": ["aabaac"], "expected": "aabaa", "is_public": false}, {"args": ["abb"], "expected": "bb", "is_public": false}, {"args": ["cabab"], "expected": "aba", "is_public": false}]', 'def longest_palindrome(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Longest Palindromic Substring', 'Strings', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P24_decode_string', NULL, 'system', 'Write a function decode_string(s) that expands an encoded string. The encoding k[text] means the text inside the brackets is repeated k times, where k is a positive integer that may have more than one digit. Encodings can be nested, and plain letters can appear anywhere between them. The input is always well formed, contains only lowercase letters, digits and square brackets, and digits appear only as repeat counts. For s = "3[a]2[bc]" the answer is "aaabcbc", and for s = "2[a2[b]]c" the answer is "abbabbc".', 'decode_string', '["s"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def decode_string(s):
+    stack = []
+    current = ""
+    count = 0
+    for ch in s:
+        if ch.isdigit():
+            count = count * 10 + int(ch)
+        elif ch == "[":
+            stack.append((current, count))
+            current, count = "", 0
+        elif ch == "]":
+            previous, repeat = stack.pop()
+            current = previous + current * repeat
+        else:
+            current += ch
+    return current
+', '[{"args": ["3[a]2[bc]"], "expected": "aaabcbc", "is_public": true}, {"args": ["2[a2[b]]c"], "expected": "abbabbc", "is_public": false}, {"args": [""], "expected": "", "is_public": false}, {"args": ["abc"], "expected": "abc", "is_public": false}, {"args": ["1[x]"], "expected": "x", "is_public": false}, {"args": ["10[a]"], "expected": "aaaaaaaaaa", "is_public": false}, {"args": ["2[ab]3[c]d"], "expected": "ababcccd", "is_public": false}, {"args": ["a2[b]c"], "expected": "abbc", "is_public": false}, {"args": ["2[2[2[a]]]"], "expected": "aaaaaaaa", "is_public": false}, {"args": ["3[a2[c]]"], "expected": "accaccacc", "is_public": false}, {"args": ["2[a]2[b]"], "expected": "aabb", "is_public": false}, {"args": ["x3[y]z"], "expected": "xyyyz", "is_public": false}, {"args": ["12[ab]"], "expected": "abababababababababababab", "is_public": false}, {"args": ["2[]a"], "expected": "a", "is_public": false}, {"args": ["2[ab3[c]]"], "expected": "abcccabccc", "is_public": false}]', 'def decode_string(s):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Decode Nested Repeats', 'Strings', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P25_min_window_substring', NULL, 'system', 'Write a function min_window(s, t) that returns the shortest contiguous substring of s that contains every character of t, counting repeats: if t has two a''s, the window needs at least two a''s. If several windows share the shortest length, return the leftmost one. If no window works, or t is empty, return "". For s = "ADOBECODEBANC" and t = "ABC" the answer is "BANC", for s = "aa" and t = "aa" the answer is "aa", and for s = "a" and t = "aa" the answer is "". Uppercase and lowercase letters are different characters. Aim for a single pass over s.', 'min_window', '["s", "t"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def min_window(s, t):
+    if not t:
+        return ""
+    need = {}
+    for ch in t:
+        need[ch] = need.get(ch, 0) + 1
+    missing = len(t)
+    best_start, best_len = 0, len(s) + 1
+    left = 0
+    for right, ch in enumerate(s):
+        if need.get(ch, 0) > 0:
+            missing -= 1
+        need[ch] = need.get(ch, 0) - 1
+        while missing == 0:
+            if right - left + 1 < best_len:
+                best_start, best_len = left, right - left + 1
+            need[s[left]] += 1
+            if need[s[left]] > 0:
+                missing += 1
+            left += 1
+    return s[best_start:best_start + best_len] if best_len <= len(s) else ""
+', '[{"args": ["ADOBECODEBANC", "ABC"], "expected": "BANC", "is_public": true}, {"args": ["aa", "aa"], "expected": "aa", "is_public": false}, {"args": ["a", "aa"], "expected": "", "is_public": false}, {"args": ["a", "a"], "expected": "a", "is_public": false}, {"args": ["a", "b"], "expected": "", "is_public": false}, {"args": ["", "a"], "expected": "", "is_public": false}, {"args": ["abc", ""], "expected": "", "is_public": false}, {"args": ["abc", "cba"], "expected": "abc", "is_public": false}, {"args": ["aab", "ab"], "expected": "ab", "is_public": false}, {"args": ["abab", "ab"], "expected": "ab", "is_public": false}, {"args": ["bba", "ab"], "expected": "ba", "is_public": false}, {"args": ["aaflslflsldkalskaaa", "aaa"], "expected": "aaa", "is_public": false}, {"args": ["xyzabcxyz", "zx"], "expected": "xyz", "is_public": false}, {"args": ["Aa", "a"], "expected": "a", "is_public": false}, {"args": ["cabwefgewcwaefgcf", "cae"], "expected": "cwae", "is_public": false}]', 'def min_window(s, t):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Minimum Window Substring', 'Strings', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P26_edit_distance', NULL, 'system', 'Write a function edit_distance(word1, word2) that returns the smallest number of single character edits needed to turn word1 into word2. An edit is one of: insert a character, delete a character, or replace a character with another. For word1 = "horse" and word2 = "ros" the answer is 3 (replace h with r, delete r, delete e), and for word1 = "kitten" and word2 = "sitting" the answer is 3. Turning "" into "abc" takes 3 insertions. Both strings may be empty.', 'edit_distance', '["word1", "word2"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def edit_distance(word1, word2):
+    previous = list(range(len(word2) + 1))
+    for i, a in enumerate(word1, start=1):
+        current = [i]
+        for j, b in enumerate(word2, start=1):
+            if a == b:
+                current.append(previous[j - 1])
+            else:
+                current.append(1 + min(previous[j - 1], previous[j], current[j - 1]))
+        previous = current
+    return previous[-1]
+', '[{"args": ["horse", "ros"], "expected": 3, "is_public": true}, {"args": ["kitten", "sitting"], "expected": 3, "is_public": false}, {"args": ["", ""], "expected": 0, "is_public": false}, {"args": ["", "abc"], "expected": 3, "is_public": false}, {"args": ["abc", ""], "expected": 3, "is_public": false}, {"args": ["abc", "abc"], "expected": 0, "is_public": false}, {"args": ["a", "b"], "expected": 1, "is_public": false}, {"args": ["intention", "execution"], "expected": 5, "is_public": false}, {"args": ["abc", "yabd"], "expected": 2, "is_public": false}, {"args": ["sunday", "saturday"], "expected": 3, "is_public": false}, {"args": ["ab", "ba"], "expected": 2, "is_public": false}, {"args": ["abcdef", "azced"], "expected": 3, "is_public": false}, {"args": ["aaa", "a"], "expected": 2, "is_public": false}, {"args": ["flaw", "lawn"], "expected": 2, "is_public": false}]', 'def edit_distance(word1, word2):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Edit Distance', 'Strings', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P27_max_subarray_sum', NULL, 'system', 'Write a function max_subarray_sum(nums) that takes a non-empty list of integers and returns the largest sum of any contiguous, non-empty run of elements. For nums = [1, -2, 3, 4], the answer is 7 (the run 3, 4). If every number is negative, the answer is the least negative one, so for nums = [-3, -1, -2] it is -1.', 'max_subarray_sum', '["nums"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def max_subarray_sum(nums):
+    best = current = nums[0]
+    for value in nums[1:]:
+        current = max(value, current + value)
+        best = max(best, current)
+    return best
+', '[{"args": [[1, -2, 3, 4]], "expected": 7, "is_public": true}, {"args": [[5]], "expected": 5, "is_public": false}, {"args": [[-3, -1, -2]], "expected": -1, "is_public": false}, {"args": [[-4]], "expected": -4, "is_public": false}, {"args": [[2, 3, 4]], "expected": 9, "is_public": false}, {"args": [[0, 0, 0]], "expected": 0, "is_public": false}, {"args": [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], "expected": 6, "is_public": false}, {"args": [[4, -1, 2, 1]], "expected": 6, "is_public": false}, {"args": [[-1, 5, -10, 6]], "expected": 6, "is_public": false}, {"args": [[8, -19, 5, -4, 20]], "expected": 21, "is_public": false}, {"args": [[1, -1, 1, -1, 1]], "expected": 1, "is_public": false}, {"args": [[-5, 2]], "expected": 2, "is_public": false}, {"args": [[3, -4, 2, -1, 6, -10, 1]], "expected": 7, "is_public": false}]', 'def max_subarray_sum(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Maximum Subarray Sum', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P28_move_zeroes', NULL, 'system', 'Write a function move_zeroes(nums) that returns a new list containing the same numbers as nums, with every 0 moved to the end. The non-zero numbers must keep their original relative order. For nums = [0, 1, 0, 3], the result is [1, 3, 0, 0]. The input list should not be changed.', 'move_zeroes', '["nums"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def move_zeroes(nums):
+    non_zeros = [value for value in nums if value != 0]
+    zero_count = len(nums) - len(non_zeros)
+    return non_zeros + [0] * zero_count
+', '[{"args": [[0, 1, 0, 3]], "expected": [1, 3, 0, 0], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[0]], "expected": [0], "is_public": false}, {"args": [[7]], "expected": [7], "is_public": false}, {"args": [[0, 0, 0]], "expected": [0, 0, 0], "is_public": false}, {"args": [[1, 2, 3]], "expected": [1, 2, 3], "is_public": false}, {"args": [[3, 0, 2, 0, 1]], "expected": [3, 2, 1, 0, 0], "is_public": false}, {"args": [[0, 0, 5]], "expected": [5, 0, 0], "is_public": false}, {"args": [[4, 4, 0, 4]], "expected": [4, 4, 4, 0], "is_public": false}, {"args": [[-1, 0, -2, 0]], "expected": [-1, -2, 0, 0], "is_public": false}, {"args": [[5, 3, 0]], "expected": [5, 3, 0], "is_public": false}, {"args": [[2, 1, 0, 0, 3, 0, 1]], "expected": [2, 1, 3, 1, 0, 0, 0], "is_public": false}]', 'def move_zeroes(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Move Zeroes to the End', 'Arrays & Search', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P29_remove_duplicates_sorted', NULL, 'system', 'Write a function remove_duplicates_sorted(nums) that takes a list of integers sorted in non-decreasing order and returns a new list in which each value appears only once, still in sorted order. For nums = [1, 1, 2, 3, 3], the result is [1, 2, 3]. An empty list gives an empty list.', 'remove_duplicates_sorted', '["nums"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def remove_duplicates_sorted(nums):
+    unique = []
+    for value in nums:
+        if not unique or value != unique[-1]:
+            unique.append(value)
+    return unique
+', '[{"args": [[1, 1, 2, 3, 3]], "expected": [1, 2, 3], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[4]], "expected": [4], "is_public": false}, {"args": [[2, 2, 2, 2]], "expected": [2], "is_public": false}, {"args": [[1, 2, 3]], "expected": [1, 2, 3], "is_public": false}, {"args": [[-3, -3, -1, 0, 0, 5]], "expected": [-3, -1, 0, 5], "is_public": false}, {"args": [[0, 0, 1, 1, 1, 2, 2, 3, 3, 4]], "expected": [0, 1, 2, 3, 4], "is_public": false}, {"args": [[1, 1]], "expected": [1], "is_public": false}, {"args": [[1, 2]], "expected": [1, 2], "is_public": false}, {"args": [[5, 6, 6, 7, 7, 7, 8]], "expected": [5, 6, 7, 8], "is_public": false}, {"args": [[-2, -2, -2, -1]], "expected": [-2, -1], "is_public": false}, {"args": [[1, 2, 2]], "expected": [1, 2], "is_public": false}]', 'def remove_duplicates_sorted(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Remove Duplicates from Sorted List', 'Arrays & Search', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P30_rotate_array', NULL, 'system', 'Write a function rotate_array(nums, k) that returns a new list with nums rotated to the right by k positions, where k is a non-negative integer that may be larger than the length of the list. Rotating right by one moves the last element to the front. For nums = [1, 2, 3, 4, 5] and k = 2, the result is [4, 5, 1, 2, 3]. An empty list stays empty for any k.', 'rotate_array', '["nums", "k"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def rotate_array(nums, k):
+    if not nums:
+        return []
+    shift = k % len(nums)
+    if shift == 0:
+        return list(nums)
+    return nums[-shift:] + nums[:-shift]
+', '[{"args": [[1, 2, 3, 4, 5], 2], "expected": [4, 5, 1, 2, 3], "is_public": true}, {"args": [[1, 2, 3], 0], "expected": [1, 2, 3], "is_public": false}, {"args": [[], 3], "expected": [], "is_public": false}, {"args": [[9], 4], "expected": [9], "is_public": false}, {"args": [[1, 2, 3], 3], "expected": [1, 2, 3], "is_public": false}, {"args": [[1, 2, 3], 4], "expected": [3, 1, 2], "is_public": false}, {"args": [[1, 2, 3, 4, 5, 6, 7], 3], "expected": [5, 6, 7, 1, 2, 3, 4], "is_public": false}, {"args": [[1, 2], 1], "expected": [2, 1], "is_public": false}, {"args": [[1, 2, 3, 4], 10], "expected": [3, 4, 1, 2], "is_public": false}, {"args": [[-1, -100, 3, 99], 2], "expected": [3, 99, -1, -100], "is_public": false}, {"args": [[1, 2, 3, 4, 5], 1], "expected": [5, 1, 2, 3, 4], "is_public": false}, {"args": [[1, 2, 3, 4, 5], 4], "expected": [2, 3, 4, 5, 1], "is_public": false}, {"args": [[1, 1, 2], 1], "expected": [2, 1, 1], "is_public": false}]', 'def rotate_array(nums, k):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Rotate List to the Right', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P31_best_time_to_buy_stock', NULL, 'system', 'Write a function best_time_to_buy_stock(prices) where prices[i] is the price of a stock on day i. You may buy on one day and sell on a later day, once only. Return the largest profit you can make, or 0 if no profitable trade exists. For prices = [7, 1, 5, 3, 6, 4], the answer is 5 (buy at 1, sell at 6). For prices = [5, 4, 3], the answer is 0.', 'best_time_to_buy_stock', '["prices"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def best_time_to_buy_stock(prices):
+    best_profit = 0
+    lowest_price = None
+    for price in prices:
+        if lowest_price is None or price < lowest_price:
+            lowest_price = price
+        else:
+            best_profit = max(best_profit, price - lowest_price)
+    return best_profit
+', '[{"args": [[7, 1, 5, 3, 6, 4]], "expected": 5, "is_public": true}, {"args": [[5, 4, 3]], "expected": 0, "is_public": false}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[6]], "expected": 0, "is_public": false}, {"args": [[1, 2]], "expected": 1, "is_public": false}, {"args": [[2, 1]], "expected": 0, "is_public": false}, {"args": [[3, 3, 3]], "expected": 0, "is_public": false}, {"args": [[1, 2, 3, 4, 5]], "expected": 4, "is_public": false}, {"args": [[2, 4, 1]], "expected": 2, "is_public": false}, {"args": [[3, 2, 6, 5, 0, 3]], "expected": 4, "is_public": false}, {"args": [[10, 1, 2, 9, 0, 3]], "expected": 8, "is_public": false}, {"args": [[0, 5, 0, 7]], "expected": 7, "is_public": false}, {"args": [[9, 1, 8, 2, 7]], "expected": 7, "is_public": false}]', 'def best_time_to_buy_stock(prices):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Best Time to Buy and Sell Stock', 'Arrays & Search', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P32_product_except_self', NULL, 'system', 'Write a function product_except_self(nums) that returns a list result of the same length as nums, where result[i] is the product of all elements of nums except nums[i]. Do not use division, because nums may contain zeros. For nums = [1, 2, 3, 4], the result is [24, 12, 8, 6]. For nums = [5], the result is [1], since the product of no numbers is 1.', 'product_except_self', '["nums"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def product_except_self(nums):
+    size = len(nums)
+    result = [1] * size
+    prefix = 1
+    for i in range(size):
+        result[i] = prefix
+        prefix *= nums[i]
+    suffix = 1
+    for i in range(size - 1, -1, -1):
+        result[i] *= suffix
+        suffix *= nums[i]
+    return result
+', '[{"args": [[1, 2, 3, 4]], "expected": [24, 12, 8, 6], "is_public": true}, {"args": [[5]], "expected": [1], "is_public": false}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[2, 3]], "expected": [3, 2], "is_public": false}, {"args": [[0, 1, 2, 3]], "expected": [6, 0, 0, 0], "is_public": false}, {"args": [[1, 0, 3, 0]], "expected": [0, 0, 0, 0], "is_public": false}, {"args": [[-1, 1, 0, -3, 3]], "expected": [0, 0, 9, 0, 0], "is_public": false}, {"args": [[-2, 3, -4]], "expected": [-12, 8, -6], "is_public": false}, {"args": [[1, 1, 1]], "expected": [1, 1, 1], "is_public": false}, {"args": [[0]], "expected": [1], "is_public": false}, {"args": [[2, 2, 2, 2]], "expected": [8, 8, 8, 8], "is_public": false}, {"args": [[4, 0]], "expected": [0, 4], "is_public": false}, {"args": [[3, -1, 2]], "expected": [-2, 6, -3], "is_public": false}]', 'def product_except_self(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Product of Array Except Self', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P33_container_most_water', NULL, 'system', 'Write a function container_most_water(heights) where heights[i] is the height of a vertical wall standing at position i. Choose two different walls i < j to form a container; its water capacity is (j - i) * min(heights[i], heights[j]). Return the largest capacity over all pairs, or 0 if there are fewer than two walls. For heights = [1, 8, 6, 2, 5, 4, 8, 3, 7], the answer is 49. For heights = [3, 4], the answer is 3.', 'container_most_water', '["heights"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def container_most_water(heights):
+    left, right = 0, len(heights) - 1
+    best = 0
+    while left < right:
+        width = right - left
+        best = max(best, width * min(heights[left], heights[right]))
+        if heights[left] < heights[right]:
+            left += 1
+        else:
+            right -= 1
+    return best
+', '[{"args": [[1, 8, 6, 2, 5, 4, 8, 3, 7]], "expected": 49, "is_public": true}, {"args": [[3, 4]], "expected": 3, "is_public": false}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 0, "is_public": false}, {"args": [[1, 1]], "expected": 1, "is_public": false}, {"args": [[0, 0, 0]], "expected": 0, "is_public": false}, {"args": [[4, 3, 2, 1, 4]], "expected": 16, "is_public": false}, {"args": [[1, 2, 1]], "expected": 2, "is_public": false}, {"args": [[2, 3, 10, 5, 7, 8, 9]], "expected": 36, "is_public": false}, {"args": [[1, 2, 4, 3]], "expected": 4, "is_public": false}, {"args": [[10, 1, 1, 1, 1, 1, 1, 10]], "expected": 70, "is_public": false}, {"args": [[9, 8, 7, 6, 5]], "expected": 20, "is_public": false}, {"args": [[1, 2, 3, 4, 5]], "expected": 6, "is_public": false}, {"args": [[6, 0, 0, 0, 6]], "expected": 24, "is_public": false}]', 'def container_most_water(heights):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Container With Most Water', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P34_three_sum', NULL, 'system', 'Write a function three_sum(nums) that returns every distinct triplet [a, b, c] of values from nums that adds up to 0, using three different positions of the list. Each triplet must be sorted in ascending order, no triplet may appear twice, and the list of triplets must itself be sorted in ascending order. For nums = [-1, 0, 1, 2, -1, -4], the result is [[-1, -1, 2], [-1, 0, 1]]. If there is no such triplet, return an empty list.', 'three_sum', '["nums"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def three_sum(nums):
+    ordered = sorted(nums)
+    triplets = []
+    for i in range(len(ordered) - 2):
+        if i > 0 and ordered[i] == ordered[i - 1]:
+            continue
+        left, right = i + 1, len(ordered) - 1
+        while left < right:
+            total = ordered[i] + ordered[left] + ordered[right]
+            if total < 0:
+                left += 1
+            elif total > 0:
+                right -= 1
+            else:
+                triplets.append([ordered[i], ordered[left], ordered[right]])
+                left += 1
+                right -= 1
+                while left < right and ordered[left] == ordered[left - 1]:
+                    left += 1
+    return triplets
+', '[{"args": [[-1, 0, 1, 2, -1, -4]], "expected": [[-1, -1, 2], [-1, 0, 1]], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[0]], "expected": [], "is_public": false}, {"args": [[0, 0]], "expected": [], "is_public": false}, {"args": [[0, 0, 0]], "expected": [[0, 0, 0]], "is_public": false}, {"args": [[0, 0, 0, 0, 0]], "expected": [[0, 0, 0]], "is_public": false}, {"args": [[1, 2, 3]], "expected": [], "is_public": false}, {"args": [[-1, 0, 1]], "expected": [[-1, 0, 1]], "is_public": false}, {"args": [[-2, 0, 1, 1, 2]], "expected": [[-2, 0, 2], [-2, 1, 1]], "is_public": false}, {"args": [[3, -2, 1, 0, -1, 2, -3]], "expected": [[-3, 0, 3], [-3, 1, 2], [-2, -1, 3], [-2, 0, 2], [-1, 0, 1]], "is_public": false}, {"args": [[-1, -1, -1, 2, 2]], "expected": [[-1, -1, 2]], "is_public": false}, {"args": [[-4, -2, -2, -2, 0, 1, 2, 2, 2, 3, 3, 4, 4, 6, 6]], "expected": [[-4, -2, 6], [-4, 0, 4], [-4, 1, 3], [-4, 2, 2], [-2, -2, 4], [-2, 0, 2]], "is_public": false}, {"args": [[-5, 2, 3, 5, -1]], "expected": [[-5, 2, 3]], "is_public": false}, {"args": [[2, -1, -1]], "expected": [[-1, -1, 2]], "is_public": false}]', 'def three_sum(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Three Sum', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P35_search_rotated_sorted_array', NULL, 'system', 'Write a function search_rotated_sorted_array(nums, target) where nums holds distinct integers that were sorted in ascending order and then rotated, so that a suffix of the sorted list was moved to the front (for example [4, 5, 6, 7, 0, 1, 2]). Return the index of target in nums, or -1 if it is not there. For nums = [4, 5, 6, 7, 0, 1, 2] and target = 0, the answer is 4. The intended solution runs in O(log n) time.', 'search_rotated_sorted_array', '["nums", "target"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def search_rotated_sorted_array(nums, target):
+    low, high = 0, len(nums) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[low] <= nums[mid]:
+            if nums[low] <= target < nums[mid]:
+                high = mid - 1
+            else:
+                low = mid + 1
+        else:
+            if nums[mid] < target <= nums[high]:
+                low = mid + 1
+            else:
+                high = mid - 1
+    return -1
+', '[{"args": [[4, 5, 6, 7, 0, 1, 2], 0], "expected": 4, "is_public": true}, {"args": [[4, 5, 6, 7, 0, 1, 2], 3], "expected": -1, "is_public": false}, {"args": [[], 5], "expected": -1, "is_public": false}, {"args": [[1], 1], "expected": 0, "is_public": false}, {"args": [[1], 0], "expected": -1, "is_public": false}, {"args": [[3, 1], 1], "expected": 1, "is_public": false}, {"args": [[3, 1], 3], "expected": 0, "is_public": false}, {"args": [[1, 2, 3, 4, 5], 4], "expected": 3, "is_public": false}, {"args": [[9, 11, 15, 2, 4, 6], 10], "expected": -1, "is_public": false}, {"args": [[4, 5, 6, 7, 0, 1, 2], 4], "expected": 0, "is_public": false}, {"args": [[4, 5, 6, 7, 0, 1, 2], 2], "expected": 6, "is_public": false}, {"args": [[6, 7, 8, 1, 2, 3, 4, 5], 8], "expected": 2, "is_public": false}, {"args": [[6, 7, 8, 1, 2, 3, 4, 5], 1], "expected": 3, "is_public": false}, {"args": [[-3, -1, 4, 9, -8, -6], -6], "expected": 5, "is_public": false}, {"args": [[8, 9, 2, 3, 4, 5, 6, 7], 10], "expected": -1, "is_public": false}, {"args": [[8, 9, 2, 3, 4, 5, 6, 7], 1], "expected": -1, "is_public": false}, {"args": [[8, 9, 2, 3, 4, 5, 6, 7], 7], "expected": 7, "is_public": false}]', 'def search_rotated_sorted_array(nums, target):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Search in Rotated Sorted List', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P36_trapping_rain_water', NULL, 'system', 'Write a function trapping_rain_water(heights) where heights[i] is the height of a bar of width 1 at position i, and every height is a non-negative integer. After rain, water collects in the gaps between bars. Return the total units of water held. The water above position i is min(tallest bar at or left of i, tallest bar at or right of i) minus heights[i]. For heights = [3, 0, 2], the answer is 2. For heights = [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1], the answer is 6.', 'trapping_rain_water', '["heights"]', '{"correctness": 55, "efficiency": 20, "code_style": 15, "edge_case_handling": 10}', 'def trapping_rain_water(heights):
+    left, right = 0, len(heights) - 1
+    left_max = right_max = 0
+    water = 0
+    while left < right:
+        if heights[left] < heights[right]:
+            left_max = max(left_max, heights[left])
+            water += left_max - heights[left]
+            left += 1
+        else:
+            right_max = max(right_max, heights[right])
+            water += right_max - heights[right]
+            right -= 1
+    return water
+', '[{"args": [[3, 0, 2]], "expected": 2, "is_public": true}, {"args": [[0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]], "expected": 6, "is_public": false}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 0, "is_public": false}, {"args": [[2, 5]], "expected": 0, "is_public": false}, {"args": [[1, 2, 3, 4]], "expected": 0, "is_public": false}, {"args": [[4, 3, 2, 1]], "expected": 0, "is_public": false}, {"args": [[4, 2, 0, 3, 2, 5]], "expected": 9, "is_public": false}, {"args": [[2, 0, 2]], "expected": 2, "is_public": false}, {"args": [[3, 3, 3]], "expected": 0, "is_public": false}, {"args": [[5, 0, 0, 0, 5]], "expected": 15, "is_public": false}, {"args": [[5, 2, 1, 2, 1, 5]], "expected": 14, "is_public": false}, {"args": [[1, 0, 2, 0, 1]], "expected": 2, "is_public": false}, {"args": [[6, 1, 4, 0, 3]], "expected": 6, "is_public": false}]', 'def trapping_rain_water(heights):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Trapping Rain Water', 'Arrays & Search', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P37_climbing_stairs', NULL, 'system', 'Write a function climb_stairs(n) that returns the number of distinct ways to climb a staircase of n steps when each move goes up either 1 step or 2 steps. Two ways are different if the order of the moves differs. Assume n is at least 1. For n = 3 the answer is 3, because the ways are 1+1+1, 1+2 and 2+1.', 'climb_stairs', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def climb_stairs(n):
+    previous, current = 1, 1
+    for _ in range(n - 1):
+        previous, current = current, previous + current
+    return current
+', '[{"args": [3], "expected": 3, "is_public": true}, {"args": [1], "expected": 1, "is_public": false}, {"args": [2], "expected": 2, "is_public": false}, {"args": [4], "expected": 5, "is_public": false}, {"args": [5], "expected": 8, "is_public": false}, {"args": [6], "expected": 13, "is_public": false}, {"args": [7], "expected": 21, "is_public": false}, {"args": [10], "expected": 89, "is_public": false}, {"args": [15], "expected": 987, "is_public": false}, {"args": [20], "expected": 10946, "is_public": false}, {"args": [30], "expected": 1346269, "is_public": false}, {"args": [45], "expected": 1836311903, "is_public": false}]', 'def climb_stairs(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Climbing Stairs', 'Dynamic Programming', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P38_coin_change', NULL, 'system', 'Write a function coin_change(coins, amount) that returns the smallest number of coins needed to make exactly amount, or -1 if it cannot be done. coins is a list of distinct positive integers and every coin value can be used any number of times. An amount of 0 needs 0 coins. For coins = [1, 2, 5] and amount = 11 the answer is 3 (5 + 5 + 1), and for coins = [2] and amount = 3 the answer is -1.', 'coin_change', '["coins", "amount"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def coin_change(coins, amount):
+    unreachable = amount + 1
+    fewest = [0] + [unreachable] * amount
+    for total in range(1, amount + 1):
+        for coin in coins:
+            if coin <= total and fewest[total - coin] + 1 < fewest[total]:
+                fewest[total] = fewest[total - coin] + 1
+    return fewest[amount] if fewest[amount] != unreachable else -1
+', '[{"args": [[1, 2, 5], 11], "expected": 3, "is_public": true}, {"args": [[2], 3], "expected": -1, "is_public": false}, {"args": [[1], 0], "expected": 0, "is_public": false}, {"args": [[1], 2], "expected": 2, "is_public": false}, {"args": [[1, 3, 4], 6], "expected": 2, "is_public": false}, {"args": [[2, 5, 10, 1], 27], "expected": 4, "is_public": false}, {"args": [[1, 5, 6, 9], 11], "expected": 2, "is_public": false}, {"args": [[5], 10], "expected": 2, "is_public": false}, {"args": [[2, 4], 7], "expected": -1, "is_public": false}, {"args": [[7, 13], 0], "expected": 0, "is_public": false}, {"args": [[3, 5], 1], "expected": -1, "is_public": false}, {"args": [[1, 2, 5], 100], "expected": 20, "is_public": false}, {"args": [[186, 419, 83, 408], 6249], "expected": 20, "is_public": false}]', 'def coin_change(coins, amount):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Coin Change (Fewest Coins)', 'Dynamic Programming', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P39_longest_increasing_subsequence', NULL, 'system', 'Write a function length_of_lis(nums) that returns the length of the longest strictly increasing subsequence of the list nums. A subsequence keeps the original order but may skip elements, and equal neighbours do not count as increasing. An empty list gives 0. For nums = [10, 9, 2, 5, 3, 7, 101, 18] the answer is 4, for example 2, 3, 7, 18.', 'length_of_lis', '["nums"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def length_of_lis(nums):
+    # tails[k] is the smallest possible last value of an increasing subsequence of length k + 1.
+    tails = []
+    for value in nums:
+        low, high = 0, len(tails)
+        while low < high:
+            middle = (low + high) // 2
+            if tails[middle] < value:
+                low = middle + 1
+            else:
+                high = middle
+        if low == len(tails):
+            tails.append(value)
+        else:
+            tails[low] = value
+    return len(tails)
+', '[{"args": [[10, 9, 2, 5, 3, 7, 101, 18]], "expected": 4, "is_public": true}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 1, "is_public": false}, {"args": [[1, 2, 3, 4]], "expected": 4, "is_public": false}, {"args": [[4, 3, 2, 1]], "expected": 1, "is_public": false}, {"args": [[2, 2, 2]], "expected": 1, "is_public": false}, {"args": [[0, 1, 0, 3, 2, 3]], "expected": 4, "is_public": false}, {"args": [[3, 10, 2, 1, 20]], "expected": 3, "is_public": false}, {"args": [[-5, -4, -3]], "expected": 3, "is_public": false}, {"args": [[1, 3, 6, 7, 9, 4, 10, 5, 6]], "expected": 6, "is_public": false}, {"args": [[10, 22, 9, 33, 21, 50, 41, 60, 80]], "expected": 6, "is_public": false}, {"args": [[7, 7, 1, 2, 2, 3]], "expected": 3, "is_public": false}]', 'def length_of_lis(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Longest Increasing Subsequence', 'Dynamic Programming', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P40_house_robber', NULL, 'system', 'Write a function rob(nums) where nums[i] is the amount of money in the i-th house along a street. You may take the money from any set of houses as long as you never take from two neighbouring houses. Return the largest total you can collect. An empty street gives 0. For nums = [2, 7, 9, 3, 1] the answer is 12, from the houses with 2, 9 and 1.', 'rob', '["nums"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def rob(nums):
+    skipped, taken = 0, 0
+    for money in nums:
+        skipped, taken = taken, max(taken, skipped + money)
+    return taken
+', '[{"args": [[2, 7, 9, 3, 1]], "expected": 12, "is_public": true}, {"args": [[1, 2, 3, 1]], "expected": 4, "is_public": false}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 5, "is_public": false}, {"args": [[2, 1]], "expected": 2, "is_public": false}, {"args": [[1, 2]], "expected": 2, "is_public": false}, {"args": [[0, 0, 0]], "expected": 0, "is_public": false}, {"args": [[2, 1, 1, 2]], "expected": 4, "is_public": false}, {"args": [[5, 1, 1, 5]], "expected": 10, "is_public": false}, {"args": [[100, 1, 1, 100, 1]], "expected": 200, "is_public": false}, {"args": [[1, 3, 1, 3, 100]], "expected": 103, "is_public": false}, {"args": [[4, 1, 2, 7, 5, 3, 1]], "expected": 14, "is_public": false}]', 'def rob(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'House Robber', 'Dynamic Programming', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P41_count_primes', NULL, 'system', 'Write a function count_primes(n) that returns how many prime numbers are strictly less than n. n is a non-negative integer and can be as large as 100000, so testing every number by trial division up to itself is too slow. For n = 10 the answer is 4 (2, 3, 5 and 7), and for n = 2 the answer is 0.', 'count_primes', '["n"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def count_primes(n):
+    if n < 3:
+        return 0
+    is_prime = [True] * n
+    is_prime[0] = is_prime[1] = False
+    factor = 2
+    while factor * factor < n:
+        if is_prime[factor]:
+            for multiple in range(factor * factor, n, factor):
+                is_prime[multiple] = False
+        factor += 1
+    return sum(is_prime)
+', '[{"args": [10], "expected": 4, "is_public": true}, {"args": [0], "expected": 0, "is_public": false}, {"args": [1], "expected": 0, "is_public": false}, {"args": [2], "expected": 0, "is_public": false}, {"args": [3], "expected": 1, "is_public": false}, {"args": [4], "expected": 2, "is_public": false}, {"args": [5], "expected": 2, "is_public": false}, {"args": [7], "expected": 3, "is_public": false}, {"args": [20], "expected": 8, "is_public": false}, {"args": [25], "expected": 9, "is_public": false}, {"args": [26], "expected": 9, "is_public": false}, {"args": [49], "expected": 15, "is_public": false}, {"args": [50], "expected": 15, "is_public": false}, {"args": [100], "expected": 25, "is_public": false}, {"args": [1000], "expected": 168, "is_public": false}, {"args": [10000], "expected": 1229, "is_public": false}, {"args": [100000], "expected": 9592, "is_public": false}]', 'def count_primes(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Count Primes Below N', 'Math', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P42_pascal_triangle', NULL, 'system', 'Write a function generate_pascal(n) that returns the first n rows of Pascal''s triangle as a list of lists of integers. Each row starts and ends with 1, and every other entry is the sum of the two entries just above it in the previous row. n = 0 gives an empty list. For n = 3 the result is [[1], [1, 1], [1, 2, 1]].', 'generate_pascal', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def generate_pascal(n):
+    rows = []
+    for index in range(n):
+        row = [1] * (index + 1)
+        for position in range(1, index):
+            row[position] = rows[index - 1][position - 1] + rows[index - 1][position]
+        rows.append(row)
+    return rows
+', '[{"args": [3], "expected": [[1], [1, 1], [1, 2, 1]], "is_public": true}, {"args": [0], "expected": [], "is_public": false}, {"args": [1], "expected": [[1]], "is_public": false}, {"args": [2], "expected": [[1], [1, 1]], "is_public": false}, {"args": [4], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1]], "is_public": false}, {"args": [5], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1]], "is_public": false}, {"args": [6], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1]], "is_public": false}, {"args": [7], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1], [1, 6, 15, 20, 15, 6, 1]], "is_public": false}, {"args": [8], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1], [1, 6, 15, 20, 15, 6, 1], [1, 7, 21, 35, 35, 21, 7, 1]], "is_public": false}, {"args": [11], "expected": [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1], [1, 5, 10, 10, 5, 1], [1, 6, 15, 20, 15, 6, 1], [1, 7, 21, 35, 35, 21, 7, 1], [1, 8, 28, 56, 70, 56, 28, 8, 1], [1, 9, 36, 84, 126, 126, 84, 36, 9, 1], [1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1]], "is_public": false}]', 'def generate_pascal(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Pascal''s Triangle', 'Dynamic Programming', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P43_unique_paths_with_obstacles', NULL, 'system', 'Write a function unique_paths(grid) where grid is a non-empty rectangular list of lists containing 0 for a free cell and 1 for a blocked cell. A walker starts in the top-left cell, ends in the bottom-right cell, and each move goes one cell right or one cell down, never onto a blocked cell. Return the number of different paths. If the start or the end is blocked the answer is 0. For grid = [[0, 0, 0], [0, 1, 0], [0, 0, 0]] the answer is 2.', 'unique_paths', '["grid"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def unique_paths(grid):
+    columns = len(grid[0])
+    ways = [0] * columns
+    ways[0] = 1
+    for row in grid:
+        for column in range(columns):
+            if row[column] == 1:
+                ways[column] = 0
+            elif column > 0:
+                ways[column] += ways[column - 1]
+    return ways[-1]
+', '[{"args": [[[0, 0, 0], [0, 1, 0], [0, 0, 0]]], "expected": 2, "is_public": true}, {"args": [[[0]]], "expected": 1, "is_public": false}, {"args": [[[1]]], "expected": 0, "is_public": false}, {"args": [[[0, 1]]], "expected": 0, "is_public": false}, {"args": [[[0, 0]]], "expected": 1, "is_public": false}, {"args": [[[0, 1], [0, 0]]], "expected": 1, "is_public": false}, {"args": [[[1, 0]]], "expected": 0, "is_public": false}, {"args": [[[0, 0], [0, 1]]], "expected": 0, "is_public": false}, {"args": [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]], "expected": 6, "is_public": false}, {"args": [[[0], [0], [0]]], "expected": 1, "is_public": false}, {"args": [[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], "expected": 20, "is_public": false}, {"args": [[[0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]], "expected": 3, "is_public": false}, {"args": [[[0, 0, 1], [1, 0, 0], [0, 0, 0]]], "expected": 2, "is_public": false}]', 'def unique_paths(grid):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Unique Paths With Obstacles', 'Dynamic Programming', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P44_knapsack_01', NULL, 'system', 'Write a function knapsack(weights, values, capacity) where item i has weight weights[i] and value values[i], both non-negative integers, and capacity is a non-negative integer. Each item can be taken at most once. Return the largest total value of a selection whose total weight does not exceed capacity. With no items or no room the answer is 0. For weights = [1, 3, 4, 5], values = [1, 4, 5, 7] and capacity = 7 the answer is 9, from the items with weights 3 and 4.', 'knapsack', '["weights", "values", "capacity"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def knapsack(weights, values, capacity):
+    best = [0] * (capacity + 1)
+    for weight, value in zip(weights, values):
+        for room in range(capacity, weight - 1, -1):
+            best[room] = max(best[room], best[room - weight] + value)
+    return best[capacity]
+', '[{"args": [[1, 3, 4, 5], [1, 4, 5, 7], 7], "expected": 9, "is_public": true}, {"args": [[], [], 10], "expected": 0, "is_public": false}, {"args": [[2, 3], [3, 4], 0], "expected": 0, "is_public": false}, {"args": [[10, 20, 30], [60, 100, 120], 50], "expected": 220, "is_public": false}, {"args": [[1, 2, 3], [6, 10, 12], 5], "expected": 22, "is_public": false}, {"args": [[5], [10], 5], "expected": 10, "is_public": false}, {"args": [[5], [10], 4], "expected": 0, "is_public": false}, {"args": [[2, 3, 4, 5], [3, 4, 5, 6], 5], "expected": 7, "is_public": false}, {"args": [[1, 1, 1], [1, 1, 1], 2], "expected": 2, "is_public": false}, {"args": [[1], [100], 10], "expected": 100, "is_public": false}, {"args": [[0, 2], [5, 3], 1], "expected": 5, "is_public": false}, {"args": [[4, 5, 6], [10, 13, 16], 11], "expected": 29, "is_public": false}, {"args": [[3, 4, 5], [4, 5, 6], 9], "expected": 11, "is_public": false}]', 'def knapsack(weights, values, capacity):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', '0/1 Knapsack', 'Dynamic Programming', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P45_integer_to_roman', NULL, 'system', 'Write a function int_to_roman(num) that converts an integer from 1 to 3999 into its standard Roman numeral string. The symbols are I=1, V=5, X=10, L=50, C=100, D=500 and M=1000, and the subtractive forms IV, IX, XL, XC, CD and CM are used for 4, 9, 40, 90, 400 and 900. For num = 58 the answer is "LVIII", and for num = 1994 it is "MCMXCIV".', 'int_to_roman', '["num"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def int_to_roman(num):
+    symbols = [
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
+        (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+    ]
+    parts = []
+    for value, symbol in symbols:
+        count, num = divmod(num, value)
+        parts.append(symbol * count)
+    return "".join(parts)
+', '[{"args": [58], "expected": "LVIII", "is_public": true}, {"args": [1994], "expected": "MCMXCIV", "is_public": false}, {"args": [3999], "expected": "MMMCMXCIX", "is_public": false}, {"args": [1], "expected": "I", "is_public": false}, {"args": [3], "expected": "III", "is_public": false}, {"args": [4], "expected": "IV", "is_public": false}, {"args": [9], "expected": "IX", "is_public": false}, {"args": [40], "expected": "XL", "is_public": false}, {"args": [90], "expected": "XC", "is_public": false}, {"args": [400], "expected": "CD", "is_public": false}, {"args": [900], "expected": "CM", "is_public": false}, {"args": [444], "expected": "CDXLIV", "is_public": false}, {"args": [2024], "expected": "MMXXIV", "is_public": false}, {"args": [1000], "expected": "M", "is_public": false}]', 'def int_to_roman(num):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Integer to Roman Numeral', 'Math', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P46_count_n_queens', NULL, 'system', 'Write a function count_n_queens(n) that returns the number of ways to place n queens on an n by n chessboard so that no two queens attack each other, meaning no two share a row, a column or a diagonal. Placements that are rotations or mirror images of each other still count separately. n is between 1 and 8. For n = 4 the answer is 2, and for n = 2 and n = 3 the answer is 0.', 'count_n_queens', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def count_n_queens(n):
+    used_columns = set()
+    used_down_diagonals = set()
+    used_up_diagonals = set()
+
+    def place(row):
+        if row == n:
+            return 1
+        total = 0
+        for column in range(n):
+            if (column in used_columns or row - column in used_down_diagonals
+                    or row + column in used_up_diagonals):
+                continue
+            used_columns.add(column)
+            used_down_diagonals.add(row - column)
+            used_up_diagonals.add(row + column)
+            total += place(row + 1)
+            used_columns.remove(column)
+            used_down_diagonals.remove(row - column)
+            used_up_diagonals.remove(row + column)
+        return total
+
+    return place(0)
+', '[{"args": [4], "expected": 2, "is_public": true}, {"args": [1], "expected": 1, "is_public": false}, {"args": [2], "expected": 0, "is_public": false}, {"args": [3], "expected": 0, "is_public": false}, {"args": [5], "expected": 10, "is_public": false}, {"args": [6], "expected": 4, "is_public": false}, {"args": [7], "expected": 40, "is_public": false}, {"args": [8], "expected": 92, "is_public": false}]', 'def count_n_queens(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Count N-Queens Solutions', 'Recursion & Backtracking', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P47_merge_intervals', NULL, 'system', 'Write a function merge_intervals(intervals) that takes a list of closed intervals, each given as a two element list [start, end] with start <= end, in any order. Two intervals overlap when they share at least one point, so [1, 4] and [4, 5] overlap but [1, 2] and [3, 4] do not. Merge every group of overlapping intervals into one interval covering all of them and return the merged intervals as a list of [start, end] lists sorted by start. For intervals = [[1, 3], [2, 6], [8, 10]] the answer is [[1, 6], [8, 10]]. An empty input gives an empty list.', 'merge_intervals', '["intervals"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def merge_intervals(intervals):
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+', '[{"args": [[[1, 3], [2, 6], [8, 10], [15, 18]]], "expected": [[1, 6], [8, 10], [15, 18]], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[[5, 5]]], "expected": [[5, 5]], "is_public": false}, {"args": [[[1, 4], [4, 5]]], "expected": [[1, 5]], "is_public": false}, {"args": [[[1, 4], [0, 4]]], "expected": [[0, 4]], "is_public": false}, {"args": [[[1, 4], [2, 3]]], "expected": [[1, 4]], "is_public": false}, {"args": [[[8, 10], [1, 3], [2, 6]]], "expected": [[1, 6], [8, 10]], "is_public": false}, {"args": [[[1, 2], [3, 4]]], "expected": [[1, 2], [3, 4]], "is_public": false}, {"args": [[[-5, -1], [-3, 2], [4, 4]]], "expected": [[-5, 2], [4, 4]], "is_public": false}, {"args": [[[1, 10], [2, 3], [4, 5], [6, 7]]], "expected": [[1, 10]], "is_public": false}, {"args": [[[2, 3], [2, 3], [2, 3]]], "expected": [[2, 3]], "is_public": false}, {"args": [[[1, 5], [2, 3], [4, 8], [10, 12], [11, 11]]], "expected": [[1, 8], [10, 12]], "is_public": false}]', 'def merge_intervals(intervals):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Merge Overlapping Intervals', 'Arrays & Search', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P48_top_k_frequent', NULL, 'system', 'Write a function top_k_frequent(nums, k) that takes a list of integers nums and an integer k with 1 <= k <= the number of distinct values in nums. Return a list with the k values that occur most often. Order the list by frequency from highest to lowest, and when two values occur equally often put the smaller value first. For nums = [4, 4, 5, 5, 6] and k = 2 the answer is [4, 5], and for nums = [1, 1, 1, 2, 2, 3] and k = 2 it is [1, 2].', 'top_k_frequent', '["nums", "k"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'from collections import Counter
+
+def top_k_frequent(nums, k):
+    counts = Counter(nums)
+    ranked = sorted(counts, key=lambda value: (-counts[value], value))
+    return ranked[:k]
+', '[{"args": [[1, 1, 1, 2, 2, 3], 2], "expected": [1, 2], "is_public": true}, {"args": [[1], 1], "expected": [1], "is_public": false}, {"args": [[4, 4, 5, 5, 6], 2], "expected": [4, 5], "is_public": false}, {"args": [[5, 5, 4, 4, 6], 2], "expected": [4, 5], "is_public": false}, {"args": [[3, 3, 3, 2, 2, 1], 3], "expected": [3, 2, 1], "is_public": false}, {"args": [[-1, -1, -2], 1], "expected": [-1], "is_public": false}, {"args": [[-1, -2, -2, -1, 0], 2], "expected": [-2, -1], "is_public": false}, {"args": [[7, 7, 7, 7], 1], "expected": [7], "is_public": false}, {"args": [[1, 2, 3], 2], "expected": [1, 2], "is_public": false}, {"args": [[1, 2, 2, 3, 3, 3, 4, 4, 4, 4], 2], "expected": [4, 3], "is_public": false}, {"args": [[9, 8, 8, 9, 7, 7], 3], "expected": [7, 8, 9], "is_public": false}, {"args": [[0, 0, 0, 1, 1, 2], 1], "expected": [0], "is_public": false}, {"args": [[2, 1, 1, 2, 3], 2], "expected": [1, 2], "is_public": false}]', 'def top_k_frequent(nums, k):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Top K Frequent Values', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P49_group_anagrams', NULL, 'system', 'Write a function group_anagrams(words) that takes a list of lowercase words and groups together the words that are anagrams of each other, meaning they use exactly the same letters the same number of times. Return a list of groups, where each group is a list of words sorted alphabetically (repeated words stay, repeated as many times as given) and the list of groups is itself sorted, comparing groups as lists. For words = [''eat'', ''tea'', ''tan'', ''ate'', ''nat'', ''bat''] the answer is [[''ate'', ''eat'', ''tea''], [''bat''], [''nat'', ''tan'']]. An empty input gives an empty list.', 'group_anagrams', '["words"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def group_anagrams(words):
+    groups = {}
+    for word in words:
+        key = ''''.join(sorted(word))
+        groups.setdefault(key, []).append(word)
+    return sorted(sorted(group) for group in groups.values())
+', '[{"args": [["eat", "tea", "tan", "ate", "nat", "bat"]], "expected": [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [["a"]], "expected": [["a"]], "is_public": false}, {"args": [["a", "a"]], "expected": [["a", "a"]], "is_public": false}, {"args": [[""]], "expected": [[""]], "is_public": false}, {"args": [["", ""]], "expected": [["", ""]], "is_public": false}, {"args": [["ab", "ba", "abc", "cab", "bca"]], "expected": [["ab", "ba"], ["abc", "bca", "cab"]], "is_public": false}, {"args": [["abc", "def"]], "expected": [["abc"], ["def"]], "is_public": false}, {"args": [["listen", "silent", "enlist", "google", "gogole"]], "expected": [["enlist", "listen", "silent"], ["gogole", "google"]], "is_public": false}, {"args": [["aab", "aba", "baa", "abb"]], "expected": [["aab", "aba", "baa"], ["abb"]], "is_public": false}, {"args": [["zz", "z"]], "expected": [["z"], ["zz"]], "is_public": false}, {"args": [["bob", "obb", "bbo", "boo"]], "expected": [["bbo", "bob", "obb"], ["boo"]], "is_public": false}, {"args": [["tab", "bat", "abt", "cat"]], "expected": [["abt", "bat", "tab"], ["cat"]], "is_public": false}]', 'def group_anagrams(words):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Group Anagrams', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P50_daily_temperatures', NULL, 'system', 'Write a function daily_temperatures(temps) that takes a list of integer temperatures, one per day. Return a list of the same length where entry i is the number of days you have to wait after day i to reach a strictly warmer temperature, or 0 if no later day is warmer. For temps = [70, 60, 80] the answer is [2, 1, 0]: day 0 waits two days for 80, day 1 waits one day, and day 2 never gets a warmer day. Equal temperatures do not count as warmer. An empty input gives an empty list.', 'daily_temperatures', '["temps"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def daily_temperatures(temps):
+    waits = [0] * len(temps)
+    pending = []  # indices of days still waiting, temperatures non-increasing
+    for day, temp in enumerate(temps):
+        while pending and temps[pending[-1]] < temp:
+            earlier = pending.pop()
+            waits[earlier] = day - earlier
+        pending.append(day)
+    return waits
+', '[{"args": [[73, 74, 75, 71, 69, 72, 76, 73]], "expected": [1, 1, 4, 2, 1, 1, 0, 0], "is_public": true}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[50]], "expected": [0], "is_public": false}, {"args": [[30, 40, 50, 60]], "expected": [1, 1, 1, 0], "is_public": false}, {"args": [[60, 50, 40, 30]], "expected": [0, 0, 0, 0], "is_public": false}, {"args": [[50, 50, 50]], "expected": [0, 0, 0], "is_public": false}, {"args": [[30, 60, 90]], "expected": [1, 1, 0], "is_public": false}, {"args": [[-5, -10, 0]], "expected": [2, 1, 0], "is_public": false}, {"args": [[70, 60, 80, 65, 90]], "expected": [2, 1, 2, 1, 0], "is_public": false}, {"args": [[89, 62, 70, 58, 47, 47, 46, 76, 100, 70]], "expected": [8, 1, 5, 4, 3, 2, 1, 1, 0, 0], "is_public": false}, {"args": [[10, 20, 10, 20]], "expected": [1, 0, 1, 0], "is_public": false}]', 'def daily_temperatures(temps):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Days Until a Warmer Temperature', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P51_evaluate_rpn', NULL, 'system', 'Write a function evaluate_rpn(tokens) that evaluates an arithmetic expression in reverse Polish notation. tokens is a list of strings, each either an integer such as ''4'' or ''-11'' or one of the operators ''+'', ''-'', ''*'', ''/''. An operator takes the two most recent values, with the earlier one as the left operand. Division of integers truncates toward zero, so 7 / -2 is -3 and -1 / 2 is 0. The expression is always valid and never divides by zero. Return the final integer. For tokens = [''2'', ''1'', ''+'', ''3'', ''*''] the answer is 9, and for [''4'', ''13'', ''5'', ''/'', ''+''] it is 6.', 'evaluate_rpn', '["tokens"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def evaluate_rpn(tokens):
+    values = []
+    for token in tokens:
+        if token in (''+'', ''-'', ''*'', ''/''):
+            right = values.pop()
+            left = values.pop()
+            if token == ''+'':
+                values.append(left + right)
+            elif token == ''-'':
+                values.append(left - right)
+            elif token == ''*'':
+                values.append(left * right)
+            else:
+                quotient = abs(left) // abs(right)
+                values.append(quotient if (left < 0) == (right < 0) else -quotient)
+        else:
+            values.append(int(token))
+    return values[0]
+', '[{"args": [["2", "1", "+", "3", "*"]], "expected": 9, "is_public": true}, {"args": [["4", "13", "5", "/", "+"]], "expected": 6, "is_public": false}, {"args": [["10", "6", "9", "3", "+", "-11", "*", "/", "*", "17", "+", "5", "+"]], "expected": 22, "is_public": false}, {"args": [["7"]], "expected": 7, "is_public": false}, {"args": [["-7", "2", "/"]], "expected": -3, "is_public": false}, {"args": [["7", "-2", "/"]], "expected": -3, "is_public": false}, {"args": [["-7", "-2", "/"]], "expected": 3, "is_public": false}, {"args": [["3", "4", "-"]], "expected": -1, "is_public": false}, {"args": [["5", "1", "2", "+", "4", "*", "+", "3", "-"]], "expected": 14, "is_public": false}, {"args": [["0", "3", "/"]], "expected": 0, "is_public": false}, {"args": [["1", "2", "/"]], "expected": 0, "is_public": false}, {"args": [["-1", "2", "/"]], "expected": 0, "is_public": false}, {"args": [["2", "3", "4", "*", "-"]], "expected": -10, "is_public": false}, {"args": [["-1", "-1", "/"]], "expected": 1, "is_public": false}, {"args": [["-1", "1", "/"]], "expected": -1, "is_public": false}, {"args": [["7", "-1", "/"]], "expected": -7, "is_public": false}]', 'def evaluate_rpn(tokens):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Evaluate Reverse Polish Notation', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P52_min_stack_ops', NULL, 'system', 'Write a function min_stack_ops(ops) that simulates a stack of integers. ops is a list of operations, each a list: [''push'', x] puts x on top, [''pop''] removes the top value, [''top''] reads the top value and [''min''] reads the smallest value currently on the stack. Operations are always valid, so pop, top and min are never used on an empty stack. Return a list with the results of the ''top'' and ''min'' operations in the order they occur (push and pop produce no result). For ops = [[''push'', 3], [''push'', 1], [''min''], [''pop''], [''min'']] the answer is [1, 3]. Each operation should take constant time.', 'min_stack_ops', '["ops"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def min_stack_ops(ops):
+    values = []
+    minimums = []  # minimums[i] is the smallest value among values[: i + 1]
+    results = []
+    for op in ops:
+        name = op[0]
+        if name == ''push'':
+            values.append(op[1])
+            minimums.append(min(op[1], minimums[-1]) if minimums else op[1])
+        elif name == ''pop'':
+            values.pop()
+            minimums.pop()
+        elif name == ''top'':
+            results.append(values[-1])
+        else:
+            results.append(minimums[-1])
+    return results
+', '[{"args": [[["push", 3], ["push", 5], ["min"], ["push", 2], ["min"], ["pop"], ["min"], ["top"]]], "expected": [3, 2, 3, 5], "is_public": true}, {"args": [[["push", 1], ["top"]]], "expected": [1], "is_public": false}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[["push", 1], ["pop"]]], "expected": [], "is_public": false}, {"args": [[["push", 2], ["push", 2], ["push", 1], ["min"], ["pop"], ["min"], ["pop"], ["min"]]], "expected": [1, 2, 2], "is_public": false}, {"args": [[["push", -1], ["push", -3], ["min"], ["top"], ["pop"], ["min"], ["top"]]], "expected": [-3, -3, -1, -1], "is_public": false}, {"args": [[["push", 5], ["push", 4], ["push", 3], ["pop"], ["pop"], ["min"]]], "expected": [5], "is_public": false}, {"args": [[["push", 1], ["push", 2], ["push", 3], ["min"], ["top"], ["pop"], ["top"], ["min"]]], "expected": [1, 3, 2, 1], "is_public": false}, {"args": [[["push", 0], ["min"], ["push", 0], ["pop"], ["min"]]], "expected": [0, 0], "is_public": false}, {"args": [[["push", 3], ["push", 1], ["push", 2], ["pop"], ["min"], ["pop"], ["min"], ["pop"], ["push", 9], ["min"], ["top"]]], "expected": [1, 3, 9, 9], "is_public": false}, {"args": [[["push", 7], ["push", 7], ["pop"], ["min"]]], "expected": [7], "is_public": false}, {"args": [[["push", 10], ["push", -10], ["min"], ["pop"], ["min"]]], "expected": [-10, 10], "is_public": false}, {"args": [[["push", 4], ["push", 8], ["top"], ["pop"], ["top"]]], "expected": [8, 4], "is_public": false}]', 'def min_stack_ops(ops):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Stack With Minimum Queries', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P53_valid_sudoku', NULL, 'system', 'Write a function valid_sudoku(board) that takes a 9 by 9 Sudoku board as a list of 9 strings of 9 characters each. A character is a digit from ''1'' to ''9'' or ''.'' for an empty cell. Return True if no digit repeats within any row, within any column, or within any of the nine 3 by 3 boxes (rows 0 to 2, 3 to 5 and 6 to 8 crossed with columns 0 to 2, 3 to 5 and 6 to 8), and False otherwise. Only the filled cells are checked: a board that follows these rules is valid even if it could never be completed. An empty board is valid, and a row such as ''5.5......'' makes the board invalid.', 'valid_sudoku', '["board"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def valid_sudoku(board):
+    rows = [set() for _ in range(9)]
+    columns = [set() for _ in range(9)]
+    boxes = [set() for _ in range(9)]
+    for r in range(9):
+        for c in range(9):
+            digit = board[r][c]
+            if digit == ''.'':
+                continue
+            box = (r // 3) * 3 + c // 3
+            if digit in rows[r] or digit in columns[c] or digit in boxes[box]:
+                return False
+            rows[r].add(digit)
+            columns[c].add(digit)
+            boxes[box].add(digit)
+    return True
+', '[{"args": [["53..7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "....8..79"]], "expected": true, "is_public": true}, {"args": [["535.7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "....8..79"]], "expected": false, "is_public": false}, {"args": [["53..7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "5...8..79"]], "expected": false, "is_public": false}, {"args": [["536.7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "....8..79"]], "expected": false, "is_public": false}, {"args": [[".........", ".........", ".........", ".........", ".........", ".........", ".........", ".........", "........."]], "expected": true, "is_public": false}, {"args": [["534678912", "672195348", "198342567", "859761423", "426853791", "713924856", "961537284", "287419635", "345286179"]], "expected": true, "is_public": false}, {"args": [["334678912", "672195348", "198342567", "859761423", "426853791", "713924856", "961537284", "287419635", "345286179"]], "expected": false, "is_public": false}, {"args": [["1........", ".........", ".........", ".........", "....1....", ".........", ".........", ".........", "........."]], "expected": true, "is_public": false}, {"args": [["12345678.", "........9", ".........", ".........", ".........", ".........", ".........", ".........", "........."]], "expected": true, "is_public": false}, {"args": [[".........", ".........", ".........", ".........", ".........", ".........", "......1..", ".........", "........1"]], "expected": false, "is_public": false}, {"args": [[".........", ".........", ".........", "7.......7", ".........", ".........", ".........", ".........", "........."]], "expected": false, "is_public": false}, {"args": [[".....2...", ".........", ".........", ".........", ".........", ".........", ".........", ".........", ".....2..."]], "expected": false, "is_public": false}]', 'def valid_sudoku(board):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Validate a Sudoku Board', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P54_largest_rectangle_histogram', NULL, 'system', 'Write a function largest_rectangle(heights) that takes a list of non-negative integers, the heights of adjacent histogram bars that each have width 1. Return the area of the largest rectangle that fits inside the histogram, where the rectangle covers a run of consecutive bars and its height cannot be taller than the shortest bar in that run. For heights = [2, 1, 5, 6, 2, 3] the answer is 10, from the bars of height 5 and 6 (height 5, width 2). An empty list gives 0. A solution that runs in linear time is expected.', 'largest_rectangle', '["heights"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'def largest_rectangle(heights):
+    best = 0
+    stack = []  # indices of bars with strictly increasing heights
+    for i, height in enumerate(list(heights) + [0]):
+        start = i
+        while stack and stack[-1][1] >= height:
+            start, top = stack.pop()
+            best = max(best, top * (i - start))
+        stack.append((start, height))
+    return best
+', '[{"args": [[2, 1, 5, 6, 2, 3]], "expected": 10, "is_public": true}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 5, "is_public": false}, {"args": [[0]], "expected": 0, "is_public": false}, {"args": [[2, 4]], "expected": 4, "is_public": false}, {"args": [[1, 1, 1, 1]], "expected": 4, "is_public": false}, {"args": [[6, 5, 4, 3, 2, 1]], "expected": 12, "is_public": false}, {"args": [[1, 2, 3, 4, 5, 6]], "expected": 12, "is_public": false}, {"args": [[0, 9, 0, 9]], "expected": 9, "is_public": false}, {"args": [[2, 1, 2]], "expected": 3, "is_public": false}, {"args": [[3, 6, 5, 7, 4, 8, 1, 0]], "expected": 20, "is_public": false}, {"args": [[5, 5, 1, 7, 1, 1, 5, 2, 7, 6]], "expected": 12, "is_public": false}, {"args": [[4, 2, 0, 3, 2, 5]], "expected": 6, "is_public": false}]', 'def largest_rectangle(heights):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Largest Rectangle in a Histogram', 'Data Structures', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P55_sliding_window_maximum', NULL, 'system', 'Write a function sliding_window_max(nums, k) that takes a non-empty list of integers nums and a window size k with 1 <= k <= len(nums). The window starts at the left end of the list and moves one position to the right each step until it reaches the right end. Return a list with the largest value inside the window at every position, so the result has len(nums) - k + 1 entries. For nums = [1, 3, -1, -3, 5] and k = 3 the answer is [3, 3, 5]. A solution that runs in linear time is expected.', 'sliding_window_max', '["nums", "k"]', '{"correctness": 50, "efficiency": 25, "code_style": 15, "edge_case_handling": 10}', 'from collections import deque
+
+def sliding_window_max(nums, k):
+    maxima = []
+    candidates = deque()  # indices in the window, values non-increasing
+    for i, value in enumerate(nums):
+        while candidates and nums[candidates[-1]] <= value:
+            candidates.pop()
+        candidates.append(i)
+        if candidates[0] <= i - k:
+            candidates.popleft()
+        if i >= k - 1:
+            maxima.append(nums[candidates[0]])
+    return maxima
+', '[{"args": [[1, 3, -1, -3, 5, 3, 6, 7], 3], "expected": [3, 3, 5, 5, 6, 7], "is_public": true}, {"args": [[1], 1], "expected": [1], "is_public": false}, {"args": [[1, -1], 1], "expected": [1, -1], "is_public": false}, {"args": [[9, 11], 2], "expected": [11], "is_public": false}, {"args": [[4, 3, 2, 1], 2], "expected": [4, 3, 2], "is_public": false}, {"args": [[1, 2, 3, 4], 2], "expected": [2, 3, 4], "is_public": false}, {"args": [[2, 2, 2], 2], "expected": [2, 2], "is_public": false}, {"args": [[5, 1, 1, 1, 1], 3], "expected": [5, 1, 1], "is_public": false}, {"args": [[-4, -2, -5, -1], 3], "expected": [-2, -1], "is_public": false}, {"args": [[7, 2, 4], 3], "expected": [7], "is_public": false}, {"args": [[1, 3, 1, 2, 0, 5], 3], "expected": [3, 3, 2, 5], "is_public": false}, {"args": [[8, 7, 6, 5, 4, 3], 4], "expected": [8, 7, 6], "is_public": false}, {"args": [[1, 3, 1, 2, 0, 5], 1], "expected": [1, 3, 1, 2, 0, 5], "is_public": false}]', 'def sliding_window_max(nums, k):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Sliding Window Maximum', 'Data Structures', 'hard') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P56_word_break', NULL, 'system', 'Write a function word_break(s, words) that takes a lowercase string s and a list of non-empty lowercase words. Return True if s can be split into a sequence of one or more words from the list, placed one after another with nothing left over, and False otherwise. A word may be used any number of times. For s = ''applepie'' and words = [''apple'', ''pie''] the answer is True, and for s = ''abc'' and words = [''ab'', ''bc''] it is False. The empty string can always be split (into zero words), so it gives True.', 'word_break', '["s", "words"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def word_break(s, words):
+    word_set = set(words)
+    lengths = {len(word) for word in word_set}
+    reachable = [False] * (len(s) + 1)  # reachable[i]: s[:i] can be split
+    reachable[0] = True
+    for end in range(1, len(s) + 1):
+        for length in lengths:
+            if length <= end and reachable[end - length] and s[end - length:end] in word_set:
+                reachable[end] = True
+                break
+    return reachable[len(s)]
+', '[{"args": ["applepie", ["apple", "pie"]], "expected": true, "is_public": true}, {"args": ["", ["a"]], "expected": true, "is_public": false}, {"args": ["catsandog", ["cats", "dog", "sand", "and", "cat"]], "expected": false, "is_public": false}, {"args": ["catsanddog", ["cats", "dog", "sand", "and", "cat"]], "expected": true, "is_public": false}, {"args": ["aaaaaaa", ["aaaa", "aaa"]], "expected": true, "is_public": false}, {"args": ["aaaaaaa", ["aaaa", "aa"]], "expected": false, "is_public": false}, {"args": ["abcd", ["a", "abc", "b", "cd"]], "expected": true, "is_public": false}, {"args": ["a", []], "expected": false, "is_public": false}, {"args": ["ab", ["a", "b"]], "expected": true, "is_public": false}, {"args": ["cars", ["car", "ca", "rs"]], "expected": true, "is_public": false}, {"args": ["goalspecial", ["go", "goal", "goals", "special"]], "expected": true, "is_public": false}, {"args": ["abc", ["ab", "bc"]], "expected": false, "is_public": false}, {"args": ["abcd", ["ab", "abc", "cd"]], "expected": true, "is_public": false}, {"args": ["x", ["x", "x"]], "expected": true, "is_public": false}]', 'def word_break(s, words):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Word Break', 'Data Structures', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P57_leap_year', NULL, 'system', 'Write a function is_leap_year(year) that takes a positive integer year and returns True if it is a leap year in the Gregorian calendar and False otherwise. A year is a leap year when it is divisible by 4, except that years divisible by 100 are not leap years, unless they are also divisible by 400. For example, 2024 and 2000 are leap years, while 2023 and 1900 are not.', 'is_leap_year', '["year"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def is_leap_year(year):
+    if year % 400 == 0:
+        return True
+    if year % 100 == 0:
+        return False
+    return year % 4 == 0
+', '[{"args": [2024], "expected": true, "is_public": true}, {"args": [2023], "expected": false, "is_public": false}, {"args": [1900], "expected": false, "is_public": false}, {"args": [2000], "expected": true, "is_public": false}, {"args": [2100], "expected": false, "is_public": false}, {"args": [1600], "expected": true, "is_public": false}, {"args": [4], "expected": true, "is_public": false}, {"args": [1], "expected": false, "is_public": false}, {"args": [100], "expected": false, "is_public": false}, {"args": [400], "expected": true, "is_public": false}, {"args": [1996], "expected": true, "is_public": false}, {"args": [2019], "expected": false, "is_public": false}, {"args": [1800], "expected": false, "is_public": false}, {"args": [2400], "expected": true, "is_public": false}]', 'def is_leap_year(year):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Leap Year', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P58_perfect_number', NULL, 'system', 'Write a function is_perfect_number(n) that takes a positive integer n and returns True if n equals the sum of its proper divisors (all positive divisors of n except n itself), otherwise False. For n = 6 the proper divisors are 1, 2 and 3, which add up to 6, so the answer is True. For n = 12 they add up to 16, so the answer is False. The number 1 has no proper divisors, so their sum is 0 and it is not perfect.', 'is_perfect_number', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def is_perfect_number(n):
+    if n < 2:
+        return False
+    total = 1
+    divisor = 2
+    while divisor * divisor <= n:
+        if n % divisor == 0:
+            total += divisor
+            other = n // divisor
+            if other != divisor:
+                total += other
+        divisor += 1
+    return total == n
+', '[{"args": [6], "expected": true, "is_public": true}, {"args": [28], "expected": true, "is_public": false}, {"args": [12], "expected": false, "is_public": false}, {"args": [1], "expected": false, "is_public": false}, {"args": [2], "expected": false, "is_public": false}, {"args": [496], "expected": true, "is_public": false}, {"args": [8128], "expected": true, "is_public": false}, {"args": [8], "expected": false, "is_public": false}, {"args": [497], "expected": false, "is_public": false}, {"args": [4], "expected": false, "is_public": false}, {"args": [9], "expected": false, "is_public": false}, {"args": [100], "expected": false, "is_public": false}, {"args": [27], "expected": false, "is_public": false}]', 'def is_perfect_number(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Perfect Number', 'Math', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P59_decimal_to_binary', NULL, 'system', 'Write a function decimal_to_binary(n) that takes a non-negative integer n and returns its binary representation as a string of ''0'' and ''1'' characters, with no ''0b'' prefix and no leading zeros. The number 0 is returned as ''0''. For n = 10 the answer is ''1010'', and for n = 1 the answer is ''1''. Do not use the built-in bin or format functions.', 'decimal_to_binary', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def decimal_to_binary(n):
+    if n == 0:
+        return "0"
+    digits = []
+    while n > 0:
+        digits.append(str(n % 2))
+        n //= 2
+    return "".join(reversed(digits))
+', '[{"args": [10], "expected": "1010", "is_public": true}, {"args": [0], "expected": "0", "is_public": false}, {"args": [1], "expected": "1", "is_public": false}, {"args": [2], "expected": "10", "is_public": false}, {"args": [5], "expected": "101", "is_public": false}, {"args": [8], "expected": "1000", "is_public": false}, {"args": [255], "expected": "11111111", "is_public": false}, {"args": [256], "expected": "100000000", "is_public": false}, {"args": [1023], "expected": "1111111111", "is_public": false}, {"args": [64], "expected": "1000000", "is_public": false}, {"args": [100], "expected": "1100100", "is_public": false}, {"args": [7], "expected": "111", "is_public": false}, {"args": [12], "expected": "1100", "is_public": false}]', 'def decimal_to_binary(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Decimal to Binary', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P60_binary_to_decimal', NULL, 'system', 'Write a function binary_to_decimal(bits) that takes a non-empty string made only of the characters ''0'' and ''1'' and returns the integer it represents in base 2. The string may start with zeros. For bits = ''1010'' the answer is 10, and for bits = ''0001'' the answer is 1. Do not use int(bits, 2).', 'binary_to_decimal', '["bits"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def binary_to_decimal(bits):
+    value = 0
+    for ch in bits:
+        value = value * 2 + (1 if ch == "1" else 0)
+    return value
+', '[{"args": ["1010"], "expected": 10, "is_public": true}, {"args": ["0"], "expected": 0, "is_public": false}, {"args": ["1"], "expected": 1, "is_public": false}, {"args": ["0001"], "expected": 1, "is_public": false}, {"args": ["11111111"], "expected": 255, "is_public": false}, {"args": ["100000"], "expected": 32, "is_public": false}, {"args": ["101"], "expected": 5, "is_public": false}, {"args": ["1111111111"], "expected": 1023, "is_public": false}, {"args": ["00000"], "expected": 0, "is_public": false}, {"args": ["10000000000"], "expected": 1024, "is_public": false}, {"args": ["110"], "expected": 6, "is_public": false}, {"args": ["1100100"], "expected": 100, "is_public": false}]', 'def binary_to_decimal(bits):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Binary to Decimal', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P61_matrix_transpose', NULL, 'system', 'Write a function transpose(matrix) that takes a matrix given as a list of rows (all rows have the same length, and the matrix may be rectangular) and returns its transpose as a new list of rows, so that the element at row i and column j of the input ends up at row j and column i of the output. An empty matrix [] gives []. For matrix = [[1, 2, 3], [4, 5, 6]] the answer is [[1, 4], [2, 5], [3, 6]].', 'transpose', '["matrix"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def transpose(matrix):
+    if not matrix:
+        return []
+    rows = len(matrix)
+    cols = len(matrix[0])
+    return [[matrix[r][c] for r in range(rows)] for c in range(cols)]
+', '[{"args": [[[1, 2, 3], [4, 5, 6]]], "expected": [[1, 4], [2, 5], [3, 6]], "is_public": true}, {"args": [[[1, 2], [3, 4], [5, 6]]], "expected": [[1, 3, 5], [2, 4, 6]], "is_public": false}, {"args": [[[7]]], "expected": [[7]], "is_public": false}, {"args": [[[1, 2, 3, 4]]], "expected": [[1], [2], [3], [4]], "is_public": false}, {"args": [[[1], [2], [3]]], "expected": [[1, 2, 3]], "is_public": false}, {"args": [[[1, 2], [3, 4]]], "expected": [[1, 3], [2, 4]], "is_public": false}, {"args": [[]], "expected": [], "is_public": false}, {"args": [[[-1, 0], [5, -7]]], "expected": [[-1, 5], [0, -7]], "is_public": false}, {"args": [[[1, 2, 3], [4, 5, 6], [7, 8, 9]]], "expected": [[1, 4, 7], [2, 5, 8], [3, 6, 9]], "is_public": false}, {"args": [[[1, 1], [1, 1], [2, 2]]], "expected": [[1, 1, 2], [1, 1, 2]], "is_public": false}, {"args": [[[1, 2, 3, 4], [5, 6, 7, 8]]], "expected": [[1, 5], [2, 6], [3, 7], [4, 8]], "is_public": false}]', 'def transpose(matrix):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Matrix Transpose', 'Matrices', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P62_bubble_sort_swaps', NULL, 'system', 'Write a function bubble_sort_swaps(nums) that returns how many swaps plain bubble sort performs on the list nums, without changing nums. Bubble sort repeats passes over the list; in each pass it looks at every adjacent pair from left to right and swaps the two elements when the left one is strictly greater than the right one. It stops after a pass that makes no swap. Equal neighbours are never swapped. For nums = [3, 1, 2] the answer is 2 (3 swaps with 1, then 3 swaps with 2), and for nums = [1, 2, 3] the answer is 0.', 'bubble_sort_swaps', '["nums"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def bubble_sort_swaps(nums):
+    items = list(nums)
+    swaps = 0
+    swapped = True
+    while swapped:
+        swapped = False
+        for i in range(len(items) - 1):
+            if items[i] > items[i + 1]:
+                items[i], items[i + 1] = items[i + 1], items[i]
+                swaps += 1
+                swapped = True
+    return swaps
+', '[{"args": [[3, 1, 2]], "expected": 2, "is_public": true}, {"args": [[]], "expected": 0, "is_public": false}, {"args": [[5]], "expected": 0, "is_public": false}, {"args": [[1, 2, 3]], "expected": 0, "is_public": false}, {"args": [[3, 2, 1]], "expected": 3, "is_public": false}, {"args": [[2, 2, 1]], "expected": 2, "is_public": false}, {"args": [[1, 1, 1]], "expected": 0, "is_public": false}, {"args": [[5, 4, 3, 2, 1]], "expected": 10, "is_public": false}, {"args": [[2, 1, 4, 3]], "expected": 2, "is_public": false}, {"args": [[4, 3, 2, 1, 5]], "expected": 6, "is_public": false}, {"args": [[1, 5, 2, 5, 0]], "expected": 5, "is_public": false}, {"args": [[-1, -3, -2]], "expected": 2, "is_public": false}, {"args": [[2, 1]], "expected": 1, "is_public": false}]', 'def bubble_sort_swaps(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Bubble Sort Swap Count', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P63_second_largest', NULL, 'system', 'Write a function second_largest(nums) that takes a list of integers (possibly empty, possibly with repeats and negative values) and returns the second largest distinct value in it. If the list has fewer than two distinct values, return -1. For nums = [3, 1, 2] the answer is 2, for nums = [5, 5, 4] the answer is 4, and for nums = [7, 7, 7] the answer is -1.', 'second_largest', '["nums"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def second_largest(nums):
+    largest = None
+    second = None
+    for value in nums:
+        if largest is None or value > largest:
+            if largest is not None:
+                second = largest
+            largest = value
+        elif value != largest and (second is None or value > second):
+            second = value
+    return -1 if second is None else second
+', '[{"args": [[3, 1, 2]], "expected": 2, "is_public": true}, {"args": [[5, 5, 5]], "expected": -1, "is_public": false}, {"args": [[]], "expected": -1, "is_public": false}, {"args": [[4]], "expected": -1, "is_public": false}, {"args": [[1, 2]], "expected": 1, "is_public": false}, {"args": [[2, 2, 1]], "expected": 1, "is_public": false}, {"args": [[5, 5, 4, 4]], "expected": 4, "is_public": false}, {"args": [[-3, -1, -2]], "expected": -2, "is_public": false}, {"args": [[0, -1]], "expected": -1, "is_public": false}, {"args": [[10, 9, 10, 8]], "expected": 9, "is_public": false}, {"args": [[1, 2, 3, 4, 5]], "expected": 4, "is_public": false}, {"args": [[7, 7, 7, 6]], "expected": 6, "is_public": false}, {"args": [[5, 4, 5, 3]], "expected": 4, "is_public": false}]', 'def second_largest(nums):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Second Largest Distinct Value', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P64_armstrong_numbers_in_range', NULL, 'system', 'Write a function armstrong_numbers_in_range(lo, hi) that returns a list of all Armstrong numbers n with lo <= n <= hi, in increasing order. A non-negative integer is an Armstrong number when it equals the sum of its digits, each raised to the power of the number of digits. For example 153 is one, because 1^3 + 5^3 + 3^3 = 153, and every single digit number (including 0) is one. If lo > hi, or the range holds none, return an empty list. For lo = 100 and hi = 400 the answer is [153, 370, 371].', 'armstrong_numbers_in_range', '["lo", "hi"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def armstrong_numbers_in_range(lo, hi):
+    result = []
+    for n in range(lo, hi + 1):
+        digits = str(n)
+        power = len(digits)
+        if sum(int(d) ** power for d in digits) == n:
+            result.append(n)
+    return result
+', '[{"args": [100, 400], "expected": [153, 370, 371], "is_public": true}, {"args": [1, 200], "expected": [1, 2, 3, 4, 5, 6, 7, 8, 9, 153], "is_public": false}, {"args": [100, 999], "expected": [153, 370, 371, 407], "is_public": false}, {"args": [0, 9], "expected": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "is_public": false}, {"args": [10, 152], "expected": [], "is_public": false}, {"args": [153, 153], "expected": [153], "is_public": false}, {"args": [370, 371], "expected": [370, 371], "is_public": false}, {"args": [5, 3], "expected": [], "is_public": false}, {"args": [1, 10000], "expected": [1, 2, 3, 4, 5, 6, 7, 8, 9, 153, 370, 371, 407, 1634, 8208, 9474], "is_public": false}, {"args": [9474, 9475], "expected": [9474], "is_public": false}, {"args": [0, 0], "expected": [0], "is_public": false}, {"args": [400, 1700], "expected": [407, 1634], "is_public": false}, {"args": [10, 99], "expected": [], "is_public": false}]', 'def armstrong_numbers_in_range(lo, hi):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Armstrong Numbers in a Range', 'Math', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P65_spiral_matrix', NULL, 'system', 'Write a function spiral_order(matrix) that takes a rectangular matrix given as a list of rows and returns a flat list with all its elements in clockwise spiral order: start at the top left corner, go right along the top row, then down the last column, then left along the bottom row, then up the first column, and keep spiralling inward until every element is used exactly once. An empty matrix [] gives []. For matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] the answer is [1, 2, 3, 6, 9, 8, 7, 4, 5].', 'spiral_order', '["matrix"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def spiral_order(matrix):
+    if not matrix:
+        return []
+    result = []
+    top, bottom = 0, len(matrix) - 1
+    left, right = 0, len(matrix[0]) - 1
+    while top <= bottom and left <= right:
+        for col in range(left, right + 1):
+            result.append(matrix[top][col])
+        for row in range(top + 1, bottom + 1):
+            result.append(matrix[row][right])
+        if top < bottom and left < right:
+            for col in range(right - 1, left - 1, -1):
+                result.append(matrix[bottom][col])
+            for row in range(bottom - 1, top, -1):
+                result.append(matrix[row][left])
+        top += 1
+        bottom -= 1
+        left += 1
+        right -= 1
+    return result
+', '[{"args": [[[1, 2, 3], [4, 5, 6], [7, 8, 9]]], "expected": [1, 2, 3, 6, 9, 8, 7, 4, 5], "is_public": true}, {"args": [[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]], "expected": [1, 2, 3, 4, 8, 12, 11, 10, 9, 5, 6, 7], "is_public": false}, {"args": [[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]], "expected": [1, 2, 3, 6, 9, 12, 11, 10, 7, 4, 5, 8], "is_public": false}, {"args": [[[1, 2, 3]]], "expected": [1, 2, 3], "is_public": false}, {"args": [[[1], [2], [3]]], "expected": [1, 2, 3], "is_public": false}, {"args": [[[7]]], "expected": [7], "is_public": false}, {"args": [[[1, 2], [3, 4]]], "expected": [1, 2, 4, 3], "is_public": false}, {"args": [[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]], "expected": [1, 2, 3, 4, 5, 10, 9, 8, 7, 6], "is_public": false}, {"args": [[[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]]], "expected": [1, 2, 4, 6, 8, 10, 9, 7, 5, 3], "is_public": false}, {"args": [[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]]], "expected": [1, 2, 3, 4, 5, 10, 15, 14, 13, 12, 11, 6, 7, 8, 9], "is_public": false}, {"args": [[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]], "expected": [1, 2, 3, 4, 8, 12, 16, 15, 14, 13, 9, 5, 6, 7, 11, 10], "is_public": false}, {"args": [[]], "expected": [], "is_public": false}]', 'def spiral_order(matrix):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Spiral Order of a Matrix', 'Matrices', 'medium') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;
+INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric, reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES ('bank:P66_pyramid_pattern', NULL, 'system', 'Write a function star_pyramid(n) that takes a non-negative integer n and returns a list of n strings that form a centered pyramid of ''*'' characters. The string at index i (counting from 0) has exactly n - 1 - i spaces, then 2 * i + 1 stars, and nothing after the stars, so the pyramid is centered and no string has trailing spaces. For n = 3 the answer is [''  *'', '' ***'', ''*****'']. For n = 0 the answer is an empty list.', 'star_pyramid', '["n"]', '{"correctness": 60, "efficiency": 15, "code_style": 15, "edge_case_handling": 10}', 'def star_pyramid(n):
+    rows = []
+    for i in range(n):
+        rows.append(" " * (n - 1 - i) + "*" * (2 * i + 1))
+    return rows
+', '[{"args": [3], "expected": ["  *", " ***", "*****"], "is_public": true}, {"args": [0], "expected": [], "is_public": false}, {"args": [1], "expected": ["*"], "is_public": false}, {"args": [2], "expected": [" *", "***"], "is_public": false}, {"args": [4], "expected": ["   *", "  ***", " *****", "*******"], "is_public": false}, {"args": [5], "expected": ["    *", "   ***", "  *****", " *******", "*********"], "is_public": false}, {"args": [6], "expected": ["     *", "    ***", "   *****", "  *******", " *********", "***********"], "is_public": false}, {"args": [7], "expected": ["      *", "     ***", "    *****", "   *******", "  *********", " ***********", "*************"], "is_public": false}, {"args": [8], "expected": ["       *", "      ***", "     *****", "    *******", "   *********", "  ***********", " *************", "***************"], "is_public": false}, {"args": [9], "expected": ["        *", "       ***", "      *****", "     *******", "    *********", "   ***********", "  *************", " ***************", "*****************"], "is_public": false}]', 'def star_pyramid(n):
+    # TODO: your solution here
+    pass
+', '2026-01-01T00:00:00+00:00', 'Star Pyramid Pattern', 'Basics', 'easy') ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category, difficulty = excluded.difficulty;

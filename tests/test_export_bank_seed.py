@@ -19,9 +19,12 @@ def rows():
     return seed.build_rows()
 
 
-def test_seed_has_16_problems_with_valid_rubrics(rows):
-    assert len(rows) == 16
-    assert len({r["id"] for r in rows}) == 16
+EXPECTED = len(seed.PROBLEMS) + len(seed.BANK_EXTRA)
+
+
+def test_seed_has_every_problem_with_valid_rubrics(rows):
+    assert len(rows) == EXPECTED
+    assert len({r["id"] for r in rows}) == EXPECTED
     assert all(r["id"].startswith("bank:") for r in rows)
     assert all(sum(r["rubric"].values()) == 100 for r in rows)
 
@@ -62,7 +65,8 @@ def test_every_problem_has_valid_catalog_metadata(rows):
         assert 1 <= len(r["category"]) <= 40, r["id"]
         assert r["difficulty"] in {"easy", "medium", "hard"}, r["id"]
     assert len({r["title"] for r in rows}) == len(rows)
-    assert {r["category"] for r in rows} == {"Math", "Strings", "Arrays & Search", "Basics", "Data Structures"}
+    assert {r["category"] for r in rows} == {"Math", "Strings", "Arrays & Search", "Basics", "Data Structures", "Dynamic Programming",
+                                                  "Matrices", "Recursion & Backtracking"}
 
 
 def test_sql_loads_into_the_real_schema_twice(rows):
@@ -70,7 +74,7 @@ def test_sql_loads_into_the_real_schema_twice(rows):
     sql = seed.render_sql(rows)
     db.executescript(sql)
     db.executescript(sql)  # idempotent
-    assert db.execute("SELECT count(*) FROM problems WHERE visibility = 'system'").fetchone()[0] == 16
+    assert db.execute("SELECT count(*) FROM problems WHERE visibility = 'system'").fetchone()[0] == EXPECTED
     stored = db.execute("SELECT test_cases, rubric FROM problems WHERE id = 'bank:P01_two_sum'").fetchone()
     assert json.loads(stored[0])[0]["args"] == [[2, 7, 11, 15], 9]
     assert json.loads(stored[1])["correctness"] == 60
