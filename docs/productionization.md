@@ -87,6 +87,13 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   the survivor list before adding tests. The bank's test cases were left
   unchanged.
 
+  Online use (T7.3): teachers can run the same check from the import dialog
+  (`POST /api/teacher/problems/check-tests`). The mutation code is the same
+  `check_code`; only the runner differs (one sandbox call per mutant). On the
+  Free plan it runs at most 30 mutants (chosen evenly) within 20 s and answers
+  `capped: true` when it stopped early, so the score is then a sample. It is
+  rate limited per teacher. Details and numbers: `worker/README.md`, "Test-suite check".
+
 ## C — Student side: submission experience
 
 - [ ] **PR-C1 — Real code editor.** Replace the Streamlit plain textarea
