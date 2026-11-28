@@ -23,6 +23,17 @@ type Ctx = Context<AppEnv>;
 type QuestionContext = { exam: StudentExam; attemptId: string; problemId: string; code: string };
 const SEND_BATCH_SIZE = 100; // sendBatch accepts at most 100 messages
 
+/**
+ * Test-only seam for scripts/load_test.mjs: with LOADTEST_SKIP_TURNSTILE=1 (a .dev.vars / --var value, never in
+ * wrangler.jsonc) the Turnstile check is skipped, but only when the request itself arrives on localhost or 127.0.0.1.
+ * A deployed Worker is reached through its workers.dev or custom hostname, so the flag does nothing there even if set.
+ */
+export const loadTestSkipsTurnstile = (c: Ctx) => {
+  if (c.env.LOADTEST_SKIP_TURNSTILE !== "1") return false;
+  const host = new URL(c.req.url).hostname;
+  return host === "localhost" || host === "127.0.0.1";
+};
+
 const attemptStub = (env: Env, attemptId: string) => env.ATTEMPT.get(env.ATTEMPT.idFromName(attemptId));
 
 export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<AppEnv> {
@@ -111,7 +122,7 @@ export function studentRoutes(now: () => Date, verify: TurnstileVerifier): Hono<
     const name = typeof b?.student_name === "string" ? b.student_name.trim() : "";
     if (!name || name.length > MAX_NAME) return c.json({ detail: "student_name must be 1-100 characters" }, 400);
     if (closed(exam.deadline)) return c.json({ detail: "This exam is closed" }, 403);
-    if (!(await verify(c.env, b?.turnstile_token, c.req.header("CF-Connecting-IP") ?? null))) {
+    if (!loadTestSkipsTurnstile(c) && !(await verify(c.env, b?.turnstile_token, c.req.header("CF-Connecting-IP") ?? null))) {
       return c.json({ detail: "Please complete the verification." }, 400);
     }
     let attempt;
