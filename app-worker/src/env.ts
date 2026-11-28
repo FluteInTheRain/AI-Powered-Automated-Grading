@@ -10,6 +10,8 @@ export type Env = {
   RL_START: RateLimit;
   RL_SYNTAX: RateLimit;
   RL_ACTION: RateLimit;
+  /** Mutation test-suite checks (POST /api/teacher/problems/check-tests), keyed per teacher. */
+  RL_CHECK: RateLimit;
   TURNSTILE_SECRET: string;
   TURNSTILE_SITE_KEY: string;
   /** Comma-separated hostnames Turnstile may report. */

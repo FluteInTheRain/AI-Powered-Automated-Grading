@@ -8,6 +8,18 @@ export type FieldError = { field: string; message: string };
 
 const fail = (field: string, message: string): FieldError => ({ field, message });
 
+/** The checks shared by create, import and check-tests: the pieces that run in the grader. */
+export function checkTestFields(b: any): FieldError | null {
+  if (typeof b.reference_solution !== "string" || !b.reference_solution.trim()) return fail("reference_solution", "reference_solution is required");
+  if (!Array.isArray(b.test_cases) || b.test_cases.length === 0) return fail("test_cases", "At least one test case is required");
+  for (const t of b.test_cases) {
+    if (!t || !Array.isArray(t.args) || !("expected" in t) || typeof t.is_public !== "boolean") {
+      return fail("test_cases", "Each test case needs args (list), expected, and is_public (true/false)");
+    }
+  }
+  return null;
+}
+
 /** Strict shape check; the result is exactly what gets validated by the grader AND stored. Shared by single create and bulk import. */
 export function checkNewProblem(b: any): NewProblem | FieldError {
   if (!b || typeof b !== "object" || Array.isArray(b)) return fail("body", "Body must be a JSON object");
@@ -20,13 +32,8 @@ export function checkNewProblem(b: any): NewProblem | FieldError {
   if (typeof meta === "string") return fail(meta.split(" ")[0], meta);
   const rubric = parseRubric(b.rubric);
   if (typeof rubric === "string") return fail("rubric", rubric);
-  if (typeof b.reference_solution !== "string" || !b.reference_solution.trim()) return fail("reference_solution", "reference_solution is required");
-  if (!Array.isArray(b.test_cases) || b.test_cases.length === 0) return fail("test_cases", "At least one test case is required");
-  for (const t of b.test_cases) {
-    if (!t || !Array.isArray(t.args) || !("expected" in t) || typeof t.is_public !== "boolean") {
-      return fail("test_cases", "Each test case needs args (list), expected, and is_public (true/false)");
-    }
-  }
+  const bad = checkTestFields(b);
+  if (bad) return bad;
   const starter = `def ${b.func_name}(${b.param_names.join(", ")}):\n    # TODO: your solution here\n    pass\n`;
   return {
     ...meta, statement: b.statement, func_name: b.func_name, param_names: b.param_names,
@@ -38,3 +45,21 @@ export function checkNewProblem(b: any): NewProblem | FieldError {
 }
 
 export const isFieldError = (v: NewProblem | FieldError): v is FieldError => "field" in v && "message" in v && !("statement" in v);
+
+export const CHECK_MAX_CODE_CHARS = 10_000; // keep in step with CHECK_MAX_CODE_CHARS in worker/src/app/routes.py
+export const CHECK_MAX_CASES = 200;
+export type CheckTestsInput = { func_name: string; reference_solution: string; test_cases: { args: unknown[]; expected: unknown; is_public: boolean }[] };
+
+/** Body of POST /problems/check-tests: the same fields and rules as create, minus statement and rubric. */
+export function checkTestsInput(b: any): CheckTestsInput | FieldError {
+  if (!b || typeof b !== "object" || Array.isArray(b)) return fail("body", "Body must be a JSON object");
+  if (typeof b.func_name !== "string" || !IDENT.test(b.func_name)) return fail("func_name", "func_name must be a Python identifier");
+  const bad = checkTestFields(b);
+  if (bad) return bad;
+  if (b.reference_solution.length > CHECK_MAX_CODE_CHARS) return fail("reference_solution", `reference_solution is too long to check (max ${CHECK_MAX_CODE_CHARS} characters)`);
+  if (b.test_cases.length > CHECK_MAX_CASES) return fail("test_cases", `Too many test cases to check (max ${CHECK_MAX_CASES})`);
+  return {
+    func_name: b.func_name, reference_solution: b.reference_solution,
+    test_cases: b.test_cases.map((t: any) => ({ args: t.args, expected: t.expected, is_public: t.is_public })),
+  };
+}

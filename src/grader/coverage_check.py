@@ -25,6 +25,7 @@ import json
 import pickle
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Tuple
 
@@ -32,6 +33,10 @@ _SRC = str(Path(__file__).resolve().parent.parent)
 
 DEFAULT_TIMEOUT = 5.0
 WEAK_THRESHOLD = 0.8
+# Caps for the online check (Worker): at most this many mutants run, and no new
+# mutant starts once the wall-clock budget is spent. The offline CLI runs all.
+DEFAULT_MAX_MUTANTS = 30
+DEFAULT_BUDGET_SECONDS = 20.0
 
 _CMP_SWAP = {
     ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,
@@ -311,6 +316,50 @@ def mutation_score(killed: int, total: int) -> Optional[float]:
     return round(killed / total, 4) if total else None
 
 
+def select_mutants(mutants: List[Mutant], limit: Optional[int]) -> List[Mutant]:
+    """At most `limit` mutants, evenly spaced over the list so every kind of
+    mutation stays represented. Deterministic: same input, same picks."""
+    if limit is None or len(mutants) <= limit:
+        return list(mutants)
+    return [mutants[i * len(mutants) // limit] for i in range(limit)]
+
+
+def check_code(ref: str, func: str, cases: List[Tuple[tuple, Any]], *,
+               runner: Callable[..., Optional[List[bool]]] = run_against_tests,
+               timeout: float = DEFAULT_TIMEOUT, max_mutants: Optional[int] = None,
+               budget_seconds: Optional[float] = None,
+               clock: Callable[[], float] = time.monotonic) -> dict:
+    """Mutation check of `ref` against `cases` with any runner(code, func, cases,
+    timeout) -> per-case pass flags or None. Shared by the offline CLI (runner =
+    local subprocess, no caps) and the Worker (runner = remote sandbox, capped).
+
+    `total` is the number of mutants that actually ran, `generated` how many
+    exist; `capped` is True when some did not run (mutant cap or time budget),
+    in which case the score describes a sample. Survivors keep their code."""
+    base = runner(ref, func, cases, timeout)
+    if base is None or not all(base):
+        return {"error": "reference solution does not pass its own tests",
+                "total": 0, "generated": 0, "capped": False, "killed": 0,
+                "score": None, "weak": None, "survivors": []}
+    all_mutants = generate_mutants(ref)
+    picked = select_mutants(all_mutants, max_mutants)
+    start = clock()
+    survivors, killed, ran = [], 0, 0
+    for kind, desc, src in picked:
+        if budget_seconds is not None and ran and clock() - start > budget_seconds:
+            break
+        ran += 1
+        if is_killed(runner(src, func, cases, timeout)):
+            killed += 1
+        else:
+            survivors.append({"kind": kind, "description": desc, "code": src})
+    score = mutation_score(killed, ran)
+    return {"num_tests": len(cases), "total": ran, "generated": len(all_mutants),
+            "capped": ran < len(all_mutants), "killed": killed, "score": score,
+            "weak": score is not None and score < WEAK_THRESHOLD,
+            "survivors": survivors}
+
+
 def check_problem(problem: dict, reference_code: Optional[str] = None,
                   runner: Callable[..., Optional[List[bool]]] = run_against_tests,
                   timeout: float = DEFAULT_TIMEOUT) -> dict:
@@ -318,23 +367,8 @@ def check_problem(problem: dict, reference_code: Optional[str] = None,
     submissions). The reference is `reference_code`, or the first submission
     (the bank's correct clean solution) when not given."""
     ref = reference_code or problem.get("reference_solution") or problem["submissions"][0]["code"]
-    func, cases = problem["func_name"], problem["test_cases"]
-    base = runner(ref, func, cases, timeout)
-    if base is None or not all(base):
-        return {"id": problem["id"], "error": "reference solution does not pass its own tests",
-                "total": 0, "killed": 0, "score": None, "weak": None, "survivors": []}
-    mutants = generate_mutants(ref)
-    survivors, killed = [], 0
-    for kind, desc, src in mutants:
-        if is_killed(runner(src, func, cases, timeout)):
-            killed += 1
-        else:
-            survivors.append({"kind": kind, "description": desc, "code": src})
-    score = mutation_score(killed, len(mutants))
-    return {"id": problem["id"], "num_tests": len(cases), "total": len(mutants),
-            "killed": killed, "score": score,
-            "weak": score is not None and score < WEAK_THRESHOLD,
-            "survivors": survivors}
+    report = check_code(ref, problem["func_name"], problem["test_cases"], runner=runner, timeout=timeout)
+    return {"id": problem["id"], **report}
 
 
 def format_report(report: dict) -> str:

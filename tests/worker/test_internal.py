@@ -182,3 +182,45 @@ def test_run_never_returns_error_text_that_can_carry_case_values(env):
     case = r.json()["cases"][0]
     assert case["passed"] is False and case["error"]
     assert "(1, 2)" not in r.text
+
+
+CHECK_BODY = {"func_name": "add", "reference_solution": REF, "test_cases": [CASES[0], CASES[1]]}
+
+
+def test_check_tests_requires_token(env):
+    assert make_client(env).post("/api/internal/check-tests", json=CHECK_BODY).status_code == 401
+
+
+def test_check_tests_reports_score_and_hides_mutant_code(env):
+    r = make_client(env, real_auth=False).post("/api/internal/check-tests", json=CHECK_BODY)
+    assert r.status_code == 200
+    b = r.json()
+    assert b["total"] > 0 and b["killed"] + len(b["survivors"]) == b["total"]
+    assert b["weak_threshold"] == 0.8 and b["capped"] is False
+    assert all(set(s) == {"kind", "description"} for s in b["survivors"])
+
+
+def test_check_tests_is_capped(env, monkeypatch):
+    monkeypatch.setattr(routes, "CHECK_MAX_MUTANTS", 2)
+    body = {**CHECK_BODY, "reference_solution": "def add(a, b):\n    if a > 100:\n        return 0\n    return a + b + 0\n"}
+    b = make_client(env, real_auth=False).post("/api/internal/check-tests", json=body).json()
+    assert b["total"] == 2 and b["generated"] > 2 and b["capped"] is True
+
+
+def test_check_tests_bad_reference_is_400(env):
+    body = {**CHECK_BODY, "reference_solution": "def add(a, b):\n    return 0\n"}
+    r = make_client(env, real_auth=False).post("/api/internal/check-tests", json=body)
+    assert r.status_code == 400 and "own tests" in r.json()["detail"]
+
+
+def test_check_tests_limits_are_400(env):
+    c = make_client(env, real_auth=False)
+    assert c.post("/api/internal/check-tests", json={**CHECK_BODY, "test_cases": []}).status_code == 400
+    long_ref = {**CHECK_BODY, "reference_solution": REF + "#" * routes.CHECK_MAX_CODE_CHARS}
+    assert c.post("/api/internal/check-tests", json=long_ref).status_code == 400
+
+
+def test_check_tests_killed_sandbox_on_baseline_counts_as_bad_reference(env):
+    env.sandbox.killed = True
+    r = make_client(env, real_auth=False).post("/api/internal/check-tests", json=CHECK_BODY)
+    assert r.status_code == 400

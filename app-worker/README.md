@@ -31,6 +31,14 @@ Each item has the same fields as `POST problems`: `title`, `category`, `difficul
 same shape check as a single create plus the grader's `validate-problem`; titles must be unique in the file and among the teacher's own
 problems (case-insensitive). The whole file is validated first; any error returns 400 `{detail, errors: [{index, field, message}]}` (index is
 0-based) and nothing is stored, otherwise all rows are inserted in one D1 batch and the answer is `{imported, ids}`. No migration needed.
+Test-suite check (T7.3): `POST problems/check-tests` takes `{func_name, reference_solution, test_cases}` (the same field rules as create and import;
+reference up to 10 000 characters, up to 200 test cases, otherwise 400) and answers `{score, killed, total, generated, capped, survivors, weak, note}`.
+The grader applies a fixed set of small bugs to the reference solution (`src/grader/coverage_check.py`, shared, not forked) and runs each one against the
+tests. `score` = killed / total, `survivors` are the broken copies that still pass every test, in plain Vietnamese (built in `src/check_tests.ts`),
+`weak` uses the checker's threshold (score below 0.8). `capped: true` means only `total` of the `generated` mutants ran (cap of 30, picked evenly
+over the list, or the 20 s budget), so the score describes a sample. Some survivors are equivalent to the original (same output on every input), so
+the score is a lower bound. It saves nothing. Limits: per-teacher `RL_CHECK` (4 per 60 s per location, namespace 1004, a new binding that appears
+with the next deploy), 429 beyond it. Why a cap and what it costs: `worker/README.md`, "Test-suite check".
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;
