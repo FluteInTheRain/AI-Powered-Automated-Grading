@@ -14,6 +14,7 @@ for p in (ROOT, ROOT / "src", ROOT / "data"):
     sys.path.insert(0, str(p))
 
 from grader import sandbox  # noqa: E402
+from bank_extra import BANK_EXTRA  # noqa: E402
 from problems import PROBLEMS  # noqa: E402
 from server.rules import starter_code  # noqa: E402
 
@@ -30,8 +31,8 @@ def _param_names(code: str, func_name: str) -> list:
 
 def build_rows() -> list:
     rows = []
-    for p in PROBLEMS:
-        reference = p["submissions"][0]["code"].strip() + "\n"
+    for p in [*PROBLEMS, *BANK_EXTRA]:
+        reference = (p.get("reference_solution") or p["submissions"][0]["code"]).strip() + "\n"
         cases = [
             # json round-trip: tuples become lists, as they are stored and compared later.
             {"args": json.loads(json.dumps(list(args))), "expected": json.loads(json.dumps(expected)),
