@@ -354,6 +354,7 @@ export default function ExamPage() {
                 {appeal ? (
                   <>
                     <p>Câu {i + 1}: <strong>{APPEAL_STATUS[appeal.status] ?? appeal.status}</strong></p>
+                    {appeal.status === 'adjusted' && appeal.score !== null && <p>Giáo viên đã chỉnh điểm câu này thành {appeal.score.toFixed(1)}.</p>}
                     {appeal.decision_note && <p className="muted">Giáo viên: {appeal.decision_note}</p>}
                   </>
                 ) : appealing === q.problem_id ? (

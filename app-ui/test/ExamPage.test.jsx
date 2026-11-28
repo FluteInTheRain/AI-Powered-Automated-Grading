@@ -514,6 +514,7 @@ describe('appeals from the receipt lookup', () => {
     await lookupWith([80, 60], [decided])
     expect(screen.getByText('Đã chỉnh điểm')).toBeInTheDocument()
     expect(screen.getByText(/Case was fine/)).toBeInTheDocument()
+    expect(screen.getByText('Giáo viên đã chỉnh điểm câu này thành 85.0.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Khiếu nại câu 1' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Khiếu nại câu 2' })).toBeInTheDocument()
   })
