@@ -29,7 +29,9 @@
   "ratelimits": [
     { "name": "RL_START", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
     { "name": "RL_SYNTAX", "namespace_id": "1002", "simple": { "limit": 600, "period": 60 } },
-    { "name": "RL_ACTION", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } }
+    { "name": "RL_ACTION", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } },
+    // Each check runs up to 31 sandbox calls in the grader, so it gets a much smaller allowance.
+    { "name": "RL_CHECK", "namespace_id": "1004", "simple": { "limit": 4, "period": 60 } }
   ],
   "d1_databases": [
     {

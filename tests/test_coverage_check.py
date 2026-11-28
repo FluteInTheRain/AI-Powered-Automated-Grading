@@ -133,3 +133,21 @@ def test_check_code_bad_reference_and_no_mutants():
 
 def _pass_all_but_ref(code, func, cases, timeout):
     return [False] * len(cases)
+
+
+def test_description_formats_match_app_worker_parser():
+    """app-worker/src/check_tests.ts parses these descriptions into Vietnamese;
+    change a format here and that file (and its test) must change too."""
+    src = ("def f(xs, n):\n    if n < 0:\n        return False\n    for i in range(n):\n"
+           "        n = n + 3 if xs[0] and xs[-1] else n\n    return True\n")
+    by_kind = {}
+    for k, d, _ in cc.generate_mutants(src):
+        by_kind.setdefault(k, d)
+    assert by_kind["comparison"] == "line 2: changed `<` to `<=` in `n <= 0`"
+    assert by_kind["and_or"] == "line 5: swapped `and` for `or`"
+    assert by_kind["arithmetic"] == "line 5: replaced `+` with `-`"
+    assert by_kind["range_bound"].startswith("line 4: range upper bound off by one (+1) in `range(n)`")
+    assert by_kind["wrong_end_element"] == "line 5: first-element access `[0]` returns `[1]` instead"
+    assert by_kind["wrong_return"] == "line 3: `return False` flipped to `return True`"
+    assert by_kind["drop_guard"] == "line 2: removed the guard `if n < 0: ...` (early return/raise)"
+    assert by_kind["off_by_one"] == "line 2: integer literal 0 changed to 1"

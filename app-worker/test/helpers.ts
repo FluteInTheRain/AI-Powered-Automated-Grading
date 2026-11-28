@@ -30,7 +30,7 @@ export function client(grader: Fetcher, now?: () => Date, db?: D1Database, extra
   const e = {
     DB: db ?? env.DB, GRADER: grader, INTERNAL_TOKEN: "tok", ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", ACCESS_AUD: "a",
     DEV_AUTH_BYPASS: "1", ATTEMPT: env.ATTEMPT, AUDIT: env.AUDIT, GRADING_QUEUE: fakeQueue().binding,
-    RL_START: allow, RL_SYNTAX: allow, RL_ACTION: allow, TURNSTILE_SITE_KEY: "", TURNSTILE_SECRET: "", TURNSTILE_HOSTNAMES: "",
+    RL_START: allow, RL_SYNTAX: allow, RL_ACTION: allow, RL_CHECK: allow, TURNSTILE_SITE_KEY: "", TURNSTILE_SECRET: "", TURNSTILE_HOSTNAMES: "",
     ...envExtra,
   };
   return async (method: string, path: string, opts: { as?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
