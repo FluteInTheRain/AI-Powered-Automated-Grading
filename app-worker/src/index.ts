@@ -40,7 +40,8 @@ export { AttemptDO } from "./attempt_do";
 /** Daily cron: open appeals nobody decided within APPEAL_EXPIRY_DAYS become expired, then the determinism canary runs. */
 async function scheduled(_controller: ScheduledController, env: Env): Promise<void> {
   try {
-    await expireStaleAppeals(env.DB, new Date(Date.now() - APPEAL_EXPIRY_DAYS * 86_400_000));
+    const expired = await expireStaleAppeals(env.DB, new Date(Date.now() - APPEAL_EXPIRY_DAYS * 86_400_000));
+    console.log(`appeals cron: expired ${expired} stale appeal(s)`);
   } finally {
     await runCanary(env, new Date()); // never throws, and runs even if the expiry failed
   }
