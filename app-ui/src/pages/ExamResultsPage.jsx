@@ -170,6 +170,9 @@ export default function ExamResultsPage() {
             Chỉ hiện bài cần xem <span className="num muted">({reviewCount})</span>
           </label>
           <span className="sp" />
+          <a className="btn" href={`/api/teacher/exams/${id}/export.csv`} download>
+            <Icon name="download" />Xuất CSV
+          </a>
           <span className="muted num">{`Hiện ${shown.length} trên ${rows.length} bài làm`}</span>
         </div>
 
