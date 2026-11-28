@@ -72,6 +72,25 @@ describe("filing an appeal", () => {
     const c = client(s.grader.binding, undefined, undefined, { GRADING_QUEUE: s.queue.binding, RL_ACTION: { limit: async () => ({ success: false }) } });
     expect((await file(s, {}, c)).status).toBe(429);
   });
+
+  it("is limited per receipt and per client IP, each under its own key, before any other work", async () => {
+    const s = await seedGradedAttempt();
+    const keys: string[] = [];
+    const record = (deny: string) => ({ limit: async ({ key }: { key: string }) => { keys.push(key); return { success: !key.startsWith(deny) }; } });
+    const before = await appealCount();
+    const headers = { "CF-Connecting-IP": "203.0.113.9" };
+    const post = (c: typeof s.call) => c("POST", path(s), { headers, body: { problem_id: s.problemId, message: "m", turnstile_token: "t" } });
+
+    const byIp = client(s.grader.binding, undefined, undefined, { GRADING_QUEUE: s.queue.binding, RL_ACTION: record("appeal-ip:") });
+    expect((await post(byIp)).status).toBe(429);
+    expect(keys).toEqual([`appeal-receipt:${s.receipt}`, "appeal-ip:203.0.113.9"]);
+
+    keys.length = 0;
+    const byReceipt = client(s.grader.binding, undefined, undefined, { GRADING_QUEUE: s.queue.binding, RL_ACTION: record("appeal-receipt:") });
+    expect((await post(byReceipt)).status).toBe(429);
+    expect(keys).toEqual([`appeal-receipt:${s.receipt}`]);
+    expect(await appealCount()).toBe(before);
+  });
 });
 
 describe("looking an appeal up", () => {

@@ -148,7 +148,14 @@ describe('ExamResultsPage', () => {
   beforeEach(() => {
     api.getExamDetail.mockResolvedValue(detail)
     api.getResults.mockResolvedValue(results)
+    api.getExamSimilarity.mockResolvedValue({ threshold: 0.85, min_tokens: 40, questions: [] })
     api.updateDeadline.mockResolvedValue({})
+  })
+
+  it('has an export button pointing at the CSV endpoint', async () => {
+    renderResults()
+    const link = await screen.findByRole('link', { name: /Xuất CSV/ })
+    expect(link).toHaveAttribute('href', '/api/teacher/exams/e1/export.csv')
   })
 
   it('shows scores, dashes for missing ones and the total', async () => {
@@ -233,6 +240,7 @@ describe('ExamResultsPage appeals link', () => {
   it('links to the exam appeals page', async () => {
     api.getExamDetail.mockResolvedValue({ id: 'e1', title: 'Quiz 1', student_path: '/exam/tok1', deadline: null, rubric: null, questions: [] })
     api.getResults.mockResolvedValue([])
+    api.getExamSimilarity.mockResolvedValue({ threshold: 0.85, min_tokens: 40, questions: [] })
     renderResults()
     expect(await screen.findByRole('link', { name: 'Khiếu nại' })).toHaveAttribute('href', '/teacher/exams/e1/appeals')
   })

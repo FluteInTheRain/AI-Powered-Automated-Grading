@@ -17,7 +17,8 @@ A personal project with two parts that share one grader:
   submission always gets the same score**, and can a teacher see exactly why?
 - **A product built on the answer.** A small teacher app that runs entirely on Cloudflare's **Free plan**:
   teachers build multi-question exams, students submit once, and the AI grades every question in the
-  background, with a full audit trail.
+  background with a full audit trail. Students can appeal a score, and the teacher and the developer each get a
+  page of statistics.
 
 Most "LLM grader" demos ask one model for one holistic score. That score drifts from run to run, and nobody can
 audit it. This project takes a different design:
@@ -119,19 +120,44 @@ the student sees one result for the whole exam.
 ![Teacher app architecture on Cloudflare: Access and Turnstile in front of a Worker, Queues, D1, Durable Objects, R2 and the Python grading Worker](docs/img/teacher-app.svg)
 
 **What it does**
-- **Exams.** A question bank of 16 problems plus teacher-authored problems (API), exams of up to 20 weighted
-  questions, a deadline and a time limit.
+- **Exams.** A catalog of 16 bank problems, each with a title, category and difficulty, shown in a searchable,
+  filterable picker, plus teacher-authored problems (through the API, or up to 20 at once from a JSON file with the "Nhập từ file" dialog; the UI has no single-problem authoring form yet). An exam has up
+  to 20 weighted questions, a deadline and a time limit.
+- **Rubric weights and Settings.** Each exam stores its own four criterion weights (summing to 100) at creation. The
+  default comes from the teacher's Settings page (default weights and time limit), else from each problem. Weights
+  cannot be edited afterwards, so one exam is never graded two ways.
 - **Student flow.** Name and Turnstile check, then the questions appear with a server-side clock. "Run Tests"
   checks the public cases per question; one confirmed "Nộp bài" submits everything. A reload resumes the attempt,
-  and a receipt code lets the student look the score up later.
+  and a receipt code lets the student look the score up later. The interface and the AI's line-by-line feedback are in
+  Vietnamese.
 - **Background grading.** Submit stores one submission and one job per question in a single D1 batch and
   answers at once. A queue consumer grades each question through the Python Worker, writes the score and stores the
   full LLM prompts and raw responses in R2. Jobs are retried safely, a stuck job can be re-queued, and a blank
   answer is scored 0 without a sandbox run or an LLM call.
 - **Scores are append-only.** Score revisions and submissions cannot be updated or deleted (SQL triggers), so a
-  later manual regrade adds a revision with a reason instead of overwriting the AI score.
-- **Abuse limits.** Rate limiting per IP and per attempt, and a Turnstile check when an attempt starts.
-- **Teacher view.** Exams, a results table per student and question with the grading state, deadline control.
+  later change adds a revision instead of overwriting the AI score.
+- **Appeals.** With the receipt code, a student appeals a scored question (one appeal per question, up to 1000
+  characters). The teacher opens an appeals page per exam, sees the code, the score history and exactly what the AI
+  was asked and answered (read from R2), and decides: upheld, rejected, or adjusted to a new score. An adjustment is a
+  new score revision with a note. A daily Cron expires appeals left open for 14 days. There is no email, so the student
+  reads the outcome by entering the receipt code again.
+- **Teacher statistics.** A page per exam with the score histogram, pass rate per question, mean per criterion and
+  appeal counts, all computed from D1.
+- **CSV export.** The results page has a "Xuất CSV" button: one row per student with the per-question scores (latest
+  revision, so appeal adjustments count), the total and the four criteria, in a file Excel opens with Vietnamese names.
+- **Similarity signal.** A "Bài giống nhau" panel on the results page lists pairs of submissions whose normalized code
+  is very close (renamed variables and comments do not hide a copy). It is a hint to look again, never a verdict, and
+  it changes no score. Details in [`docs/similarity-check.md`](docs/similarity-check.md).
+- **Developer page** (`/teacher/admin`, limited to an `ADMIN_EMAILS` allowlist). A determinism canary: once a day a
+  Cron grades one fixed input and compares the score and a hash of the raw LLM responses with the first run of the same
+  model and input version, so a drift shows up as a mismatch. Also grading health for the last 14 days (outcomes,
+  durations) read from Analytics Engine, and an overturn signal from appeals. The overturn signal covers only disputed
+  submissions and one teacher decides each, so it is a biased signal, not accuracy and not agreement with human graders.
+- **AI Gateway.** The grading Worker calls Workers AI through an AI Gateway with the response cache turned off, because
+  a cache hit would fake the score consistency this project measures. Token counts and per-call latency are read in the
+  Cloudflare dashboard.
+- **Abuse limits.** Rate limiting per IP and per attempt, and a Turnstile check when an attempt starts and when an appeal
+  is filed.
 
 **Why each Cloudflare product is there**
 
@@ -139,22 +165,24 @@ the student sees one result for the whole exam.
 |---|---|
 | Workers (TypeScript, Hono) | The API, the queue consumer and the static React UI |
 | Access | Teacher login, verified again inside the Worker (fails closed) |
-| D1 | Teachers, problems, exams, attempts, submissions, append-only score revisions |
+| D1 | Teachers and their settings, problems, exams, attempts, submissions, append-only score revisions, appeals, canary runs |
 | Queues | Grading runs in the background; at-least-once delivery handled by idempotent jobs |
 | Durable Objects | The authoritative clock of an attempt and a one-submit-at-a-time claim |
 | R2 | The full LLM audit trail of every graded submission |
-| Rate Limiting, Turnstile | Per-IP and per-attempt limits; a bot check when an attempt starts |
-| Workers AI + service binding | The Python grading Worker calls the model; the TypeScript app calls the grader |
+| Rate Limiting, Turnstile | Per-IP and per-attempt limits; a bot check when an attempt starts or an appeal is filed |
+| Cron Triggers | Daily at 03:17 UTC: expire stale appeals and run the determinism canary |
+| Analytics Engine | One data point per grading attempt, read by the developer page |
+| Workers AI + AI Gateway + service binding | The Python grading Worker calls the model through a Gateway with cache off; the TypeScript app calls the grader |
 
 The design is in [`docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md`](docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md);
-the runbook and API are in [`app-worker/README.md`](app-worker/README.md).
+the appeals and observability designs are next to it in `docs/superpowers/specs/`, and the decisions behind the developer page are in [`docs/adr/`](docs/adr/). The runbook and API are in [`app-worker/README.md`](app-worker/README.md).
 
 ## Tech stack
 
 | Area | Technology |
 |---|---|
 | Grading pipeline | Python 3.12, pydantic, OpenAI-compatible client, llama.cpp (Qwen2.5-Coder-7B) or Workers AI |
-| Teacher app backend | TypeScript, Hono on Cloudflare Workers, D1, Queues, Durable Objects, R2, Rate Limiting, Turnstile, Access |
+| Teacher app backend | TypeScript, Hono on Cloudflare Workers, D1, Queues, Durable Objects, R2, Analytics Engine, AI Gateway, Cron Triggers, Rate Limiting, Turnstile, Access |
 | Grading Workers | Python Workers (FastAPI on Pyodide) and an isolated sandbox Worker |
 | Front end | React 18 + Vite (`app-ui/`), Monaco editor; static assets served by the Worker |
 | Original product app | FastAPI, SQLAlchemy, Postgres, React (`server/`, `frontend/`) |
@@ -177,7 +205,7 @@ server/, frontend/ Original product app: FastAPI + Postgres, React UI
 deploy/            Single-VM deployment (Docker Compose + nginx + llama-server)
 scripts/           Model server helper, question-bank seed generator
 tests/             pytest suite (grader, rules, Workers, prompts, migrations)
-docs/              Architecture, roadmap, results, design specs and plans
+docs/              Architecture, roadmap, results, design specs, plans and ADRs
 .github/workflows/ CI and deploy workflows
 ```
 
@@ -281,7 +309,7 @@ same file with `python3 scripts/export_bank_seed.py`.
 
 | Target | Stack | Cost | Runbook |
 |---|---|---|---|
-| **Teacher app on Cloudflare** | TypeScript Worker + D1 + Queues + Durable Objects + R2 + Access + Turnstile, calling the Python grading Worker | $0 (Workers Free) | [`app-worker/README.md`](app-worker/README.md) |
+| **Teacher app on Cloudflare** | TypeScript Worker + D1 + Queues + Durable Objects + R2 + Analytics Engine + Access + Turnstile, calling the Python grading Worker | $0 (Workers Free) | [`app-worker/README.md`](app-worker/README.md) |
 | Public demo on Cloudflare | Python Worker (FastAPI on Pyodide) + D1 + Workers AI + a separate sandbox Worker | $0 (Workers Free) | [`worker/README.md`](worker/README.md) |
 | Single VM | Docker Compose: FastAPI, Postgres, nginx, a llama-server systemd unit | One GPU VM | [`deploy/README.md`](deploy/README.md) |
 
@@ -307,15 +335,33 @@ design and the risks accepted for the Free plan are in
   device loses it, and an attempt cannot be continued from another device.
 - **Sandbox.** On Cloudflare the sandbox isolate is reused between requests and student code can make outbound
   requests; the VM path runs code in-process. Neither setup is hardened for untrusted, high-stakes exams.
-- **Not built yet.** Student appeals, manual regrading and the audit view for teachers (the data model already
-  supports them), an Excel export for the new app, and authoring your own question in the UI.
+- **Appeals are narrow.** A teacher can change a score only by deciding an appeal; there is no standalone regrade.
+  The overturn rate on the developer page is a selection-biased, single-rater signal.
+- **The canary is new.** The daily determinism canary was deployed on 2026-11-27 and its first scheduled run was due on 2026-11-28,
+  so there is no run history to cite yet. One style score changed between two submissions on 2026-11-27, and it is not known
+  whether that was nondeterminism or different input code.
+- **Edge-case and efficiency checks.** One loop bug can be penalised twice (correctness and `edge_case_handling`), and
+  the edge-case check sometimes lists cases the code does handle. An efficiency-check contradiction was fixed on
+  2026-11-27 and confirmed on one submission only, not over the dataset.
+- **Free plan.** Everything runs on the Cloudflare Free plan, so daily request, query and operation caps apply, rate
+  limit counts are per location and approximate, and the Access user cap was not confirmed from the docs. The apps are
+  not hardened for high-stakes exams.
+- **Not built yet.** A native .xlsx export, a single-problem authoring form in the UI, and import from CSV or Excel.
+- **Similarity and coverage checks are rough.** The similarity thresholds come from hand-made cases, not real exam data,
+  and reordered statements hide a copy. The test-coverage checker (`scripts/coverage_check.py`) is a script, not a page:
+  it found one weak suite among the 16 bank problems (`P02_is_prime`, 0.53) and its score is a lower bound because
+  some surviving mutants behave the same as the original.
+
+The thesis report has a fuller limitations section in Vietnamese
+([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).
 
 ## Status and roadmap
 
-The research phases are finished. The teacher app has its foundation (login, bank, exams, grading) and its
-background grading, rate limiting and audit log deployed. Next is the appeal flow: a student disputes a score, the
-teacher reviews exactly how the AI graded it and regrades by hand if needed. The task-by-task history is in
-[`docs/roadmap.md`](docs/roadmap.md).
+The research phases are finished. The teacher app is deployed with login, a problem catalog, exams with per-exam weights,
+background grading, rate limiting, the audit log, appeals, teacher statistics, the developer page and AI Gateway.
+GitHub Actions deploys it on every push to `main`. Still open: checking the first daily canary runs, and re-measuring the
+efficiency fix over the whole dataset once a Workers AI token is available. The task-by-task history and open items
+are in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Documentation
 
@@ -323,7 +369,8 @@ teacher reviews exactly how the AI graded it and regrades by hand if needed. The
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Why the design is hybrid and decomposed, with citations |
 | [`docs/report/results.md`](docs/report/results.md) | Full experiment tables and caveats |
-| [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history of the project |
+| [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history and open items |
+| [`docs/adr/`](docs/adr/) | Decisions behind the metrics, canary and AI Gateway |
 | [`app-worker/README.md`](app-worker/README.md) | Teacher app runbook, API and known limits |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`plans/`](docs/superpowers/plans/) | Design documents and implementation plans |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Engineering deep dive written for portfolio readers (also as PDF) |

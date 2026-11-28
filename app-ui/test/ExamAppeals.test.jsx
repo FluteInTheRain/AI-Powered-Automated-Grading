@@ -49,6 +49,13 @@ beforeEach(() => {
 afterEach(() => vi.resetAllMocks())
 
 describe('ExamAppealsPage', () => {
+  it('tells a failed audit read apart from missing audit data', async () => {
+    api.getAppeal.mockResolvedValue(detail({ audit: null, audit_read_failed: true }))
+    await open()
+    expect(await screen.findByText(/Chưa đọc được dữ liệu chấm/)).toBeInTheDocument()
+    expect(screen.queryByText(/Không còn dữ liệu chấm/)).not.toBeInTheDocument()
+  })
+
   it('lists the appeals with student, question number and status', async () => {
     renderPage()
     expect(await screen.findByText('An')).toBeInTheDocument()
@@ -68,7 +75,8 @@ describe('ExamAppealsPage', () => {
     expect(api.startAppealReview).toHaveBeenCalledWith('a1')
     expect(await screen.findByText('Please recheck')).toBeInTheDocument()
     expect(screen.getByText('def f(x): return 3')).toBeInTheDocument()
-    expect(screen.getByText(/pipeline/)).toBeInTheDocument()
+    expect(screen.getByText('#0 · AI chấm · 60 điểm · chấm tự động')).toBeInTheDocument()
+    expect(screen.queryByText(/pipeline/)).not.toBeInTheDocument()
     expect(screen.getByText('SYS-PROMPT')).toBeInTheDocument()
     expect(screen.getByText('RAW-RESPONSE')).toBeInTheDocument()
   })
@@ -129,6 +137,20 @@ describe('ExamAppealsPage', () => {
     fireEvent.change(screen.getByLabelText('Ghi chú cho sinh viên'), { target: { value: 'ok' } })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lưu quyết định' })) })
     expect(await screen.findByText('This appeal was already decided.')).toBeInTheDocument()
+  })
+
+  it('a 409 on the decision reloads the appeal and the list instead of leaving a stale form', async () => {
+    api.decideAppeal.mockRejectedValue(Object.assign(new Error('This appeal was already decided.'), { status: 409 }))
+    await open()
+    await screen.findByText('Please recheck')
+    api.getAppeal.mockResolvedValue(detail({ status: 'rejected', decision_note: 'No merit', decided_by: 't@x.com' }))
+    api.listExamAppeals.mockClear()
+    fireEvent.change(screen.getByLabelText('Ghi chú cho sinh viên'), { target: { value: 'ok' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Lưu quyết định' })) })
+    expect(await screen.findByText(/No merit/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lưu quyết định' })).not.toBeInTheDocument()
+    expect(screen.getByText(/đã được quyết định ở nơi khác/)).toBeInTheDocument()
+    expect(api.listExamAppeals).toHaveBeenCalled()
   })
 
   it('a decided appeal shows its note and no decision form', async () => {

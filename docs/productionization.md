@@ -48,17 +48,44 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   enter statement, rubric weights, and test cases (input/output pairs)
   without touching code.
 
-- [ ] **PR-B2 — Bulk import.** Import problems from a format instructors
+- [x] **PR-B2 — Bulk import.** Import problems from a format instructors
   already have: CSV/Excel, or an export from Moodle/Google Classroom, or at
   minimum a simple fill-in JSON template — instead of requiring every
   problem to be authored one at a time in the UI from PR-B1.
+  Done as the minimum: JSON file (`POST /api/teacher/problems/import`, "Nhập từ file"
+  dialog with a downloadable example). CSV/Excel and Moodle export are not done.
 
-- [ ] **PR-B3 — Test-suite coverage checker.** There's already a real,
+- [x] **PR-B3 — Test-suite coverage checker.** There's already a real,
   documented finding (`data/script.md`, "Notable finding from running the
   real pipeline") that a weak test suite lets buggy submissions score
   100%. A simple mutation-testing-style checker that warns an instructor
   "this test suite doesn't actually catch bug X" before they use it to
   grade for real would directly address that failure mode.
+
+  Implemented in `src/grader/coverage_check.py` (run it with
+  `python3 scripts/coverage_check.py`; the JSON report goes to
+  `results/coverage_check.json`, gitignored). It takes the first submission
+  of each bank problem as the reference, applies a fixed set of AST
+  mutations (flip a comparison, swap `and`/`or`, swap `+`/`-`, off-by-one
+  on `range()` bounds and integer literals, wrong first/last element, flip a
+  boolean return, drop an early-return guard), runs each mutant through
+  `grader.sandbox` in its own process with a 5 s timeout, and reports
+  killed/total plus the mutants that still pass every test. No LLM is
+  involved and the output is deterministic.
+
+  Result on the 16 bank problems: only `P02_is_prime` scores below 0.8
+  (17 of 32 mutants killed). Its seven tests are all small numbers, so
+  changing the trial-division start, step or bound, or dropping the even
+  check, goes unnoticed; a few large primes and squares of primes (25, 49)
+  would close most of the gap. `P04_binary_search` and `P14_factorial` sit
+  exactly at 0.80, and `P05_fibonacci` (0.88), `P11_caesar_cipher` (0.90)
+  and `P13_merge_sorted_lists` (0.92) have one or two survivors each. The
+  other ten problems kill every mutant. Several survivors are equivalent
+  mutants: `n <= 1` against `n < 1` in factorial and Fibonacci returns the
+  same values, and `<=` against `<` in the merge only changes which equal
+  element comes first. The score is a lower bound on suite strength, so read
+  the survivor list before adding tests. The bank's test cases were left
+  unchanged.
 
 ## C — Student side: submission experience
 
@@ -85,8 +112,14 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   HTTP API so it can be integrated into a real LMS (Canvas/Moodle via LTI)
   instead of only being runnable as a CLI script or local Streamlit demo.
 
-- [ ] **PR-D3 — Grade export.** Export results to CSV/Excel in a format an
-  LMS gradebook can import, instead of only living in `results/*.json`.
+- [x] **PR-D3 — Grade export.** `GET /api/teacher/exams/{id}/export.csv`
+  (`app-worker/src/routes/teacher_exams.ts`, `src/csv.ts`, `src/db/export.ts`)
+  returns one CSV row per attempt: student, per-question score, total,
+  the four rubric-dimension scores, start and submit time. Scores come from the
+  latest `score_revisions` row, so appeals adjustments are included. UTF-8 BOM
+  for Excel, CRLF, RFC 4180 quoting, and a leading apostrophe on cells that start
+  with `= + - @` (formula injection). Button "Xuất CSV" on `ExamResultsPage.jsx`.
+  CSV only; no native .xlsx and no per-LMS column mapping.
 
 ## E — Transparency & trust (matters once scores affect real people)
 
@@ -102,8 +135,9 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   where the model's rubric-check output looks uncertain, for manual
   instructor review, instead of treating every AI score as final.
 
-- [ ] **PR-E3 — Plagiarism / code-similarity check.** Not present
-  anywhere in the current pipeline; needed before grading counts for real.
+- [x] **PR-E3 — Plagiarism / code-similarity check.** Done as a teacher-only
+  signal ("đáng xem lại", never a verdict, no score change); see
+  `docs/similarity-check.md`. It did not exist in the pipeline before.
 
 ## Where this came from
 

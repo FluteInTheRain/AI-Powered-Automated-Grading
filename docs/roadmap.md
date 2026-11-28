@@ -202,6 +202,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.3c — Problem catalog (2026-11-26).** Title, category and difficulty on every problem (migration 0004, bank metadata in `data/problems.py`, metadata-only seed upsert), searchable/filterable/sortable picker in the exam form; spec and plan in `docs/superpowers/`.
 - [x] **T6.4 — Phase 3 (2026-11-27):** appeals (student files by receipt code, teacher reviews the AI trail and decides, adjustments are new score revisions), daily Cron expires stale appeals, teacher appeals page. **Workflows skipped:** waiting for the teacher is one API call updating D1, so a Workflow added nothing. **Email skipped:** no domain; Cloudflare email needs one, Brevo with a Gmail sender fails DKIM/DMARC. Spec and plan in `docs/superpowers/`. Deployed 2026-11-27.
 - [x] **T6.5 — Phase 4 (2026-11-27, deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Checked live: one real submission graded through the Gateway with structured output, and the Analytics Engine SQL returned its point. Still to check: the first Cron canary run (03:17 UTC) and the Gateway log lines in the dashboard. CI deploy already existed (T6.1b).
+- [x] **PR-D3 — CSV export of exam results (2026-11-28, not deployed):** `GET /api/teacher/exams/:id/export.csv` (behind Access, owner-only, no token) and a "Xuất CSV" button on the results page. One row per attempt: name, per-question latest score (so appeals adjustments count), total, four rubric-dimension scores (question-weighted mean of the sub-scores, 0-100), start and submit times. UTF-8 BOM, CRLF, quoted fields, apostrophe guard against formula injection. Tracker: `docs/productionization.md`.
 
 ## Open items (noted 2026-11-27, not scheduled)
 
@@ -215,7 +216,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
   measurement on the live model first, which needs a Workers AI API token (the `wrangler` OAuth token was not used).
 - [ ] **Efficiency fix only confirmed on one submission.** Re-measure over the whole dataset (`experiments/`) once a
   Workers AI token is available, then report it in the Limitations section instead of "one case".
-- [ ] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
+- [x] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
   `readAudit` and log it, log the cron's expired count, show "adjusted to X" to the student, rate-limit appeals by
   IP + receipt, `DecisionForm` should refresh on a 409, rename the "pipeline"/"ai" labels in the score history.
 

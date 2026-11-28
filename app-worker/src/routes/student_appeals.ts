@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { attemptByReceipt, getExamByStudentToken } from "../db/attempts";
 import { AppealExists, createAppeal, listAppealsForAttempt, submissionForAppeal } from "../db/appeals";
-import { TOO_MANY, allow } from "../limits";
+import { TOO_MANY, allow, clientIp } from "../limits";
 import type { TurnstileVerifier } from "../turnstile";
 import type { AppEnv } from "../index";
 
@@ -14,7 +14,9 @@ export function studentAppealRoutes(now: () => Date, verify: TurnstileVerifier):
 
   r.post(base, async (c) => {
     const { token, receipt } = c.req.param();
-    if (!(await allow(c.env.RL_ACTION, receipt))) return c.json(TOO_MANY, 429);
+    // Two keys: one receipt cannot be hammered from many places, and one address cannot walk through many receipts.
+    if (!(await allow(c.env.RL_ACTION, `appeal-receipt:${receipt}`))) return c.json(TOO_MANY, 429);
+    if (!(await allow(c.env.RL_ACTION, `appeal-ip:${clientIp(c.req)}`))) return c.json(TOO_MANY, 429);
     const exam = await getExamByStudentToken(c.env.DB, token);
     if (!exam) return c.json({ detail: "Unknown exam link" }, 404);
     const b: any = await c.req.json().catch(() => null);

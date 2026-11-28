@@ -17,6 +17,10 @@ const CRITERIA = {
   code_style: 'Phong cách code',
   edge_case_handling: 'Trường hợp biên',
 }
+// Who produced a score revision: the source column ('ai' | 'teacher') and the author ('pipeline' for the automatic grading, else a teacher's email).
+const SOURCE_LABEL = { ai: 'AI chấm', teacher: 'Giáo viên chỉnh' }
+const author = (a) => (a === 'pipeline' ? 'chấm tự động' : a)
+
 const STYLE_LEVEL = { clean: 'Tốt', medium: 'Trung bình', poor: 'Kém' }
 
 /** One line of plain Vietnamese for what the AI found on each criterion; null when the check has no detail. */
@@ -53,7 +57,7 @@ function AiResult({ result }) {
   )
 }
 
-function DecisionForm({ appealId, onDone }) {
+function DecisionForm({ appealId, onDone, onConflict }) {
   const [decision, setDecision] = useState('upheld')
   const [note, setNote] = useState('')
   const [score, setScore] = useState('')
@@ -69,7 +73,8 @@ function DecisionForm({ appealId, onDone }) {
       await decideAppeal(appealId, { decision, note: note.trim(), ...(adjusting ? { score: Number(score) } : {}) })
       onDone()
     } catch (e) {
-      setError(e.message)
+      if (e.status === 409) onConflict() // already decided elsewhere: reload the real state instead of leaving a stale form
+      else setError(e.message)
     } finally {
       setSaving(false)
     }
@@ -101,7 +106,7 @@ function DecisionForm({ appealId, onDone }) {
   )
 }
 
-function Detail({ appeal, onDecided }) {
+function Detail({ appeal, onDecided, onConflict }) {
   return (
     <div className="result-panel">
       <h2>{appeal.student_name} — {APPEAL_STATUS[appeal.status] ?? appeal.status}</h2>
@@ -111,14 +116,18 @@ function Detail({ appeal, onDecided }) {
       <h3>Lịch sử điểm</h3>
       <ul>
         {appeal.revisions.map((r) => (
-          <li key={r.revision}>#{r.revision} · {r.source} · {r.score} · {r.author}{r.reason ? ` · ${r.reason}` : ''}</li>
+          <li key={r.revision}>#{r.revision} · {SOURCE_LABEL[r.source] ?? r.source} · {r.score} điểm · {author(r.author)}{r.reason ? ` · ${r.reason}` : ''}</li>
         ))}
       </ul>
       <h3>AI đã chấm thế nào</h3>
       <AiResult result={appeal.ai_result} />
       <details>
         <summary>Chi tiết kỹ thuật (prompt và phản hồi thô của AI)</summary>
-        {appeal.audit === null && <p className="muted">Không còn dữ liệu chấm của AI cho bài này.</p>}
+        {appeal.audit === null && (
+          <p className="muted">
+            {appeal.audit_read_failed ? 'Chưa đọc được dữ liệu chấm của AI lúc này, thử tải lại trang sau.' : 'Không còn dữ liệu chấm của AI cho bài này.'}
+          </p>
+        )}
         {appeal.audit?.call_log.map((c, i) => (
           <details key={i}>
             <summary>{c.kind} · {c.schema} · {c.model}</summary>
@@ -129,7 +138,7 @@ function Detail({ appeal, onDecided }) {
         ))}
       </details>
       {PENDING.includes(appeal.status) ? (
-        <DecisionForm appealId={appeal.id} onDone={onDecided} />
+        <DecisionForm appealId={appeal.id} onDone={onDecided} onConflict={onConflict} />
       ) : (
         <p>Quyết định: {appeal.decision_note}{appeal.decided_by ? ` (${appeal.decided_by})` : ''}</p>
       )}
@@ -173,6 +182,16 @@ export default function ExamAppealsPage() {
     load()
   }
 
+  const conflicted = async () => {
+    try {
+      setSelected(await getAppeal(selected.id))
+      setErrorMessage('Khiếu nại này đã được quyết định ở nơi khác. Trang đã tải lại trạng thái mới nhất.')
+    } catch (e) {
+      setErrorMessage(e.message)
+    }
+    load()
+  }
+
   if (errorMessage && !appeals) return <p className="status-line status-error">Error: {errorMessage}</p>
   if (!appeals || !exam) return <p className="status-line">Loading…</p>
   const number = (problemId) => exam.questions.findIndex((q) => q.problem_id === problemId) + 1
@@ -209,7 +228,7 @@ export default function ExamAppealsPage() {
             ))}
           </tbody>
         </table>
-        {selected && <Detail key={selected.id} appeal={selected} onDecided={decided} />}
+        {selected && <Detail key={selected.id} appeal={selected} onDecided={decided} onConflict={conflicted} />}
       </div>
     </>
   )

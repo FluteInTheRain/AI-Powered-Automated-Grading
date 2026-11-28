@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { seedGradedAttempt } from "./appeals_fixture";
+import { client } from "./helpers";
 
 type Seed = Awaited<ReturnType<typeof seedGradedAttempt>>;
 const OTHER = "someone-else@x.com";
@@ -54,6 +55,20 @@ describe("list and detail", () => {
     const r = await s.call("GET", `/api/teacher/appeals/${s.appealId}`, { as: s.teacher });
     expect(r.status).toBe(200);
     expect(r.json.audit).toBeNull();
+    expect(r.json.audit_read_failed).toBe(false);
+  });
+
+  it("an R2 read failure is flagged and logged, and the detail still opens", async () => {
+    const s = await withAppeal();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const broken = { get: async () => { throw new Error("r2 down"); } } as unknown as R2Bucket;
+    const call = client(s.grader.binding, undefined, undefined, { AUDIT: broken });
+    const r = await call("GET", `/api/teacher/appeals/${s.appealId}`, { as: s.teacher });
+    expect(r.status).toBe(200);
+    expect(r.json.audit).toBeNull();
+    expect(r.json.audit_read_failed).toBe(true);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("audit/"), expect.any(Error));
+    warn.mockRestore();
   });
 
   it("another teacher gets 404 on list, detail, review and decision", async () => {

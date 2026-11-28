@@ -17,7 +17,8 @@
   **cùng một bài nộp luôn được cùng một điểm**, và giáo viên thấy rõ vì sao bài được điểm đó?
 - **Một sản phẩm xây trên câu trả lời đó.** Một app nhỏ cho giáo viên, chạy hoàn toàn trên **gói Free** của
   Cloudflare: giáo viên tạo bài thi nhiều câu, học sinh nộp một lần, AI chấm từng câu ở chế độ nền và lưu
-  đầy đủ nhật ký để kiểm tra lại.
+  đầy đủ nhật ký để kiểm tra lại. Học sinh có thể khiếu nại điểm, còn giáo viên và người phát triển mỗi bên có
+  một trang thống kê.
 
 Phần lớn các demo "chấm bài bằng LLM" chỉ hỏi model một điểm tổng. Điểm đó thay đổi giữa các lần chạy và không
 ai kiểm tra lại được. Dự án này thiết kế khác:
@@ -118,21 +119,44 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
 ![Teacher app architecture on Cloudflare: Access and Turnstile in front of a Worker, Queues, D1, Durable Objects, R2 and the Python grading Worker](docs/img/teacher-app.svg)
 
 **App làm được gì**
-- **Bài thi.** Kho 16 đề cùng đề giáo viên tự soạn (qua API), bài thi tối đa 20 câu có trọng số, hạn nộp và
-  thời gian làm bài.
+- **Bài thi.** Danh mục 16 đề trong kho, mỗi đề có tên, chủ đề và độ khó, chọn qua bộ lọc có tìm kiếm và sắp xếp,
+  cùng đề giáo viên tự soạn (qua API, hoặc nhập tối đa 20 đề một lúc từ file JSON bằng hộp thoại "Nhập từ file"; giao diện chưa có form soạn từng đề). Bài thi tối đa 20 câu có trọng số, hạn nộp
+  và thời gian làm bài.
+- **Trọng số rubric và Cài đặt.** Mỗi bài thi lưu bốn trọng số tiêu chí riêng (tổng 100) lúc tạo. Mặc định lấy từ
+  trang Cài đặt của giáo viên (trọng số và thời gian làm bài mặc định), nếu không có thì lấy theo từng đề. Trọng số
+  không sửa được sau đó, nên một bài thi không bao giờ bị chấm theo hai cách.
 - **Luồng học sinh.** Nhập tên và qua kiểm tra Turnstile, rồi các câu hiện ra cùng đồng hồ phía server. "Run
   Tests" kiểm tra các test công khai theo từng câu; một lần "Nộp bài" có xác nhận sẽ nộp tất cả. Tải lại trang
-  thì tiếp tục lượt làm cũ, và mã biên nhận cho phép xem lại điểm sau này.
+  thì tiếp tục lượt làm cũ, và mã biên nhận cho phép xem lại điểm sau này. Giao diện và nhận xét từng dòng của AI
+  đều bằng tiếng Việt.
 - **Chấm nền.** Nộp bài lưu mỗi câu một bài nộp và một công việc chấm trong cùng một batch D1 rồi trả lời ngay.
   Một consumer của hàng đợi chấm từng câu qua Worker Python, ghi điểm và lưu toàn bộ prompt cùng câu trả lời thô
   của LLM vào R2. Công việc được thử lại an toàn, công việc bị kẹt có thể xếp lại hàng, và câu bỏ trống được 0
   điểm mà không chạy sandbox hay gọi LLM.
 - **Điểm chỉ được thêm, không bị ghi đè.** Bản ghi điểm và bài nộp không sửa hay xóa được (trigger SQL), nên
-  chấm lại bằng tay sau này sẽ thêm một bản mới kèm lý do thay vì ghi đè điểm của AI.
+  mọi thay đổi về sau là một bản ghi mới thay vì ghi đè điểm của AI.
+- **Khiếu nại.** Bằng mã biên nhận, học sinh khiếu nại một câu đã có điểm (mỗi câu một lần, tối đa 1000 ký tự).
+  Giáo viên có trang khiếu nại theo từng bài thi, xem mã nộp, lịch sử điểm và chính xác AI đã được hỏi gì, trả lời
+  gì (đọc từ R2), rồi quyết định: giữ nguyên, bác bỏ, hoặc chỉnh sang điểm mới. Chỉnh điểm là một bản ghi điểm mới
+  kèm ghi chú. Một Cron hằng ngày đóng các khiếu nại bị bỏ mở quá 14 ngày. App không gửi email, nên học sinh xem
+  kết quả bằng cách nhập lại mã biên nhận.
+- **Thống kê cho giáo viên.** Mỗi bài thi có một trang với phân bố điểm, tỉ lệ đạt từng câu, điểm trung bình theo
+  từng tiêu chí và số khiếu nại, tính hoàn toàn từ D1.
+- **Xuất CSV.** Trang kết quả có nút "Xuất CSV": mỗi học sinh một dòng, gồm điểm từng câu (bản mới nhất, nên điểm
+  đã chỉnh sau khiếu nại được tính), tổng điểm và bốn tiêu chí, ở dạng Excel mở được với tên tiếng Việt.
+- **Tín hiệu bài giống nhau.** Khung "Bài giống nhau" ở trang kết quả liệt kê các cặp bài nộp có code chuẩn hoá rất gần
+  nhau (đổi tên biến hay comment cũng không che được). Đây chỉ là gợi ý xem lại, không phải kết luận, và không đổi
+  điểm nào. Chi tiết ở [`docs/similarity-check.md`](docs/similarity-check.md).
+- **Trang cho người phát triển** (`/teacher/admin`, chỉ các email trong danh sách `ADMIN_EMAILS`). Bài chuẩn kiểm
+  tra độ ổn định: mỗi ngày một Cron chấm một đầu vào cố định rồi so điểm và mã băm của các câu trả lời thô của LLM
+  với lần chạy đầu tiên cùng model và phiên bản đầu vào, nên độ lệch hiện ra thành một dòng "LỆCH". Trang còn có
+  sức khoẻ chấm bài 14 ngày gần nhất (kết quả, thời gian) đọc từ Analytics Engine, và tín hiệu đảo điểm từ khiếu
+  nại. Tín hiệu đảo điểm chỉ gồm các bài bị khiếu nại và mỗi bài do một giáo viên quyết định, nên đây là tín hiệu
+  có thiên lệch, không phải độ chính xác và không phải mức đồng thuận với giáo viên độc lập.
+- **AI Gateway.** Worker chấm bài gọi Workers AI qua AI Gateway với bộ nhớ đệm phản hồi tắt, vì một lần trúng
+  đệm sẽ làm giả độ ổn định điểm mà dự án đang đo. Số token và độ trễ từng lần gọi xem trong dashboard Cloudflare.
 - **Giới hạn lạm dụng.** Giới hạn tần suất theo IP và theo lượt làm, cùng kiểm tra Turnstile khi bắt đầu một
-  lượt làm.
-- **Màn hình giáo viên.** Danh sách bài thi, bảng kết quả theo từng học sinh và từng câu kèm trạng thái chấm,
-  chỉnh hạn nộp.
+  lượt làm và khi gửi khiếu nại.
 
 **Vì sao mỗi sản phẩm Cloudflare có mặt**
 
@@ -140,22 +164,24 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
 |---|---|
 | Workers (TypeScript, Hono) | API, consumer của hàng đợi và giao diện React tĩnh |
 | Access | Đăng nhập giáo viên, được kiểm tra lại trong Worker (đóng khi có lỗi) |
-| D1 | Giáo viên, đề, bài thi, lượt làm, bài nộp, các bản ghi điểm chỉ-thêm |
+| D1 | Giáo viên và cài đặt của họ, đề, bài thi, lượt làm, bài nộp, các bản ghi điểm chỉ-thêm, khiếu nại, lần chạy bài chuẩn |
 | Queues | Chấm ở chế độ nền; giao tin nhắn ít nhất một lần được xử lý bằng công việc idempotent |
 | Durable Objects | Đồng hồ chuẩn của một lượt làm và khoá "mỗi lúc chỉ một lần nộp" |
 | R2 | Toàn bộ nhật ký gọi LLM của mọi bài đã chấm |
-| Rate Limiting, Turnstile | Giới hạn theo IP và theo lượt làm; kiểm tra bot khi bắt đầu lượt làm |
-| Workers AI + service binding | Worker Python chấm bài gọi model; app TypeScript gọi bộ chấm |
+| Rate Limiting, Turnstile | Giới hạn theo IP và theo lượt làm; kiểm tra bot khi bắt đầu lượt làm hoặc gửi khiếu nại |
+| Cron Triggers | Mỗi ngày lúc 03:17 UTC: đóng khiếu nại quá hạn và chạy bài chuẩn kiểm tra độ ổn định |
+| Analytics Engine | Một điểm dữ liệu cho mỗi lần chấm, trang người phát triển đọc từ đó |
+| Workers AI + AI Gateway + service binding | Worker Python chấm bài gọi model qua Gateway tắt đệm; app TypeScript gọi bộ chấm |
 
 Thiết kế nằm ở [`docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md`](docs/superpowers/specs/2026-11-25-teacher-app-cloudflare-design.md);
-hướng dẫn vận hành và API nằm ở [`app-worker/README.md`](app-worker/README.md).
+thiết kế khiếu nại và phần quan sát nằm cạnh đó trong `docs/superpowers/specs/`, còn các quyết định đứng sau trang người phát triển nằm ở [`docs/adr/`](docs/adr/). Hướng dẫn vận hành và API nằm ở [`app-worker/README.md`](app-worker/README.md).
 
 ## Công nghệ
 
 | Mảng | Công nghệ |
 |---|---|
 | Pipeline chấm | Python 3.12, pydantic, client tương thích OpenAI, llama.cpp (Qwen2.5-Coder-7B) hoặc Workers AI |
-| Backend app giáo viên | TypeScript, Hono trên Cloudflare Workers, D1, Queues, Durable Objects, R2, Rate Limiting, Turnstile, Access |
+| Backend app giáo viên | TypeScript, Hono trên Cloudflare Workers, D1, Queues, Durable Objects, R2, Analytics Engine, AI Gateway, Cron Triggers, Rate Limiting, Turnstile, Access |
 | Các Worker chấm | Python Workers (FastAPI trên Pyodide) và một Worker sandbox riêng |
 | Giao diện | React 18 + Vite (`app-ui/`), trình soạn thảo Monaco; file tĩnh do Worker phục vụ |
 | App gốc | FastAPI, SQLAlchemy, Postgres, React (`server/`, `frontend/`) |
@@ -178,7 +204,7 @@ server/, frontend/ Original product app: FastAPI + Postgres, React UI
 deploy/            Single-VM deployment (Docker Compose + nginx + llama-server)
 scripts/           Model server helper, question-bank seed generator
 tests/             pytest suite (grader, rules, Workers, prompts, migrations)
-docs/              Architecture, roadmap, results, design specs and plans
+docs/              Architecture, roadmap, results, design specs, plans and ADRs
 .github/workflows/ CI and deploy workflows
 ```
 
@@ -282,7 +308,7 @@ JSON bằng tay. Kho câu hỏi của app giáo viên được sinh từ chính 
 
 | Nơi chạy | Công nghệ | Chi phí | Hướng dẫn |
 |---|---|---|---|
-| **App giáo viên trên Cloudflare** | Worker TypeScript + D1 + Queues + Durable Objects + R2 + Access + Turnstile, gọi Worker Python chấm bài | $0 (Workers Free) | [`app-worker/README.md`](app-worker/README.md) |
+| **App giáo viên trên Cloudflare** | Worker TypeScript + D1 + Queues + Durable Objects + R2 + Analytics Engine + Access + Turnstile, gọi Worker Python chấm bài | $0 (Workers Free) | [`app-worker/README.md`](app-worker/README.md) |
 | Bản demo công khai trên Cloudflare | Python Worker (FastAPI trên Pyodide) + D1 + Workers AI + một Worker sandbox riêng | $0 (Workers Free) | [`worker/README.md`](worker/README.md) |
 | Một máy ảo | Docker Compose: FastAPI, Postgres, nginx, một unit systemd chạy llama-server | Một VM có GPU | [`deploy/README.md`](deploy/README.md) |
 
@@ -309,15 +335,33 @@ chấp nhận khi dùng gói Free nằm trong
 - **Sandbox.** Trên Cloudflare, môi trường chạy của sandbox được dùng lại giữa các request và code học sinh gửi
   được request ra ngoài; trên máy ảo, code chạy ngay trong tiến trình của server. Cả hai đều chưa đủ an toàn cho
   kỳ thi quan trọng với code không tin cậy.
-- **Chưa làm.** Khiếu nại của học sinh, chấm lại bằng tay và màn hình xem nhật ký chấm cho giáo viên (mô hình dữ
-  liệu đã hỗ trợ sẵn), xuất Excel cho app mới, và tự soạn câu hỏi ngay trên giao diện.
+- **Khiếu nại còn hẹp.** Giáo viên chỉ đổi được điểm bằng cách quyết định một khiếu nại; chưa có chấm lại độc lập.
+  Tỉ lệ đảo điểm trên trang người phát triển là tín hiệu có thiên lệch do một người đánh giá.
+- **Bài chuẩn mới chạy.** Bài chuẩn kiểm tra độ ổn định hằng ngày được deploy ngày 2026-11-27 và lần chạy theo lịch đầu tiên đến hạn ngày 2026-11-28,
+  nên chưa có lịch sử để trích. Điểm style từng đổi giữa hai lần nộp ngày 2026-11-27, và chưa biết đó là do không ổn
+  định hay do code đầu vào khác nhau.
+- **Kiểm tra edge case và hiệu năng.** Một lỗi vòng lặp có thể bị trừ điểm hai lần (đúng sai và
+  `edge_case_handling`), và kiểm tra edge case đôi khi liệt kê cả những trường hợp code đã xử lý. Mâu thuẫn trong
+  kiểm tra hiệu năng được sửa ngày 2026-11-27 và mới được xác nhận trên một bài nộp, chưa đo trên cả bộ dữ liệu.
+- **Gói Free.** Mọi thứ chạy trên gói Free của Cloudflare, nên có giới hạn request, truy vấn và thao tác theo
+  ngày, bộ đếm giới hạn tần suất tính theo từng điểm trình và chỉ gần đúng, còn giới hạn số người dùng của Access
+  chưa được xác nhận từ tài liệu. App chưa đủ an toàn cho kỳ thi quan trọng.
+- **Chưa làm.** Xuất file .xlsx thật, form soạn từng đề trên giao diện, và nhập từ CSV hay Excel.
+- **Kiểm tra bài giống nhau và độ phủ test còn thô.** Ngưỡng của phần so bài giống chọn từ các ca tự soạn, chưa dựa trên
+  dữ liệu thi thật, và đổi thứ tự câu lệnh sẽ che được việc chép. Công cụ kiểm tra độ phủ test
+  (`scripts/coverage_check.py`) là một script chứ chưa có trang: nó tìm ra một bộ test yếu trong 16 đề của kho
+  (`P02_is_prime`, 0.53), và điểm này là cận dưới vì một số bản đột biến còn sống có hành vi y hệt bản gốc.
+
+Báo cáo luận văn có phần hạn chế đầy đủ hơn, bằng tiếng Việt
+([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).
 
 ## Tình trạng và lộ trình
 
-Các giai đoạn nghiên cứu đã xong. App giáo viên đã có phần nền (đăng nhập, kho đề, bài thi, chấm bài) cùng chấm
-nền, giới hạn tần suất và nhật ký chấm đã được deploy. Tiếp theo là luồng khiếu nại: học sinh phản đối một điểm,
-giáo viên xem lại chính xác AI đã chấm thế nào và chấm lại bằng tay nếu cần. Lịch sử theo từng task nằm trong
-[`docs/roadmap.md`](docs/roadmap.md).
+Các giai đoạn nghiên cứu đã xong. App giáo viên đã được deploy với đăng nhập, danh mục đề, bài thi có trọng số
+riêng, chấm nền, giới hạn tần suất, nhật ký chấm, khiếu nại, thống kê cho giáo viên, trang người phát triển và AI
+Gateway. GitHub Actions tự deploy sau mỗi lần push lên `main`. Còn mở: xem các lần chạy bài chuẩn đầu tiên, và đo
+lại bản sửa kiểm tra hiệu năng trên cả bộ dữ liệu khi có token Workers AI. Lịch sử theo từng task và các việc còn
+mở nằm trong [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Tài liệu
 
@@ -325,7 +369,8 @@ giáo viên xem lại chính xác AI đã chấm thế nào và chấm lại b�
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | Vì sao thiết kế kết hợp và chia nhỏ, kèm trích dẫn |
 | [`docs/report/results.md`](docs/report/results.md) | Bảng thí nghiệm đầy đủ và các lưu ý |
-| [`docs/roadmap.md`](docs/roadmap.md) | Lịch sử dự án theo từng task |
+| [`docs/roadmap.md`](docs/roadmap.md) | Lịch sử dự án theo từng task và các việc còn mở |
+| [`docs/adr/`](docs/adr/) | Các quyết định về chỉ số, bài chuẩn và AI Gateway |
 | [`app-worker/README.md`](app-worker/README.md) | Hướng dẫn vận hành app giáo viên, API và các giới hạn đã biết |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) và [`plans/`](docs/superpowers/plans/) | Tài liệu thiết kế và kế hoạch triển khai |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Phân tích kỹ thuật chi tiết cho người xem portfolio (có cả bản PDF) |

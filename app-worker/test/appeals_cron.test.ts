@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createAppeal, decideAppeal } from "../src/db/appeals";
 import type { Env } from "../src/env";
 import worker from "../src/index";
@@ -16,7 +16,11 @@ it("the daily cron expires open appeals older than 14 days and leaves the rest",
   const decidedId = await createAppeal(env.DB, { submissionId: decided.submissionId, message: "m", now: old });
   await decideAppeal(env.DB, { id: decidedId, decision: "upheld", note: "n", teacherEmail: "t@x.com", now: new Date() });
 
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
   await worker.scheduled({} as ScheduledController, env as unknown as Env);
+  const logged = log.mock.calls.map((c) => String(c[0]));
+  log.mockRestore();
+  expect(logged).toContain("appeals cron: expired 1 stale appeal(s)");
 
   expect(await statusOf(staleId)).toBe("expired");
   expect(await statusOf(freshId)).toBe("open");
