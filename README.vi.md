@@ -359,6 +359,13 @@ chấp nhận khi dùng gói Free nằm trong
 - **Kiểm tra edge case và hiệu năng.** Một lỗi vòng lặp có thể bị trừ điểm hai lần (đúng sai và
   `edge_case_handling`), và kiểm tra edge case đôi khi liệt kê cả những trường hợp code đã xử lý. Mâu thuẫn trong
   kiểm tra hiệu năng được sửa ngày 2026-11-27 và mới được xác nhận trên một bài nộp, chưa đo trên cả bộ dữ liệu.
+- **Sức chứa của gói Free.** Workers AI cho 10.000 Neurons mỗi ngày và chấm một câu tốn khoảng 100, nên app giáo viên
+  chấm được khoảng 100 câu mỗi ngày: tức khoảng 20 học sinh với bài thi 5 câu. Một lớp 30 người dùng 150% hạn mức,
+  và những học sinh nộp sau khi hết hạn mức sẽ có các câu bị lỗi và không có điểm cho đến lần đặt lại lúc 00:00 UTC.
+  Thao tác hàng đợi, ghi D1 và số request cho phép vài trăm đến vài nghìn học sinh mỗi ngày, nên hạn mức AI là giới
+  hạn đầu tiên. Các lần chạy cục bộ với grader giả (30 và 100 học sinh) cho thấy app nhận một bài nộp trong dưới 30 ms;
+  chúng không nói gì về thời gian chấm thật. Xem [`docs/load-test.md`](docs/load-test.md) và
+  [ADR 0009](docs/adr/0009-free-plan-capacity-and-load-test.md) để biết mô hình, các lần chạy và phương án dự phòng.
 - **Gói Free.** Mọi thứ chạy trên gói Free của Cloudflare, nên có giới hạn request, truy vấn và thao tác theo
   ngày, bộ đếm giới hạn tần suất tính theo từng điểm trình và chỉ gần đúng, còn giới hạn số người dùng của Access
   chưa được xác nhận từ tài liệu. App chưa đủ an toàn cho kỳ thi quan trọng.
@@ -397,6 +404,7 @@ mở nằm trong [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md) | Code học sinh chạy ở đâu, bảng 22 kiểu tấn công và những gì còn hở |
 | [`docs/golden-regression.md`](docs/golden-regression.md) | Các test hồi quy trong CI bắt được gì và không bắt được gì |
 | [`docs/similarity-check.md`](docs/similarity-check.md) | Tín hiệu bài giống nhau hoạt động ra sao và các ngưỡng của nó |
+| [`docs/load-test.md`](docs/load-test.md) | Mô hình sức chứa của gói Free, các lần chạy tải cục bộ và những gì chúng không cho thấy |
 | [`app-worker/README.md`](app-worker/README.md) | Hướng dẫn vận hành app giáo viên, API và các giới hạn đã biết |
 | [`docs/runbook.md`](docs/runbook.md) | Sao lưu và khôi phục, cách xử lý sự cố, công tắc tắt tính năng |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) và [`plans/`](docs/superpowers/plans/) | Tài liệu thiết kế và kế hoạch triển khai |

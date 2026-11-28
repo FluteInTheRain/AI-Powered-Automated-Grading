@@ -361,6 +361,13 @@ design and the risks accepted for the Free plan are in
 - **Edge-case and efficiency checks.** One loop bug can be penalised twice (correctness and `edge_case_handling`), and
   the edge-case check sometimes lists cases the code does handle. An efficiency-check contradiction was fixed on
   2026-11-27 and confirmed on one submission only, not over the dataset.
+- **Free plan capacity.** Workers AI allows 10,000 Neurons a day and one graded question costs about 100, so the
+  teacher app grades about 100 questions a day: roughly 20 students on a 5-question exam. A class of 30 would use 150%
+  of the allowance, and the students past the limit end with failed questions and no score until the next reset at
+  00:00 UTC. Queue operations, D1 writes and requests allow hundreds to thousands of students a day, so the AI
+  allowance is the first limit. Local runs with a fake grader (30 and 100 students) show the app accepts a submit in
+  under 30 ms; they say nothing about real grading time. See [`docs/load-test.md`](docs/load-test.md) and
+  [ADR 0009](docs/adr/0009-free-plan-capacity-and-load-test.md) for the model, the runs and the fallback plan.
 - **Free plan.** Everything runs on the Cloudflare Free plan, so daily request, query and operation caps apply, rate
   limit counts are per location and approximate, and the Access user cap was not confirmed from the docs. The apps are
   not hardened for high-stakes exams.
@@ -400,6 +407,7 @@ are in [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md) | Where student code runs, the 22-attack table and what is still open |
 | [`docs/golden-regression.md`](docs/golden-regression.md) | What the CI regression tests catch and what they cannot |
 | [`docs/similarity-check.md`](docs/similarity-check.md) | How the similarity signal works and its thresholds |
+| [`docs/load-test.md`](docs/load-test.md) | Capacity model for the Free plan, local load runs and what they do not show |
 | [`docs/runbook.md`](docs/runbook.md) | Backup and restore, incident playbooks, kill switches |
 | [`app-worker/README.md`](app-worker/README.md) | Teacher app runbook, API and known limits |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`plans/`](docs/superpowers/plans/) | Design documents and implementation plans |
