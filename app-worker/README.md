@@ -23,8 +23,14 @@ For `wrangler dev`, put `DEV_AUTH_BYPASS=1` and `INTERNAL_TOKEN=local` in `app-w
 ## API
 
 Teacher (behind Access) `/api/teacher/*`: `GET me`, `GET bank`, `GET|POST problems` (each problem has `title` up to 80 chars, `category` up to 40 chars as free text, and `difficulty` easy, medium or hard; `POST` requires all three),
-`POST problems/preview`, `GET|PUT settings` (default weights and time limit), `GET|POST exams`
+`POST problems/preview`, `POST problems/import` (bulk import, PR-B2; see below), `GET|PUT settings` (default weights and time limit), `GET|POST exams`
 (`POST` takes an optional `rubric` of four integer weights summing to 100: the explicit one, else the teacher's default, else each problem's own), `GET|PATCH exams/:id`, `GET exams/:id/results`, `GET exams/:id/similarity` (PR-E3 signal, `docs/similarity-check.md`).
+Bulk import: body is `{"problems": [...]}` (or a bare array), max 20 problems and 256 KB per upload (413 beyond that).
+Each item has the same fields as `POST problems`: `title`, `category`, `difficulty`, `statement` (Markdown), `func_name`, `param_names`,
+`reference_solution`, `test_cases` (`[{args, expected, is_public}]`); `rubric` is optional here (default 40/20/20/20). Items go through the
+same shape check as a single create plus the grader's `validate-problem`; titles must be unique in the file and among the teacher's own
+problems (case-insensitive). The whole file is validated first; any error returns 400 `{detail, errors: [{index, field, message}]}` (index is
+0-based) and nothing is stored, otherwise all rows are inserted in one D1 batch and the answer is `{imported, ids}`. No migration needed.
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;

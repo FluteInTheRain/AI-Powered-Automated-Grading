@@ -61,3 +61,22 @@ export async function getProblemById(db: D1Database, problemId: string): Promise
   const r = await db.prepare("SELECT * FROM problems WHERE id = ?").bind(problemId).first<Row>();
   return r ? toProblem(r) : null;
 }
+
+/** Lower-cased titles of every problem this teacher owns, for duplicate detection on import. */
+export async function ownTitles(db: D1Database, teacherId: string): Promise<Set<string>> {
+  const { results } = await db.prepare("SELECT title FROM problems WHERE owner_teacher_id = ? AND title IS NOT NULL").bind(teacherId).all<{ title: string }>();
+  return new Set(results.map((r) => r.title.toLowerCase()));
+}
+
+/** All-or-nothing: one D1 batch is one transaction, so either every problem lands or none does. */
+export async function insertProblems(db: D1Database, teacherId: string, ps: NewProblem[]): Promise<string[]> {
+  const now = new Date().toISOString();
+  const ids = ps.map(() => newId());
+  const stmt = db.prepare(
+    "INSERT INTO problems (id, owner_teacher_id, visibility, statement, func_name, param_names, rubric," +
+      " reference_solution, test_cases, starter_code, created_at, title, category, difficulty) VALUES (?, ?, 'private', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  await db.batch(ps.map((p, i) => stmt.bind(ids[i], teacherId, p.statement, p.func_name, JSON.stringify(p.param_names), JSON.stringify(p.rubric),
+    p.reference_solution, JSON.stringify(p.test_cases), p.starter_code, now, p.title, p.category, p.difficulty)));
+  return ids;
+}
