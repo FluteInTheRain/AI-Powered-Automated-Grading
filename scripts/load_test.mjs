@@ -12,7 +12,7 @@
 //   --fail-rate 0        share of grades failing with 502   --window-ms 5000    all submits start inside this window
 //   --start-window-ms 2000  spread of the attempt starts    --poll-ms 2000      status poll period (the UI uses 2000)
 //   --ip-mode distinct|shared  distinct: each student has own CF-Connecting-IP; shared: one IP (a school NAT)
-//   --timeout-ms 600000  give up waiting for grades         --port 8799
+//   --timeout-ms 600000  a student stops polling a question after this long   --hard-timeout-ms 900000  stop the whole run (result is written with hard_timeout: true)         --port 8799
 //   --base-url URL       use an already running localhost dev server instead of spawning one
 //   --out results/load_test_<students>.json   --seed 1
 import { spawn, execFileSync } from "node:child_process";
@@ -27,7 +27,7 @@ const args = parseArgs(process.argv.slice(2));
 const P = {
   students: num("students", 30), questions: num("questions", 5), latencyMs: num("latency-ms", 3000),
   jitterMs: num("jitter-ms", 1000), failRate: num("fail-rate", 0), windowMs: num("window-ms", 5000),
-  startWindowMs: num("start-window-ms", 2000), pollMs: num("poll-ms", 2000), timeoutMs: num("timeout-ms", 600000),
+  startWindowMs: num("start-window-ms", 2000), pollMs: num("poll-ms", 2000), timeoutMs: num("timeout-ms", 600000), hardTimeoutMs: num("hard-timeout-ms", 900000),
   port: num("port", 8799), seed: num("seed", 1), ipMode: args["ip-mode"] ?? "distinct",
 };
 P.out = args.out ?? join(root, "results", `load_test_${P.students}_${P.ipMode}.json`);
@@ -172,7 +172,11 @@ async function main() {
     for (const s of students) for (const [k, v] of Object.entries(s.q)) if (!k.endsWith("@") && v in t) t[v]++;
     timeline.push(t);
   }, 1000);
-  await Promise.all(students.map(student));
+  let hardTimeout = false;
+  await Promise.race([
+    Promise.all(students.map(student)),
+    sleep(P.hardTimeoutMs).then(() => { hardTimeout = true; }),
+  ]);
   clearInterval(sampler);
   const totalMs = at();
 
@@ -186,7 +190,7 @@ async function main() {
   const peak = (key) => Math.max(0, ...timeline.map((t) => t[key]));
   const result = {
     note: "Local simulation: fake grader with a fixed delay, wrangler dev --local (Miniflare). Not a measurement of production.",
-    params: P, wrangler_local: !args["base-url"],
+    hard_timeout: hardTimeout, params: P, wrangler_local: !args["base-url"],
     students_started: students.filter((s) => s.aid).length, submits_accepted: submitsAccepted,
     questions_total: questionsTotal, questions_done: scored,
     submit_window_s: +((Math.max(...students.map((s) => s.submitAt)) - Math.min(...students.map((s) => s.submitAt))) / 1000).toFixed(1),
