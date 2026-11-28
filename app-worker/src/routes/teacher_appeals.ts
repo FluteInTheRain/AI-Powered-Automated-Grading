@@ -14,16 +14,20 @@ function aiResult(revisions: { revision: number; detail: string | null }[]): unk
   try { return JSON.parse(first.detail); } catch { return null; }
 }
 
-/** The AI call log from R2, or null when the object is missing or unreadable (the detail must still open). */
-async function readAudit(audit: R2Bucket, key: string | null): Promise<{ call_log: unknown[] } | null> {
-  if (!key) return null;
+/**
+ * The AI call log from R2. `audit` is null when there is no object (nothing was kept); `failed` is true when the read
+ * itself broke (R2 error or unparsable object), which is logged. Either way the detail must still open.
+ */
+async function readAudit(audit: R2Bucket, key: string | null): Promise<{ audit: { call_log: unknown[] } | null; failed: boolean }> {
+  if (!key) return { audit: null, failed: false };
   try {
     const obj = await audit.get(key);
-    if (!obj) return null;
+    if (!obj) return { audit: null, failed: false };
     const parsed = (await obj.json()) as { call_log?: unknown[] };
-    return { call_log: Array.isArray(parsed.call_log) ? parsed.call_log : [] };
-  } catch {
-    return null;
+    return { audit: { call_log: Array.isArray(parsed.call_log) ? parsed.call_log : [] }, failed: false };
+  } catch (err) {
+    console.warn(`appeals: could not read the audit object ${key}`, err);
+    return { audit: null, failed: true };
   }
 }
 
@@ -40,11 +44,13 @@ export function teacherAppealRoutes(): Hono<AppEnv> {
     const d = await getAppealDetail(c.env.DB, c.req.param("appealId"));
     if (!d || d.teacher_id !== c.get("teacher").id) return c.json(notFound, 404);
     const { teacher_id: _t, audit_key, revisions, ...view } = d;
+    const { audit, failed } = await readAudit(c.env.AUDIT, audit_key);
     return c.json({
       ...view,
       revisions: revisions.map(({ detail: _d, ...rest }) => rest),
       ai_result: aiResult(revisions),
-      audit: await readAudit(c.env.AUDIT, audit_key),
+      audit,
+      audit_read_failed: failed,
     });
   });
 

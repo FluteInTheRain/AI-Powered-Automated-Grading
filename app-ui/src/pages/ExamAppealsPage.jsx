@@ -118,7 +118,11 @@ function Detail({ appeal, onDecided }) {
       <AiResult result={appeal.ai_result} />
       <details>
         <summary>Chi tiết kỹ thuật (prompt và phản hồi thô của AI)</summary>
-        {appeal.audit === null && <p className="muted">Không còn dữ liệu chấm của AI cho bài này.</p>}
+        {appeal.audit === null && (
+          <p className="muted">
+            {appeal.audit_read_failed ? 'Chưa đọc được dữ liệu chấm của AI lúc này, thử tải lại trang sau.' : 'Không còn dữ liệu chấm của AI cho bài này.'}
+          </p>
+        )}
         {appeal.audit?.call_log.map((c, i) => (
           <details key={i}>
             <summary>{c.kind} · {c.schema} · {c.model}</summary>

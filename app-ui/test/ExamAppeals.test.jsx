@@ -49,6 +49,13 @@ beforeEach(() => {
 afterEach(() => vi.resetAllMocks())
 
 describe('ExamAppealsPage', () => {
+  it('tells a failed audit read apart from missing audit data', async () => {
+    api.getAppeal.mockResolvedValue(detail({ audit: null, audit_read_failed: true }))
+    await open()
+    expect(await screen.findByText(/Chưa đọc được dữ liệu chấm/)).toBeInTheDocument()
+    expect(screen.queryByText(/Không còn dữ liệu chấm/)).not.toBeInTheDocument()
+  })
+
   it('lists the appeals with student, question number and status', async () => {
     renderPage()
     expect(await screen.findByText('An')).toBeInTheDocument()
