@@ -372,6 +372,7 @@ mở nằm trong [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/roadmap.md`](docs/roadmap.md) | Lịch sử dự án theo từng task và các việc còn mở |
 | [`docs/adr/`](docs/adr/) | Các quyết định về chỉ số, bài chuẩn và AI Gateway |
 | [`app-worker/README.md`](app-worker/README.md) | Hướng dẫn vận hành app giáo viên, API và các giới hạn đã biết |
+| [`docs/runbook.md`](docs/runbook.md) | Sao lưu và khôi phục, cách xử lý sự cố, công tắc tắt tính năng |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) và [`plans/`](docs/superpowers/plans/) | Tài liệu thiết kế và kế hoạch triển khai |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Phân tích kỹ thuật chi tiết cho người xem portfolio (có cả bản PDF) |
 | [`docs/productionization.md`](docs/productionization.md) | Ý tưởng và việc còn lại để biến pipeline thành sản phẩm thật |

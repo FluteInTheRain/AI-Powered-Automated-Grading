@@ -371,6 +371,7 @@ are in [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/report/results.md`](docs/report/results.md) | Full experiment tables and caveats |
 | [`docs/roadmap.md`](docs/roadmap.md) | Task-by-task history and open items |
 | [`docs/adr/`](docs/adr/) | Decisions behind the metrics, canary and AI Gateway |
+| [`docs/runbook.md`](docs/runbook.md) | Backup and restore, incident playbooks, kill switches |
 | [`app-worker/README.md`](app-worker/README.md) | Teacher app runbook, API and known limits |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`plans/`](docs/superpowers/plans/) | Design documents and implementation plans |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Engineering deep dive written for portfolio readers (also as PDF) |
