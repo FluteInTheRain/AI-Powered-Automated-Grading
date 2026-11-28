@@ -1,0 +1,1309 @@
+{
+  "_README": "HAND AUTHORED, NOT MODEL OUTPUT. The recorded_responses below were written by a person to be valid against src/grader/schemas.py and to fit each submission's known profile in data/problems.py. No model produced them, and nothing here measures how the real model grades. They exist to exercise schema parsing, scoring formulas, weights and the zero-credit rules. `input` is a frozen copy of the problem and submission so later edits to data/problems.py do not move this file. `expected` is written by `python3 scripts/update_golden.py` and must be reviewed by hand. See docs/golden-regression.md.",
+  "cases": [
+    {
+      "id": "correct_clean",
+      "description": "Correct, O(n), clean: full marks.",
+      "source": "P01_two_sum/S1_correct_clean",
+      "input": {
+        "statement": "Write a function two_sum(nums, target) that returns a list [i, j] (indices) such that nums[i] + nums[j] == target. Assume there is always exactly one answer, and you cannot use the same element twice.",
+        "func_name": "two_sum",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                2,
+                7,
+                11,
+                15
+              ],
+              9
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                2,
+                4
+              ],
+              6
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                3
+              ],
+              6
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                -1,
+                -2,
+                -3,
+                -4,
+                -5
+              ],
+              -8
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        ],
+        "submission_code": "\ndef two_sum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        complement = target - n\n        if complement in seen:\n            return [seen[complement], i]\n        seen[n] = i\n    return []\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "hash map O(n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 100.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 4,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "correct_bruteforce_poor_style",
+      "description": "Correct but nested loop and cramped code: efficiency 0.4, style 0.2, edge 0.75.",
+      "source": "P01_two_sum/S2_correct_bruteforce_poor_style",
+      "input": {
+        "statement": "Write a function two_sum(nums, target) that returns a list [i, j] (indices) such that nums[i] + nums[j] == target. Assume there is always exactly one answer, and you cannot use the same element twice.",
+        "func_name": "two_sum",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                2,
+                7,
+                11,
+                15
+              ],
+              9
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                2,
+                4
+              ],
+              6
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                3
+              ],
+              6
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                -1,
+                -2,
+                -3,
+                -4,
+                -5
+              ],
+              -8
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        ],
+        "submission_code": "\ndef two_sum(nums,target):\n for i in range(len(nums)):\n  for j in range(len(nums)):\n   if i!=j:\n    if nums[i]+nums[j]==target:\n     return [i,j]\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "nested loop O(n^2)",
+          "meets_expected_complexity": false
+        },
+        "StyleCheck": {
+          "level": "poor"
+        },
+        "EdgeCaseCheck": {
+          "handled": false,
+          "missing_cases": [
+            "no matching pair"
+          ]
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 0.4,
+          "code_style": 0.2,
+          "edge_case_handling": 0.75
+        },
+        "final_score_0_to_100": 76.5,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 4,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "logic_bug_off_by_one_shift",
+      "description": "Off-by-one shift: passes only 1 of 6 tests (partial correctness), two missing edge cases give edge 0.5.",
+      "source": "P05_fibonacci/S3_logic_bug_offset",
+      "input": {
+        "statement": "Write a function fib(n) that returns the n-th Fibonacci number (fib(0)=0, fib(1)=1). n >= 0.",
+        "func_name": "fib",
+        "rubric": {
+          "correctness": 50,
+          "efficiency": 25,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              0
+            ],
+            0
+          ],
+          [
+            [
+              1
+            ],
+            1
+          ],
+          [
+            [
+              2
+            ],
+            1
+          ],
+          [
+            [
+              5
+            ],
+            5
+          ],
+          [
+            [
+              10
+            ],
+            55
+          ],
+          [
+            [
+              20
+            ],
+            6765
+          ]
+        ],
+        "submission_code": "\ndef fib(n):\n    a, b = 1, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "iterative loop O(n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": false,
+          "missing_cases": [
+            "fib(0)",
+            "fib(1)"
+          ]
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.1667,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 0.5
+        },
+        "final_score_0_to_100": 53.34,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 1,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "wrong_completely_zero_credit",
+      "description": "Passes no test: every dimension must be 0 and the LLM must not be called. The recorded responses would give credit if they were used.",
+      "source": "P01_two_sum/S5_wrong_completely",
+      "input": {
+        "statement": "Write a function two_sum(nums, target) that returns a list [i, j] (indices) such that nums[i] + nums[j] == target. Assume there is always exactly one answer, and you cannot use the same element twice.",
+        "func_name": "two_sum",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                2,
+                7,
+                11,
+                15
+              ],
+              9
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                2,
+                4
+              ],
+              6
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                3
+              ],
+              6
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                -1,
+                -2,
+                -3,
+                -4,
+                -5
+              ],
+              -8
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        ],
+        "submission_code": "\ndef two_sum(nums, target):\n    return sorted(nums)[:2]\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "sort then scan O(n log n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.0,
+          "efficiency": 0.0,
+          "code_style": 0.0,
+          "edge_case_handling": 0.0
+        },
+        "final_score_0_to_100": 0.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 0,
+        "llm_calls": []
+      }
+    },
+    {
+      "id": "correct_but_slow",
+      "description": "Correct, linear trial division where O(sqrt n) is expected: efficiency 0.4.",
+      "source": "P02_is_prime/S2_correct_slow",
+      "input": {
+        "statement": "Write a function is_prime(n) that returns True if n is a prime number, False otherwise. n can be negative, 0, or 1.",
+        "func_name": "is_prime",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              2
+            ],
+            true
+          ],
+          [
+            [
+              1
+            ],
+            false
+          ],
+          [
+            [
+              0
+            ],
+            false
+          ],
+          [
+            [
+              -5
+            ],
+            false
+          ],
+          [
+            [
+              17
+            ],
+            true
+          ],
+          [
+            [
+              18
+            ],
+            false
+          ],
+          [
+            [
+              97
+            ],
+            true
+          ]
+        ],
+        "submission_code": "\ndef is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, n):\n        if n % i == 0:\n            return False\n    return True\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(sqrt n)",
+          "observed_pattern": "trial division up to n O(n)",
+          "meets_expected_complexity": false
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 0.4,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 91.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 7,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "edge_case_bug_negative",
+      "description": "Fails negatives and 1: two missing edge cases give 0.5.",
+      "source": "P02_is_prime/S3_edge_case_bug_negative",
+      "input": {
+        "statement": "Write a function is_prime(n) that returns True if n is a prime number, False otherwise. n can be negative, 0, or 1.",
+        "func_name": "is_prime",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              2
+            ],
+            true
+          ],
+          [
+            [
+              1
+            ],
+            false
+          ],
+          [
+            [
+              0
+            ],
+            false
+          ],
+          [
+            [
+              -5
+            ],
+            false
+          ],
+          [
+            [
+              17
+            ],
+            true
+          ],
+          [
+            [
+              18
+            ],
+            false
+          ],
+          [
+            [
+              97
+            ],
+            true
+          ]
+        ],
+        "submission_code": "\ndef is_prime(n):\n    if n < 2:\n        return n == 1\n    for i in range(2, int(n ** 0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(sqrt n)",
+          "observed_pattern": "trial division to sqrt n",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": false,
+          "missing_cases": [
+            "negative numbers",
+            "the value 1"
+          ]
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.8571,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 0.5
+        },
+        "final_score_0_to_100": 86.43,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 6,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "binary_search_correct",
+      "description": "Correct binary search: full marks.",
+      "source": "P04_binary_search/S1_correct_clean",
+      "input": {
+        "statement": "Write a function binary_search(arr, target) over an array arr sorted in ascending order, returning the index of target, or -1 if not found.",
+        "func_name": "binary_search",
+        "rubric": {
+          "correctness": 55,
+          "efficiency": 20,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              5
+            ],
+            2
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              1
+            ],
+            0
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              9
+            ],
+            4
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              4
+            ],
+            -1
+          ],
+          [
+            [
+              [],
+              3
+            ],
+            -1
+          ],
+          [
+            [
+              [
+                5
+              ],
+              5
+            ],
+            0
+          ]
+        ],
+        "submission_code": "\ndef binary_search(arr, target):\n    lo, hi = 0, len(arr) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(log n)",
+          "observed_pattern": "binary search O(log n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 100.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 6,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "binary_search_linear_scan",
+      "description": "Correct result by linear scan: efficiency 0.4.",
+      "source": "P04_binary_search/S2_correct_linear_scan",
+      "input": {
+        "statement": "Write a function binary_search(arr, target) over an array arr sorted in ascending order, returning the index of target, or -1 if not found.",
+        "func_name": "binary_search",
+        "rubric": {
+          "correctness": 55,
+          "efficiency": 20,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              5
+            ],
+            2
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              1
+            ],
+            0
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              9
+            ],
+            4
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              4
+            ],
+            -1
+          ],
+          [
+            [
+              [],
+              3
+            ],
+            -1
+          ],
+          [
+            [
+              [
+                5
+              ],
+              5
+            ],
+            0
+          ]
+        ],
+        "submission_code": "\ndef binary_search(arr, target):\n    for i, v in enumerate(arr):\n        if v == target:\n            return i\n    return -1\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(log n)",
+          "observed_pattern": "linear scan O(n)",
+          "meets_expected_complexity": false
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 0.4,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 88.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 6,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "efficiency_verdict_contradicts_itself",
+      "description": "The live failure: expected and observed are the same complexity but the verdict says false. check_efficiency must correct it to 1.0.",
+      "source": "P04_binary_search/S1_correct_clean",
+      "input": {
+        "statement": "Write a function binary_search(arr, target) over an array arr sorted in ascending order, returning the index of target, or -1 if not found.",
+        "func_name": "binary_search",
+        "rubric": {
+          "correctness": 55,
+          "efficiency": 20,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              5
+            ],
+            2
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              1
+            ],
+            0
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              9
+            ],
+            4
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              4
+            ],
+            -1
+          ],
+          [
+            [
+              [],
+              3
+            ],
+            -1
+          ],
+          [
+            [
+              [
+                5
+              ],
+              5
+            ],
+            0
+          ]
+        ],
+        "submission_code": "\ndef binary_search(arr, target):\n    lo, hi = 0, len(arr) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(log n)",
+          "observed_pattern": " o(log  N) ",
+          "meets_expected_complexity": false
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 100.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 6,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "medium_style_crash_on_empty",
+      "description": "Crashes on an empty array: style medium (0.6), one missing edge case (0.75).",
+      "source": "P04_binary_search/S4_edge_case_bug_empty_array",
+      "input": {
+        "statement": "Write a function binary_search(arr, target) over an array arr sorted in ascending order, returning the index of target, or -1 if not found.",
+        "func_name": "binary_search",
+        "rubric": {
+          "correctness": 55,
+          "efficiency": 20,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              5
+            ],
+            2
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              1
+            ],
+            0
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              9
+            ],
+            4
+          ],
+          [
+            [
+              [
+                1,
+                3,
+                5,
+                7,
+                9
+              ],
+              4
+            ],
+            -1
+          ],
+          [
+            [
+              [],
+              3
+            ],
+            -1
+          ],
+          [
+            [
+              [
+                5
+              ],
+              5
+            ],
+            0
+          ]
+        ],
+        "submission_code": "\ndef binary_search(arr, target):\n    lo, hi = 0, len(arr) - 1\n    mid = (lo + hi) // 2\n    while arr[mid] != target and lo <= hi:\n        if arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n        mid = (lo + hi) // 2\n    return mid if lo <= hi else -1\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(log n)",
+          "observed_pattern": "binary search O(log n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "medium"
+        },
+        "EdgeCaseCheck": {
+          "handled": false,
+          "missing_cases": [
+            "empty array"
+          ]
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.8333,
+          "efficiency": 1.0,
+          "code_style": 0.6,
+          "edge_case_handling": 0.75
+        },
+        "final_score_0_to_100": 82.33,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 5,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "forbidden_slicing_not_penalised",
+      "description": "Known gap: the constraint violation is not scored by any check, so this gets full marks. Locked so a change here is noticed.",
+      "source": "P03_reverse_string/S2_uses_forbidden_slicing",
+      "input": {
+        "statement": "Write a function reverse_string(s) that returns the string s reversed, without using [::-1] slicing or the built-in reversed() function.",
+        "func_name": "reverse_string",
+        "rubric": {
+          "correctness": 50,
+          "efficiency": 10,
+          "code_style": 20,
+          "edge_case_handling": 20
+        },
+        "test_cases": [
+          [
+            [
+              "hello"
+            ],
+            "olleh"
+          ],
+          [
+            [
+              ""
+            ],
+            ""
+          ],
+          [
+            [
+              "a"
+            ],
+            "a"
+          ],
+          [
+            [
+              "ab cd"
+            ],
+            "dc ba"
+          ]
+        ],
+        "submission_code": "\ndef reverse_string(s):\n    return s[::-1]\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "slicing O(n)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 1.0,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 1.0
+        },
+        "final_score_0_to_100": 100.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 4,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "handled_false_without_cases",
+      "description": "Fails the negative case (4 of 5 tests). handled=false with no named cases must still cost 0.25 (not score 1.0).",
+      "source": "P06_sum_of_digits/S2_edge_case_bug_negative",
+      "input": {
+        "statement": "Write a function sum_digits(n) that returns the sum of the digits of a positive integer n. If n is negative, take its absolute value before computing.",
+        "func_name": "sum_digits",
+        "rubric": {
+          "correctness": 55,
+          "efficiency": 10,
+          "code_style": 15,
+          "edge_case_handling": 20
+        },
+        "test_cases": [
+          [
+            [
+              123
+            ],
+            6
+          ],
+          [
+            [
+              0
+            ],
+            0
+          ],
+          [
+            [
+              -45
+            ],
+            9
+          ],
+          [
+            [
+              7
+            ],
+            7
+          ],
+          [
+            [
+              999
+            ],
+            27
+          ]
+        ],
+        "submission_code": "\ndef sum_digits(n):\n    total = 0\n    while n > 0:\n        total += n % 10\n        n //= 10\n    return total\n"
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(d)",
+          "observed_pattern": "digit loop O(d)",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": false,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.8,
+          "efficiency": 1.0,
+          "code_style": 1.0,
+          "edge_case_handling": 0.75
+        },
+        "final_score_0_to_100": 84.0,
+        "sandbox_status": "ran",
+        "sandbox_pass_count": 4,
+        "llm_calls": [
+          "EfficiencyCheck",
+          "StyleCheck",
+          "EdgeCaseCheck"
+        ]
+      }
+    },
+    {
+      "id": "blank_submission",
+      "description": "Empty submission: the function is not found, so every dimension is 0 and the LLM is not called.",
+      "source": "inline (P01_two_sum statement, empty code)",
+      "input": {
+        "statement": "Write a function two_sum(nums, target) that returns a list [i, j] (indices) such that nums[i] + nums[j] == target. Assume there is always exactly one answer, and you cannot use the same element twice.",
+        "func_name": "two_sum",
+        "rubric": {
+          "correctness": 60,
+          "efficiency": 15,
+          "code_style": 15,
+          "edge_case_handling": 10
+        },
+        "test_cases": [
+          [
+            [
+              [
+                2,
+                7,
+                11,
+                15
+              ],
+              9
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                2,
+                4
+              ],
+              6
+            ],
+            [
+              1,
+              2
+            ]
+          ],
+          [
+            [
+              [
+                3,
+                3
+              ],
+              6
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            [
+              [
+                -1,
+                -2,
+                -3,
+                -4,
+                -5
+              ],
+              -8
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        ],
+        "submission_code": ""
+      },
+      "recorded_responses": {
+        "EfficiencyCheck": {
+          "expected_complexity": "O(n)",
+          "observed_pattern": "none",
+          "meets_expected_complexity": true
+        },
+        "StyleCheck": {
+          "level": "clean"
+        },
+        "EdgeCaseCheck": {
+          "handled": true,
+          "missing_cases": []
+        }
+      },
+      "expected": {
+        "sub_scores_0_to_1": {
+          "correctness": 0.0,
+          "efficiency": 0.0,
+          "code_style": 0.0,
+          "edge_case_handling": 0.0
+        },
+        "final_score_0_to_100": 0.0,
+        "sandbox_status": "func_not_found",
+        "sandbox_pass_count": 0,
+        "llm_calls": []
+      }
+    }
+  ]
+}

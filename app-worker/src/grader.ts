@@ -1,3 +1,4 @@
+import type { GraderCheckReport } from "./check_tests";
 import type { Env } from "./env";
 
 /** Failure talking to the Python grading Worker; `detail` is safe to show a client. */
@@ -81,6 +82,11 @@ export async function checkSyntax(env: Pick<Env, "GRADER">, code: string): Promi
   }
   if (res.status !== 200) throw new GraderError(res.status, FALLBACK_DETAIL);
   return res.json();
+}
+
+/** Mutation check of a test suite; the grader caps how many mutants it runs. */
+export async function checkTests(env: GraderEnv, body: unknown): Promise<GraderCheckReport> {
+  return (await post(env, "check-tests", body)) as GraderCheckReport;
 }
 
 export async function validateProblem(env: GraderEnv, body: unknown): Promise<void> {

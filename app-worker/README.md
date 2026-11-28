@@ -31,6 +31,14 @@ Each item has the same fields as `POST problems`: `title`, `category`, `difficul
 same shape check as a single create plus the grader's `validate-problem`; titles must be unique in the file and among the teacher's own
 problems (case-insensitive). The whole file is validated first; any error returns 400 `{detail, errors: [{index, field, message}]}` (index is
 0-based) and nothing is stored, otherwise all rows are inserted in one D1 batch and the answer is `{imported, ids}`. No migration needed.
+Test-suite check (T7.3): `POST problems/check-tests` takes `{func_name, reference_solution, test_cases}` (the same field rules as create and import;
+reference up to 10 000 characters, up to 200 test cases, otherwise 400) and answers `{score, killed, total, generated, capped, survivors, weak, note}`.
+The grader applies a fixed set of small bugs to the reference solution (`src/grader/coverage_check.py`, shared, not forked) and runs each one against the
+tests. `score` = killed / total, `survivors` are the broken copies that still pass every test, in plain Vietnamese (built in `src/check_tests.ts`),
+`weak` uses the checker's threshold (score below 0.8). `capped: true` means only `total` of the `generated` mutants ran (cap of 30, picked evenly
+over the list, or the 20 s budget), so the score describes a sample. Some survivors are equivalent to the original (same output on every input), so
+the score is a lower bound. It saves nothing. Limits: per-teacher `RL_CHECK` (4 per 60 s per location, namespace 1004, a new binding that appears
+with the next deploy), 429 beyond it. Why a cap and what it costs: `worker/README.md`, "Test-suite check".
 Student (no login) `/api/exam/:student_token`: `GET`, `POST attempts`,
 `POST attempts/:attempt_id/submit` (one call for the whole exam), `GET attempts/by-receipt/:receipt_code`.
 Appeals (T6.4): student `GET|POST attempts/by-receipt/:receipt_code/appeals` (one appeal per question, only after it has a score;
@@ -51,6 +59,33 @@ overturn signal, grading health from the Analytics Engine SQL API). The queue co
 (binding `METRICS`, dataset `grading_events`); the daily cron also grades a fixed canary into `canary_runs`. Admin access, the SQL read and the
 Gateway need setup outside the repo: secrets `ADMIN_EMAILS` (comma-separated), `CF_ACCOUNT_ID`, `CF_API_TOKEN` (Account Analytics: Read), set with
 `wrangler secret put` in `app-worker/`; and an AI Gateway named `teacher-app-gateway` (cache off) must exist before the `grading` Worker deploys.
+
+## Feature flags (kill switches)
+
+One variable, `DISABLED_FEATURES` in `wrangler.jsonc` `vars`, holds a comma separated list of features to turn off. It is empty by default, so
+everything is on. Names (spaces and case ignored): `similarity`, `csv_export`, `bulk_import`, `appeals`. An unknown name is ignored and
+logged once with `console.warn`. A disabled feature answers 404 `{"detail":"feature disabled"}` before any handler runs, so it never writes to
+D1, R2 or the queue:
+
+- `similarity`: `GET /api/teacher/exams/:id/similarity`
+- `csv_export`: `GET /api/teacher/exams/:id/export.csv`
+- `bulk_import`: `POST /api/teacher/problems/import`
+- `appeals`: all student and teacher appeals routes (the daily cron that expires open appeals keeps running)
+
+`GET /api/teacher/me` returns `features` (`{similarity, csv_export, bulk_import, appeals}`, each true or false) and the student
+`GET /api/exam/:token` returns `appeals_enabled`; app-ui hides the matching button or panel. Code: `src/flags.ts`. Why it is built this way: `docs/adr/0006-feature-flags-as-kill-switches.md`.
+
+How to turn a feature off in production. `.github/workflows/deploy.yml` runs plain `npx wrangler deploy` on every merge to `main`, and
+`wrangler.jsonc` does not set `keep_vars`. So `wrangler.jsonc` is the source of truth and a value typed in the dashboard is replaced by the
+file's value at the next deploy.
+
+1. Normal procedure: set `"DISABLED_FEATURES": "csv_export"` in `wrangler.jsonc`, open a PR, merge it. The CI deploy applies it (a few minutes, after the checks and migrations).
+2. In an emergency: set the variable in the Cloudflare dashboard (Workers, teacher-app, Settings, Variables). It takes effect at once. Then make the
+   same change in `wrangler.jsonc` right away, because any merge to `main` before that restores the old value.
+3. To turn the feature back on, empty the value in `wrangler.jsonc` and merge.
+
+Limits: the check runs per request, but a variable change creates a new Worker version, so it applies to requests after that version goes live. A flag
+hides the feature; it does not remove data already stored, and a student's page that was already open keeps its form until it reloads (the API still answers 404).
 
 ## Deploy (first time)
 

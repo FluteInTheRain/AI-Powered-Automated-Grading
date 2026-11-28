@@ -119,7 +119,7 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
 ![Teacher app architecture on Cloudflare: Access and Turnstile in front of a Worker, Queues, D1, Durable Objects, R2 and the Python grading Worker](docs/img/teacher-app.svg)
 
 **App làm được gì**
-- **Bài thi.** Danh mục 16 đề trong kho, mỗi đề có tên, chủ đề và độ khó, chọn qua bộ lọc có tìm kiếm và sắp xếp,
+- **Bài thi.** Danh mục 66 đề trong kho, chia thành 8 chủ đề, mỗi đề có tên, chủ đề và độ khó, chọn qua bộ lọc có tìm kiếm và sắp xếp,
   cùng đề giáo viên tự soạn (qua API, hoặc nhập tối đa 20 đề một lúc từ file JSON bằng hộp thoại "Nhập từ file"; giao diện chưa có form soạn từng đề). Bài thi tối đa 20 câu có trọng số, hạn nộp
   và thời gian làm bài.
 - **Trọng số rubric và Cài đặt.** Mỗi bài thi lưu bốn trọng số tiêu chí riêng (tổng 100) lúc tạo. Mặc định lấy từ
@@ -147,6 +147,16 @@ làm hết các câu rồi nộp **một lần**. Mọi câu được chấm son
 - **Tín hiệu bài giống nhau.** Khung "Bài giống nhau" ở trang kết quả liệt kê các cặp bài nộp có code chuẩn hoá rất gần
   nhau (đổi tên biến hay comment cũng không che được). Đây chỉ là gợi ý xem lại, không phải kết luận, và không đổi
   điểm nào. Chi tiết ở [`docs/similarity-check.md`](docs/similarity-check.md).
+- **Kiểm tra bộ test.** Hộp thoại nhập đề có nút "Kiểm tra bộ test". Nút này chạy một số bản đột biến tất định của
+  lời giải mẫu (đổi dấu so sánh, lệch biên một đơn vị, bỏ đoạn kiểm tra) với các test của đề, rồi liệt kê những bản
+  sửa vẫn qua hết test, để bộ test yếu lộ ra trước kỳ thi. Mỗi lần kiểm tra chạy tối đa 30 bản đột biến, và điểm chỉ
+  là cận dưới vì một số bản còn sống có hành vi y hệt bản gốc.
+- **Độ khó thực tế.** Trang "Độ khó thực tế" so độ khó đã khai báo của từng đề với tỉ lệ lần nộp đầu tiên qua hết test
+  ẩn, trên các bài thi của chính giáo viên đó, kèm khoảng tin cậy. Chỉ gắn cờ nhãn khi cả khoảng nằm ngoài dải dự
+  kiến, và hiện "chưa đủ dữ liệu" khi dưới 20 lượt nộp. Đây chỉ là gợi ý về nhãn và về mẫu, không bao giờ tự đổi nhãn.
+- **Công tắc tắt tính năng.** Biến `DISABLED_FEATURES` tắt được `similarity`, `csv_export`, `bulk_import` hay `appeals`
+  mà không cần sửa code; route bị tắt trả 404 và không ghi gì. Xem [`docs/runbook.md`](docs/runbook.md) và
+  [ADR 0006](docs/adr/0006-feature-flags-as-kill-switches.md).
 - **Trang cho người phát triển** (`/teacher/admin`, chỉ các email trong danh sách `ADMIN_EMAILS`). Bài chuẩn kiểm
   tra độ ổn định: mỗi ngày một Cron chấm một đầu vào cố định rồi so điểm và mã băm của các câu trả lời thô của LLM
   với lần chạy đầu tiên cùng model và phiên bản đầu vào, nên độ lệch hiện ra thành một dòng "LỆCH". Trang còn có
@@ -194,7 +204,7 @@ thiết kế khiếu nại và phần quan sát nằm cạnh đó trong `docs/su
 src/grader/        Grading pipeline: sandbox, LLM checks, schemas, aggregation, feedback
 prompts/           One narrowly scoped prompt per rubric dimension (+ ablation baselines)
 experiments/       Consistency test, ablation, metrics
-data/              Pilot dataset source (problems.py) and generator (build_dataset.py)
+data/              Pilot dataset source (problems.py), its generator (build_dataset.py), and bank_extra/ (50 bank-only problems)
 configs/           Model and serving settings that affect determinism
 app-worker/        Teacher app: TypeScript Worker (Hono, D1, Queues, Durable Objects, R2)
 app-ui/            Teacher app UI: React + Vite, built to static files
@@ -202,8 +212,8 @@ worker/            Python grading Worker (+ the original single-question demo AP
 sandbox-worker/    Isolated Cloudflare Worker that runs student code
 server/, frontend/ Original product app: FastAPI + Postgres, React UI
 deploy/            Single-VM deployment (Docker Compose + nginx + llama-server)
-scripts/           Model server helper, question-bank seed generator
-tests/             pytest suite (grader, rules, Workers, prompts, migrations)
+scripts/           Model server helper, bank seed generator, test-suite coverage checker, D1 backup and restore drill
+tests/             pytest suite (grader, rules, Workers, prompts, migrations, golden regression, hostile sandbox submissions)
 docs/              Architecture, roadmap, results, design specs, plans and ADRs
 .github/workflows/ CI and deploy workflows
 ```
@@ -299,7 +309,10 @@ JSON bằng tay. Kho câu hỏi của app giáo viên được sinh từ chính 
   `vitest` chạy Worker TypeScript trong runtime Workers (binding D1, Durable Objects, R2 thật) và giao diện React
   bằng Testing Library. Các tính năng được viết theo hướng test trước.
 - **CI** ([`ci.yml`](.github/workflows/ci.yml)). Mỗi pull request và mỗi lần push vào `main` chạy ba job song
-  song: test Python, test Worker cùng typecheck, test giao diện cùng build.
+  song: test Python, test Worker cùng typecheck, test giao diện cùng build. Job Python mở đầu bằng các test hồi quy
+  golden: ảnh chụp prompt và chạy lại các bài nộp cố định qua pipeline thật với câu trả lời của model đã ghi sẵn. Chúng
+  bắt được việc đổi prompt, trọng số hay quy tắc tính điểm ngoài ý muốn, nhưng không bắt được việc model đổi hành vi
+  (xem [`docs/golden-regression.md`](docs/golden-regression.md)).
 - **Deploy** ([`deploy.yml`](.github/workflows/deploy.yml)). Mỗi lần push vào `main`, sau cùng các bước kiểm tra
   trên, workflow deploy Worker sandbox, Worker Python chấm bài, áp migration D1, build giao diện rồi deploy app
   giáo viên, sau đó kiểm tra nhanh các URL thật. Hai lần deploy không bao giờ chạy chồng nhau.
@@ -332,9 +345,12 @@ chấp nhận khi dùng gói Free nằm trong
   thật theo từng học sinh cần danh sách lớp hoặc lời mời do giáo viên cấp.
 - **Bản nháp và thiết bị.** Code đang gõ chỉ được lưu nháp trong trình duyệt của học sinh. Xóa dữ liệu trình duyệt
   hoặc đổi thiết bị là mất, và không tiếp tục lượt làm từ thiết bị khác được.
-- **Sandbox.** Trên Cloudflare, môi trường chạy của sandbox được dùng lại giữa các request và code học sinh gửi
-  được request ra ngoài; trên máy ảo, code chạy ngay trong tiến trình của server. Cả hai đều chưa đủ an toàn cho
-  kỳ thi quan trọng với code không tin cậy.
+- **Sandbox.** Trên Cloudflare, code học sinh chạy bằng `exec()` trong một Worker riêng không có binding hay secret,
+  nhưng môi trường chạy được dùng lại giữa các request và code vẫn gửi được request ra ngoài, vẫn import được `os`
+  hay `subprocess`. Bản phân tích mối đe doạ liệt kê 22 kiểu tấn công: 8 đã chặn, 8 chặn một phần, 6 còn hở. Bộ 85
+  bài nộp độc hại giữ 37 lỗ hổng đã biết hiện rõ dưới dạng lỗi dự kiến
+  ([`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md)). Trên máy ảo, code chạy ngay trong tiến trình của
+  server. Cả hai đều chưa đủ an toàn cho kỳ thi quan trọng với code không tin cậy.
 - **Khiếu nại còn hẹp.** Giáo viên chỉ đổi được điểm bằng cách quyết định một khiếu nại; chưa có chấm lại độc lập.
   Tỉ lệ đảo điểm trên trang người phát triển là tín hiệu có thiên lệch do một người đánh giá.
 - **Bài chuẩn mới chạy.** Bài chuẩn kiểm tra độ ổn định hằng ngày được deploy ngày 2026-11-27 và lần chạy theo lịch đầu tiên đến hạn ngày 2026-11-28,
@@ -343,14 +359,26 @@ chấp nhận khi dùng gói Free nằm trong
 - **Kiểm tra edge case và hiệu năng.** Một lỗi vòng lặp có thể bị trừ điểm hai lần (đúng sai và
   `edge_case_handling`), và kiểm tra edge case đôi khi liệt kê cả những trường hợp code đã xử lý. Mâu thuẫn trong
   kiểm tra hiệu năng được sửa ngày 2026-11-27 và mới được xác nhận trên một bài nộp, chưa đo trên cả bộ dữ liệu.
+- **Sức chứa của gói Free.** Workers AI cho 10.000 Neurons mỗi ngày và chấm một câu tốn khoảng 100, nên app giáo viên
+  chấm được khoảng 100 câu mỗi ngày: tức khoảng 20 học sinh với bài thi 5 câu. Một lớp 30 người dùng 150% hạn mức,
+  và những học sinh nộp sau khi hết hạn mức sẽ có các câu bị lỗi và không có điểm cho đến lần đặt lại lúc 00:00 UTC.
+  Thao tác hàng đợi, ghi D1 và số request cho phép vài trăm đến vài nghìn học sinh mỗi ngày, nên hạn mức AI là giới
+  hạn đầu tiên. Các lần chạy cục bộ với grader giả (30 và 100 học sinh) cho thấy app nhận một bài nộp trong dưới 30 ms;
+  chúng không nói gì về thời gian chấm thật. Xem [`docs/load-test.md`](docs/load-test.md) và
+  [ADR 0009](docs/adr/0009-free-plan-capacity-and-load-test.md) để biết mô hình, các lần chạy và phương án dự phòng.
 - **Gói Free.** Mọi thứ chạy trên gói Free của Cloudflare, nên có giới hạn request, truy vấn và thao tác theo
   ngày, bộ đếm giới hạn tần suất tính theo từng điểm trình và chỉ gần đúng, còn giới hạn số người dùng của Access
   chưa được xác nhận từ tài liệu. App chưa đủ an toàn cho kỳ thi quan trọng.
 - **Chưa làm.** Xuất file .xlsx thật, form soạn từng đề trên giao diện, và nhập từ CSV hay Excel.
-- **Kiểm tra bài giống nhau và độ phủ test còn thô.** Ngưỡng của phần so bài giống chọn từ các ca tự soạn, chưa dựa trên
-  dữ liệu thi thật, và đổi thứ tự câu lệnh sẽ che được việc chép. Công cụ kiểm tra độ phủ test
-  (`scripts/coverage_check.py`) là một script chứ chưa có trang: nó tìm ra một bộ test yếu trong 16 đề của kho
-  (`P02_is_prime`, 0.53), và điểm này là cận dưới vì một số bản đột biến còn sống có hành vi y hệt bản gốc.
+- **Kiểm tra bài giống nhau, độ phủ test và độ khó còn thô.** Ngưỡng của phần so bài giống chọn từ các ca tự soạn,
+  chưa dựa trên dữ liệu thi thật, và đổi thứ tự câu lệnh sẽ che được việc chép. Trên 66 đề trong kho, công cụ kiểm tra
+  độ phủ cho 8 đề dưới 0.8. Với 50 đề mới thêm, các bản đột biến còn sống đã được xem xét và đánh giá là tương đương
+  bản gốc, nên điểm chỉ là cận dưới; `P02_is_prime` (0.53) là bộ test yếu duy nhất còn nguyên như cũ. Endpoint
+  kiểm tra bộ test chưa được đo thời gian trên Cloudflare, và bước sinh bản đột biến có thể chạm giới hạn CPU của gói
+  Free. Các dải độ khó (easy 0.60 đến 1.00, medium 0.30 đến 0.75, hard 0.00 đến 0.50) là giả định làm việc, và một
+  lớp 30 người là mẫu nhỏ.
+- **Hồi quy golden dùng câu trả lời viết tay.** Các câu trả lời của model trong bộ chạy lại do người viết tay chứ không
+  ghi lại từ model, vì CI không có token Workers AI. Lần chạy với model thật đã được thiết kế nhưng chưa xây.
 
 Báo cáo luận văn có phần hạn chế đầy đủ hơn, bằng tiếng Việt
 ([`docs/report/latex/main.tex`](docs/report/latex/main.tex)).
@@ -359,8 +387,10 @@ Báo cáo luận văn có phần hạn chế đầy đủ hơn, bằng tiếng V
 
 Các giai đoạn nghiên cứu đã xong. App giáo viên đã được deploy với đăng nhập, danh mục đề, bài thi có trọng số
 riêng, chấm nền, giới hạn tần suất, nhật ký chấm, khiếu nại, thống kê cho giáo viên, trang người phát triển và AI
-Gateway. GitHub Actions tự deploy sau mỗi lần push lên `main`. Còn mở: xem các lần chạy bài chuẩn đầu tiên, và đo
-lại bản sửa kiểm tra hiệu năng trên cả bộ dữ liệu khi có token Workers AI. Lịch sử theo từng task và các việc còn
+Gateway. Từ đó app có thêm xuất CSV, tín hiệu bài giống nhau, nhập đề hàng loạt, kiểm tra bộ test, trang độ khó thực
+tế và công tắc tắt tính năng, còn kho đề lên 66 đề. GitHub Actions tự deploy sau mỗi lần push lên `main`. Còn mở: xem
+các lần chạy bài chuẩn đầu tiên, đo thời gian kiểm tra bộ test trên môi trường thật, mở file CSV bằng Excel thật, và
+đo lại bản sửa kiểm tra hiệu năng trên cả bộ dữ liệu khi có token Workers AI. Lịch sử theo từng task và các việc còn
 mở nằm trong [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Tài liệu
@@ -370,8 +400,13 @@ mở nằm trong [`docs/roadmap.md`](docs/roadmap.md).
 | [`docs/architecture.md`](docs/architecture.md) | Vì sao thiết kế kết hợp và chia nhỏ, kèm trích dẫn |
 | [`docs/report/results.md`](docs/report/results.md) | Bảng thí nghiệm đầy đủ và các lưu ý |
 | [`docs/roadmap.md`](docs/roadmap.md) | Lịch sử dự án theo từng task và các việc còn mở |
-| [`docs/adr/`](docs/adr/) | Các quyết định về chỉ số, bài chuẩn và AI Gateway |
+| [`docs/adr/`](docs/adr/) | Các quyết định về chỉ số, bài chuẩn, AI Gateway, công tắc tắt tính năng, gợi ý độ khó và file golden |
+| [`docs/sandbox-threat-model.md`](docs/sandbox-threat-model.md) | Code học sinh chạy ở đâu, bảng 22 kiểu tấn công và những gì còn hở |
+| [`docs/golden-regression.md`](docs/golden-regression.md) | Các test hồi quy trong CI bắt được gì và không bắt được gì |
+| [`docs/similarity-check.md`](docs/similarity-check.md) | Tín hiệu bài giống nhau hoạt động ra sao và các ngưỡng của nó |
+| [`docs/load-test.md`](docs/load-test.md) | Mô hình sức chứa của gói Free, các lần chạy tải cục bộ và những gì chúng không cho thấy |
 | [`app-worker/README.md`](app-worker/README.md) | Hướng dẫn vận hành app giáo viên, API và các giới hạn đã biết |
+| [`docs/runbook.md`](docs/runbook.md) | Sao lưu và khôi phục, cách xử lý sự cố, công tắc tắt tính năng |
 | [`docs/superpowers/specs/`](docs/superpowers/specs/) và [`plans/`](docs/superpowers/plans/) | Tài liệu thiết kế và kế hoạch triển khai |
 | [`docs/TECHNICAL_OVERVIEW.md`](docs/TECHNICAL_OVERVIEW.md) | Phân tích kỹ thuật chi tiết cho người xem portfolio (có cả bản PDF) |
 | [`docs/productionization.md`](docs/productionization.md) | Ý tưởng và việc còn lại để biến pipeline thành sản phẩm thật |

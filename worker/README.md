@@ -253,9 +253,31 @@ cd ../sandbox-worker && npx wrangler delete grading-sandbox
 npx wrangler d1 delete grading   # deletes all problems, exams and submissions
 ```
 
+## Test-suite check (T7.3, `POST /api/internal/check-tests`)
+
+Runs the mutation check of `src/grader/coverage_check.py` (`check_code`, vendored with the rest of `src/grader` by `build.sh`) with a remote runner:
+each mutant of the reference solution is one call to the `grading-sandbox` Worker, so the Python Worker only generates mutants and compares outputs.
+
+Limits checked on https://developers.cloudflare.com/workers/platform/limits/ on 2026-11-28: Free plan 10 ms CPU per HTTP request (this repo already
+runs far above it with `outcome: ok`, see "Measured CPU time"), 50 subrequests per invocation (the page lists 1 000 for "internal services" and
+does not say whether service-binding calls fall under it, so the code assumes the strict 50), at most 6 simultaneous connections, 128 MB memory.
+
+Design: at most `CHECK_MAX_MUTANTS = 30` mutants run, chosen deterministically (evenly spaced over the generated list, so every kind of bug stays
+represented), plus one baseline run of the reference: at most 31 sandbox calls, under 50. No new mutant starts after `CHECK_BUDGET_SECONDS = 20`
+of wall time. A mutant the sandbox kills (infinite loop, CPU limit) counts as caught; the live kill took about 1.9 s of CPU for one such mutant, so
+the budget bounds the worst case at about ten of them. The reference is limited to 10 000 characters and 200 test cases. The report says
+`capped: true` when not every mutant ran. Calls go one after another, never in parallel, and the teacher app allows 4 checks per minute per teacher,
+so grading keeps most of the sandbox capacity.
+
+Measured locally (CPython 3.13, no network; the live run was not tried): over the 66 bank problems a reference yields 0 to 57 mutants (median 12.5,
+90th percentile 31), generating them takes 5 ms at the median and 54 ms at the worst, and each mutant costs about 25 ms through the local subprocess
+runner (P02_is_prime, 32 mutants: 0.73 s). Live, each mutant is a sandbox call of roughly 20 to 120 ms (measured `/execute` times above), so a
+typical check should take 1 to 4 s; that figure is an estimate, not a measurement. Problems with more than 30 mutants (about one in ten of the bank) come back capped.
+Not verified live: whether the Free-plan CPU limit is enforced on a 50 ms generation step. If it is, the call fails and the teacher app shows a 502.
+
 ## Internal endpoints for the teacher app
 
-`POST /api/internal/grade`, `/api/internal/preview` and `/api/internal/validate-problem` are called
+`POST /api/internal/grade`, `/api/internal/preview`, `/api/internal/validate-problem` and `/api/internal/check-tests` are called
 by the `teacher-app` Worker (see `app-worker/README.md`). They are stateless (no D1) and require the
 `X-Internal-Token` header to equal the `INTERNAL_TOKEN` secret (`uv run pywrangler secret put INTERNAL_TOKEN`);
 without the secret every call answers 401. They are public URLs, protected only by that token.

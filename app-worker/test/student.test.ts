@@ -57,7 +57,7 @@ describe("exam summary and attempt start", () => {
     const { token } = await newExam("s1@x.com");
     const r = await call("GET", `/api/exam/${token}`);
     expect(r.status).toBe(200);
-    expect(r.json).toEqual({ title: "T", deadline: null, time_limit_seconds: 600, is_closed: false, question_count: 2, turnstile_site_key: "" });
+    expect(r.json).toEqual({ title: "T", deadline: null, time_limit_seconds: 600, is_closed: false, question_count: 2, turnstile_site_key: "", appeals_enabled: true });
     for (const s of SECRETS) expect(r.text).not.toContain(s);
   });
 

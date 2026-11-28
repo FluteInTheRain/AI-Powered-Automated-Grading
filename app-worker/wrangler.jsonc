@@ -29,7 +29,9 @@
   "ratelimits": [
     { "name": "RL_START", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
     { "name": "RL_SYNTAX", "namespace_id": "1002", "simple": { "limit": 600, "period": 60 } },
-    { "name": "RL_ACTION", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } }
+    { "name": "RL_ACTION", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } },
+    // Each check runs up to 31 sandbox calls in the grader, so it gets a much smaller allowance.
+    { "name": "RL_CHECK", "namespace_id": "1004", "simple": { "limit": 4, "period": 60 } }
   ],
   "d1_databases": [
     {
@@ -43,6 +45,8 @@
   // The existing Python grading Worker (worker/), called at /api/internal/*.
   "services": [{ "binding": "GRADER", "service": "grading" }],
   "vars": {
+    // Kill switches (docs/adr/0006): comma-separated names from similarity, csv_export, bulk_import, appeals. Empty = all on.
+    "DISABLED_FEATURES": "",
     // From the Cloudflare Access application protecting /api/teacher/*.
     "ACCESS_TEAM_DOMAIN": "aged-snowflake-18c8.cloudflareaccess.com",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAGTjjMuLo41_WwwC",

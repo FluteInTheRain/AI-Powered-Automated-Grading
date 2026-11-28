@@ -204,6 +204,32 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
 - [x] **T6.5 — Phase 4 (2026-11-27, deployed):** teacher stats page (D1), developer page (daily determinism canary in D1, grading health from Analytics Engine, overturn signal), AI Gateway with cache off. Spec, plan and ADRs in `docs/`. Checked live: one real submission graded through the Gateway with structured output, and the Analytics Engine SQL returned its point. Still to check: the first Cron canary run (03:17 UTC) and the Gateway log lines in the dashboard. CI deploy already existed (T6.1b).
 - [x] **PR-D3 — CSV export of exam results (2026-11-28, not deployed):** `GET /api/teacher/exams/:id/export.csv` (behind Access, owner-only, no token) and a "Xuất CSV" button on the results page. One row per attempt: name, per-question latest score (so appeals adjustments count), total, four rubric-dimension scores (question-weighted mean of the sub-scores, 0-100), start and submit times. UTF-8 BOM, CRLF, quoted fields, apostrophe guard against formula injection. Tracker: `docs/productionization.md`.
 
+## Phase 7 — Engineering depth (noted 2026-11-28, goal: practise senior-level work)
+
+Picked for depth, not for more screens. Each item says what the finished work leaves behind.
+
+- [x] **T7.1 — Sandbox isolation (PR-A1).** `src/grader/sandbox.py` runs student code with `exec`. Re-read what
+  `sandbox-worker/` actually isolates, write a threat model (imports, infinite loops, memory, output size, access to
+  the Worker's bindings) and a set of hostile submissions as tests. *Leaves behind:* a threat-model doc and a
+  hostile-submission test suite.
+  Done 2026-11-28 (branch t7/sandbox): `docs/sandbox-threat-model.md` (22 attacks: 8 mitigated, 8 partial, 6 open) and `tests/test_sandbox_hostile.py` (85 cases, 37 strict xfail for the open gaps). Three low-risk fixes (wall-time limit on Unix, SystemExit as compile error, output caps). Closing the open gaps needs a process boundary and is not done.
+- [x] **T7.2 — Load and capacity test.** Simulate a class of 30 submitting at once (k6 or a script): queue backlog,
+  time to the last score, Free plan limits hit first, Neurons per submission. *Leaves behind:* real numbers in an ADR
+  and in the README.
+  Done 2026-11-28 (branch t7/loadtest): `docs/load-test.md`, ADR 0009, `scripts/load_test.mjs` (local only, fake grader). First limit hit: Workers AI, 10,000 Neurons a day, about 100 graded questions, so about 20 students at 5 questions. Local runs (30 and 100 students) show submit accepted in under 30 ms and a single local consumer as the bottleneck; the numbers say nothing about real grading time. A production run needs a staging environment and its own AI budget.
+- [x] **T7.3 — Test-suite check at authoring time.** Expose the mutation checker (`src/grader/coverage_check.py`) as a
+  teacher endpoint plus a "check my tests" button, so a weak suite is flagged before the exam, not after.
+  Done 2026-11-28 (branch t7/mutation-api): `POST /api/teacher/problems/check-tests`, capped at 30 mutants, rate limited, button in the import dialog. Not timed live; the Free plan CPU limit may cut the mutation step.
+- [x] **T7.4 — Difficulty calibration from real results.** Compare each problem's declared difficulty with its
+  observed pass rate and flag mislabeled problems on the teacher stats page.
+  Done 2026-11-28 (branch t7/difficulty): "Độ khó thực tế" page, Wilson interval, minimum 20 attempts, ADR 0007. The bands are working assumptions.
+- [x] **T7.5 — Grading regression test in CI.** A small golden set run on every PR that touches prompts or the
+  grader, to catch score drift before deploy. Builds on the daily canary.
+  Done 2026-11-28 (branch t7/golden-ci): prompt snapshots and a replay of 13 frozen submissions in CI, ADR 0008. The recorded responses are hand written; the live layer is documented only (it needs a Workers AI token).
+- [x] **T7.6 — Operations basics.** D1 backup and restore (with a restore drill), an incident runbook, and feature
+  flags used as kill switches. Branch `ops/backup-runbook-flags`.
+  Done 2026-11-28: `DISABLED_FEATURES` kill switches (ADR 0006), `scripts/d1_backup.sh` with a restore drill (passed on the live export), `docs/runbook.md`. Time Travel keeps 7 days on Free.
+
 ## Open items (noted 2026-11-27, not scheduled)
 
 - [ ] **Check the first daily canary run.** The Cron runs at 03:17 UTC; from 2026-11-28 read the "Độ ổn định" table

@@ -10,6 +10,8 @@ export type Env = {
   RL_START: RateLimit;
   RL_SYNTAX: RateLimit;
   RL_ACTION: RateLimit;
+  /** Mutation test-suite checks (POST /api/teacher/problems/check-tests), keyed per teacher. */
+  RL_CHECK: RateLimit;
   TURNSTILE_SECRET: string;
   TURNSTILE_SITE_KEY: string;
   /** Comma-separated hostnames Turnstile may report. */
@@ -20,11 +22,15 @@ export type Env = {
   ACCESS_AUD: string;
   /** Comma-separated emails allowed on the developer metrics page. Set as a secret, never in wrangler.jsonc. */
   ADMIN_EMAILS?: string;
+  /** Kill switches: comma-separated feature names to turn off (see flags.ts). Empty means everything on. */
+  DISABLED_FEATURES?: string;
   CF_ACCOUNT_ID?: string;
   /** Read-only token (Account Analytics: Read) for the Analytics Engine SQL API. */
   CF_API_TOKEN?: string;
   /** Local development only (.dev.vars). Never set in wrangler.jsonc. */
   DEV_AUTH_BYPASS?: string;
+  /** Load test only (scripts/load_test.mjs, local runs). Skips Turnstile on localhost requests; ignored anywhere else. */
+  LOADTEST_SKIP_TURNSTILE?: string;
 };
 
 export type Teacher = { id: string; email: string };

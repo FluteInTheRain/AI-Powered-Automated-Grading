@@ -8,6 +8,7 @@ declare namespace Cloudflare {
     RL_START: RateLimit;
     RL_SYNTAX: RateLimit;
     RL_ACTION: RateLimit;
+    RL_CHECK: RateLimit;
     TURNSTILE_SECRET: string;
     TURNSTILE_SITE_KEY: string;
     TURNSTILE_HOSTNAMES: string;

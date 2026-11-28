@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { insertProblem, insertProblems, listBank, listOwnProblems, ownTitles, type NewProblem } from "../db/problems";
-import { GraderError, previewProblem, toClientError, validateProblem } from "../grader";
-import { checkNewProblem, isFieldError, type FieldError } from "../problem_input";
+import { buildAnswer } from "../check_tests";
+import { GraderError, checkTests, previewProblem, toClientError, validateProblem } from "../grader";
+import { allow, TOO_MANY } from "../limits";
+import { checkNewProblem, checkTestsInput, isFieldError, type FieldError } from "../problem_input";
 import type { AppEnv } from "../index";
 
 function parseNewProblem(b: unknown): NewProblem | string {
@@ -22,6 +24,20 @@ export function teacherProblemRoutes(): Hono<AppEnv> {
   r.post("/problems/preview", async (c) => {
     try {
       return c.json(await previewProblem(c.env, await c.req.json()));
+    } catch (e) {
+      if (!(e instanceof GraderError)) throw e;
+      const { status, detail } = toClientError(e);
+      return c.json({ detail }, status);
+    }
+  });
+
+  // Mutation check of the test suite. Runs up to ~31 sandbox calls in the grader, so it is rate limited per teacher.
+  r.post("/problems/check-tests", async (c) => {
+    const parsed = checkTestsInput(await c.req.json().catch(() => null));
+    if ("field" in parsed) return c.json({ detail: parsed.message }, 400);
+    if (!(await allow(c.env.RL_CHECK, `check-tests:${c.get("teacher").id}`))) return c.json(TOO_MANY, 429);
+    try {
+      return c.json(buildAnswer(await checkTests(c.env, parsed)));
     } catch (e) {
       if (!(e instanceof GraderError)) throw e;
       const { status, detail } = toClientError(e);

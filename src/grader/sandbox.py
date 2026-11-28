@@ -14,17 +14,103 @@ teacher type it by hand.
 """
 from __future__ import annotations
 
+import signal
+import sys
+import threading
+import time
+from contextlib import contextmanager
 from typing import Any, List, Tuple
+
+# Wall time budget for one _execute call (exec of the module plus every case).
+# Best effort, see _alarm: it stops an honest infinite loop, not an adversarial one.
+TIME_LIMIT_S = 10.0
+# Longest error text kept from student code (an exception message is student-controlled).
+ERROR_CAP = 1000
+# Longest repr of a returned value echoed back in an error line.
+GOT_CAP = 2000
+
+
+class _TimeLimit(BaseException):
+    """Raised by the SIGALRM handler. A BaseException so a plain `except Exception`
+    in student code does not swallow it (a bare `except:` still can)."""
+
+
+def _clip(text: str, cap: int = ERROR_CAP) -> str:
+    return text if len(text) <= cap else text[:cap] + f"... [{len(text) - cap} more characters]"
+
+
+def _clip_str(e: BaseException, cap: int = ERROR_CAP) -> str:
+    try:
+        return _clip(str(e), cap)
+    except Exception:
+        return "<unprintable>"
+
+
+def _clip_repr(value: Any) -> str:
+    # Same text as f"{value}" for anything short; only an enormous value is cut.
+    try:
+        return _clip(f"{value}", GOT_CAP)
+    except Exception:
+        return "<unprintable>"
+
+
+@contextmanager
+def _alarm(deadline: float):
+    """Raise _TimeLimit in this thread at `deadline` (a time.monotonic() value).
+
+    Needs SIGALRM, so it only works on Unix in the main thread; elsewhere (a
+    server worker thread, Windows, Pyodide) it does nothing and the platform
+    limit is the only protection. Student code can defeat it with a bare
+    `except:` in a loop; a hard limit needs a subprocess (docs/sandbox-threat-model.md).
+    """
+    usable = (hasattr(signal, "setitimer") and sys.platform != "emscripten"
+              and threading.current_thread() is threading.main_thread())
+    if not usable:
+        yield
+        return
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise _TimeLimit()
+
+    def on_alarm(signum, frame):
+        raise _TimeLimit()
+
+    previous = signal.signal(signal.SIGALRM, on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, remaining)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def _exited(e: BaseException) -> dict:
+    # Same text the sandbox Worker handler produced for exit(), so both paths agree.
+    return {"status": "compile_error", "compile_error": f"program exited (SystemExit: {_clip_str(e, 200)})",
+            "cases": []}
 
 
 def _execute(code_str: str, func_name: str, test_cases: List[Tuple[tuple, Any]]) -> dict:
     """Shared exec + per-test-case run, used by both public functions below
     so there's exactly one place that actually runs submitted code."""
+    deadline = time.monotonic() + TIME_LIMIT_S
+    try:
+        return _execute_until(code_str, func_name, test_cases, deadline)
+    except _TimeLimit:  # the alarm fired in a gap between phases
+        return {"status": "compile_error", "compile_error": f"time limit exceeded ({TIME_LIMIT_S:g}s)", "cases": []}
+
+
+def _execute_until(code_str: str, func_name: str, test_cases: List[Tuple[tuple, Any]], deadline: float) -> dict:
     namespace: dict = {}
     try:
-        exec(code_str, namespace)
+        with _alarm(deadline):
+            exec(code_str, namespace)
+    except _TimeLimit:
+        return {"status": "compile_error", "compile_error": f"time limit exceeded ({TIME_LIMIT_S:g}s)", "cases": []}
+    except SystemExit as e:
+        return _exited(e)
     except Exception as e:
-        return {"status": "compile_error", "compile_error": str(e), "cases": []}
+        return {"status": "compile_error", "compile_error": _clip_str(e), "cases": []}
 
     func = namespace.get(func_name)
     if func is None:
@@ -33,13 +119,25 @@ def _execute(code_str: str, func_name: str, test_cases: List[Tuple[tuple, Any]])
     cases = []
     for args, expected in test_cases:
         try:
-            actual = func(*args)
+            with _alarm(deadline):
+                actual = func(*args)
+                passed = actual == expected
             cases.append({
-                "passed": actual == expected,
+                "passed": passed,
                 "args": args,
                 "expected": expected,
                 "actual": actual,
                 "error": None,
+            })
+        except SystemExit as e:
+            return _exited(e)
+        except _TimeLimit:
+            cases.append({
+                "passed": False,
+                "args": args,
+                "expected": expected,
+                "actual": None,
+                "error": f"time limit exceeded ({TIME_LIMIT_S:g}s)",
             })
         except Exception as e:
             cases.append({
@@ -47,7 +145,7 @@ def _execute(code_str: str, func_name: str, test_cases: List[Tuple[tuple, Any]])
                 "args": args,
                 "expected": expected,
                 "actual": None,
-                "error": str(e),
+                "error": _clip_str(e),
             })
     return {"status": "ran", "compile_error": None, "cases": cases}
 
@@ -71,7 +169,7 @@ def run_submission(code_str: str, func_name: str, test_cases: List[Tuple[tuple, 
         elif c["error"] is not None:
             errors.append(f"input={c['args']} RUNTIME_ERROR: {c['error']}")
         else:
-            errors.append(f"input={c['args']} expected={c['expected']} got={c['actual']}")
+            errors.append(f"input={c['args']} expected={c['expected']} got={_clip_repr(c['actual'])}")
 
     return {
         "pass_count": pass_count,
