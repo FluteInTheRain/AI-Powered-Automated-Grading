@@ -19,7 +19,7 @@ async function request(path, options = {}) {
       body === null
         ? 'Your submission exceeded the time/resource limit or the server is busy. Please try again.'
         : body.detail || `Request failed: ${res.status}`
-    throw Object.assign(new Error(message), { status: res.status })
+    throw Object.assign(new Error(message), { status: res.status, errors: body?.errors })
   }
   return res.json()
 }
@@ -51,6 +51,7 @@ export const checkSyntax = (code) => post('/api/syntax-check', { code })
 export const getMe = () => request('/api/teacher/me')
 export const listBank = () => request('/api/teacher/bank')
 export const listOwnProblems = () => request('/api/teacher/problems')
+export const importProblems = (fileText) => request('/api/teacher/problems/import', { method: 'POST', body: fileText })
 export const listExams = () => request('/api/teacher/exams')
 export const createExam = (body) => post('/api/teacher/exams', body)
 export const getExamDetail = (id) => request(`/api/teacher/exams/${id}`)

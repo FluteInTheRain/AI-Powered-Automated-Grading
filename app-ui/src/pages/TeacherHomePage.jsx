@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createExam, getMe, getSettings, listBank, listExams, listOwnProblems } from '../api.js'
 import Icon from '../components/Icon.jsx'
+import ImportDialog from '../components/ImportDialog.jsx'
 import ProblemPicker from '../components/ProblemPicker.jsx'
 import RubricFields, { DEFAULT_RUBRIC, isValidRubric, rubricToNumbers, rubricToStrings } from '../components/RubricFields.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
@@ -27,6 +28,7 @@ export default function TeacherHomePage() {
   const [chosen, setChosen] = useState({}) // problem_id -> weight string
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState(null)
+  const [importing, setImporting] = useState(false)
   const [rubric, setRubric] = useState(DEFAULT_RUBRIC)
   const prefilled = useRef(false) // the form takes the teacher's defaults once, so reloading the list never wipes typed values
 
@@ -151,7 +153,10 @@ export default function TeacherHomePage() {
           </div>
 
           <div className="form-block">
-            <h3>Câu hỏi</h3>
+            <div className="head">
+              <h3>Câu hỏi</h3>
+              <button type="button" className="btn btn-small" onClick={() => setImporting(true)}><Icon name="up" />Nhập từ file</button>
+            </div>
             <ProblemPicker
               problems={bank} chosen={chosen} onToggle={toggle}
               onWeight={(id, value) => setChosen((prev) => ({ ...prev, [id]: value }))}
@@ -171,6 +176,7 @@ export default function TeacherHomePage() {
           )}
         </section>
       </div>
+      {importing && <ImportDialog onClose={() => setImporting(false)} onImported={load} />}
     </>
   )
 }

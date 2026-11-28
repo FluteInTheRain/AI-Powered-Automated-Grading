@@ -48,10 +48,12 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   enter statement, rubric weights, and test cases (input/output pairs)
   without touching code.
 
-- [ ] **PR-B2 — Bulk import.** Import problems from a format instructors
+- [x] **PR-B2 — Bulk import.** Import problems from a format instructors
   already have: CSV/Excel, or an export from Moodle/Google Classroom, or at
   minimum a simple fill-in JSON template — instead of requiring every
   problem to be authored one at a time in the UI from PR-B1.
+  Done as the minimum: JSON file (`POST /api/teacher/problems/import`, "Nhập từ file"
+  dialog with a downloadable example). CSV/Excel and Moodle export are not done.
 
 - [ ] **PR-B3 — Test-suite coverage checker.** There's already a real,
   documented finding (`data/script.md`, "Notable finding from running the
