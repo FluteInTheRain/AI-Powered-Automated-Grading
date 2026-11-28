@@ -12,6 +12,7 @@ import { featureMap, requireFeature } from "./flags";
 import { isAdmin } from "./admin";
 import { teacherAdminRoutes } from "./routes/teacher_admin";
 import { teacherAppealRoutes } from "./routes/teacher_appeals";
+import { teacherDifficultyRoutes } from "./routes/teacher_difficulty";
 import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
 import { teacherSettingsRoutes } from "./routes/teacher_settings";
@@ -36,6 +37,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.use("/api/teacher/appeals/*", requireFeature("appeals"));
   app.route("/api/teacher", teacherProblemRoutes());
   app.route("/api/teacher", teacherExamRoutes());
+  app.route("/api/teacher", teacherDifficultyRoutes());
   app.route("/api/teacher", teacherSettingsRoutes());
   app.route("/api/teacher", teacherAppealRoutes());
   app.route("/api/teacher", teacherAdminRoutes(deps.fetchFn));

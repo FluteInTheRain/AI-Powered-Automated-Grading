@@ -95,6 +95,7 @@ export default function TeacherHomePage() {
         <span className="sp" />
         <span className="muted hide-s">{me.email}</span>
         {me.is_admin && <Link className="link" to="/teacher/admin">Chỉ số AI</Link>}
+        <Link className="link" to="/teacher/difficulty">Độ khó thực tế</Link>
         <Link className="link" to="/teacher/settings"><Icon name="gear" />Cài đặt</Link>
         <ThemeToggle />
       </header>
