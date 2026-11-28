@@ -52,6 +52,33 @@ overturn signal, grading health from the Analytics Engine SQL API). The queue co
 Gateway need setup outside the repo: secrets `ADMIN_EMAILS` (comma-separated), `CF_ACCOUNT_ID`, `CF_API_TOKEN` (Account Analytics: Read), set with
 `wrangler secret put` in `app-worker/`; and an AI Gateway named `teacher-app-gateway` (cache off) must exist before the `grading` Worker deploys.
 
+## Feature flags (kill switches)
+
+One variable, `DISABLED_FEATURES` in `wrangler.jsonc` `vars`, holds a comma separated list of features to turn off. It is empty by default, so
+everything is on. Names (spaces and case ignored): `similarity`, `csv_export`, `bulk_import`, `appeals`. An unknown name is ignored and
+logged once with `console.warn`. A disabled feature answers 404 `{"detail":"feature disabled"}` before any handler runs, so it never writes to
+D1, R2 or the queue:
+
+- `similarity`: `GET /api/teacher/exams/:id/similarity`
+- `csv_export`: `GET /api/teacher/exams/:id/export.csv`
+- `bulk_import`: `POST /api/teacher/problems/import`
+- `appeals`: all student and teacher appeals routes (the daily cron that expires open appeals keeps running)
+
+`GET /api/teacher/me` returns `features` (`{similarity, csv_export, bulk_import, appeals}`, each true or false) and the student
+`GET /api/exam/:token` returns `appeals_enabled`; app-ui hides the matching button or panel. Code: `src/flags.ts`. Why it is built this way: `docs/adr/0006-feature-flags-as-kill-switches.md`.
+
+How to turn a feature off in production. `.github/workflows/deploy.yml` runs plain `npx wrangler deploy` on every merge to `main`, and
+`wrangler.jsonc` does not set `keep_vars`. So `wrangler.jsonc` is the source of truth and a value typed in the dashboard is replaced by the
+file's value at the next deploy.
+
+1. Normal procedure: set `"DISABLED_FEATURES": "csv_export"` in `wrangler.jsonc`, open a PR, merge it. The CI deploy applies it (a few minutes, after the checks and migrations).
+2. In an emergency: set the variable in the Cloudflare dashboard (Workers, teacher-app, Settings, Variables). It takes effect at once. Then make the
+   same change in `wrangler.jsonc` right away, because any merge to `main` before that restores the old value.
+3. To turn the feature back on, empty the value in `wrangler.jsonc` and merge.
+
+Limits: the check runs per request, but a variable change creates a new Worker version, so it applies to requests after that version goes live. A flag
+hides the feature; it does not remove data already stored, and a student's page that was already open keeps its form until it reloads (the API still answers 404).
+
 ## Deploy (first time)
 
 Steps marked **(you)** need your Cloudflare login or the dashboard.

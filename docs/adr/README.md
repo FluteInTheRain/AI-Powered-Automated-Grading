@@ -7,3 +7,4 @@ One file per decision: context, decision, consequences. Numbered in the order wr
 - [0003](0003-ai-gateway-cache-off.md) — AI Gateway in front of Workers AI, response cache off
 - [0004](0004-overturn-signal-is-not-human-agreement.md) — Appeal overturn rate is a biased single-rater signal, not accuracy
 - [0005](0005-metric-writes-are-best-effort.md) — Metric writes never affect grading
+- [0006](0006-feature-flags-as-kill-switches.md) — Feature flags are kill switches in one env var
