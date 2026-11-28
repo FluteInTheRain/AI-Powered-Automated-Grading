@@ -20,6 +20,8 @@ export type Env = {
   ACCESS_AUD: string;
   /** Comma-separated emails allowed on the developer metrics page. Set as a secret, never in wrangler.jsonc. */
   ADMIN_EMAILS?: string;
+  /** Kill switches: comma-separated feature names to turn off (see flags.ts). Empty means everything on. */
+  DISABLED_FEATURES?: string;
   CF_ACCOUNT_ID?: string;
   /** Read-only token (Account Analytics: Read) for the Analytics Engine SQL API. */
   CF_API_TOKEN?: string;

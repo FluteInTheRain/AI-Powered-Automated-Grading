@@ -43,6 +43,8 @@
   // The existing Python grading Worker (worker/), called at /api/internal/*.
   "services": [{ "binding": "GRADER", "service": "grading" }],
   "vars": {
+    // Kill switches (docs/adr/0006): comma-separated names from similarity, csv_export, bulk_import, appeals. Empty = all on.
+    "DISABLED_FEATURES": "",
     // From the Cloudflare Access application protecting /api/teacher/*.
     "ACCESS_TEAM_DOMAIN": "aged-snowflake-18c8.cloudflareaccess.com",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAGTjjMuLo41_WwwC",
