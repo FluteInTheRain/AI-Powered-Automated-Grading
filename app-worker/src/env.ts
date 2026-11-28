@@ -29,6 +29,8 @@ export type Env = {
   CF_API_TOKEN?: string;
   /** Local development only (.dev.vars). Never set in wrangler.jsonc. */
   DEV_AUTH_BYPASS?: string;
+  /** Load test only (scripts/load_test.mjs, local runs). Skips Turnstile on localhost requests; ignored anywhere else. */
+  LOADTEST_SKIP_TURNSTILE?: string;
 };
 
 export type Teacher = { id: string; email: string };
