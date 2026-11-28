@@ -3,12 +3,26 @@
 Outputs-only: expected values never enter this process (R4), because exec'd
 code could read them from the caller's frame.
 """
+import contextlib
 import json
 
 from grader.sandbox import compute_reference_outputs
 
 # Largest JSON-encoded return value sent back per case (64 KB).
 MAX_OUTPUT_BYTES = 64 * 1024
+# Largest total of all returned values in one response (1 MB); later cases are cut.
+MAX_TOTAL_OUTPUT_BYTES = 1024 * 1024
+
+
+class _DiscardSink:
+    """Swallows print()/stderr text from student code (it would otherwise flood the
+    Worker's logs). Replacing sys.stdout does not stop sys.__stdout__ or os.write(1, ...)."""
+
+    def write(self, text) -> int:
+        return len(text)
+
+    def flush(self) -> None:
+        pass
 
 
 class BadPayload(ValueError):
@@ -42,7 +56,7 @@ def _safe_str(value) -> str:
         return "<unprintable>"
 
 
-def _json_safe(case: dict) -> dict:
+def _json_safe(case: dict, budget: list = None) -> dict:
     # Student code controls the return value; make sure it can be JSON-encoded
     # and is not big enough to bloat the response.
     try:
@@ -53,6 +67,10 @@ def _json_safe(case: dict) -> dict:
     size = len(encoded.encode("utf-8"))
     if size > MAX_OUTPUT_BYTES:
         return {**case, "output": None, "error": f"return value too large ({size} bytes)"}
+    if budget is not None:
+        budget[0] -= size
+        if budget[0] < 0:
+            return {**case, "output": None, "error": "return values too large in total"}
     return case
 
 
@@ -72,7 +90,8 @@ def _is_runtime_signal(e: BaseException) -> bool:
 def execute(payload) -> dict:
     code, func_name, args_list = validate(payload)
     try:
-        result = compute_reference_outputs(code, func_name, args_list)
+        with contextlib.redirect_stdout(_DiscardSink()), contextlib.redirect_stderr(_DiscardSink()):
+            result = compute_reference_outputs(code, func_name, args_list)
     except BaseException as e:
         # grader.sandbox catches Exception only; exit(), sys.exit() and any other
         # BaseException from student code would otherwise crash this Worker.
@@ -80,4 +99,5 @@ def execute(payload) -> dict:
             raise
         return {"status": "compile_error", "cases": [],
                 "message": f"COMPILE_ERROR: program exited ({type(e).__name__}: {_safe_str(e)})"}
-    return {**result, "cases": [_json_safe(c) for c in result["cases"]]}
+    budget = [MAX_TOTAL_OUTPUT_BYTES]
+    return {**result, "cases": [_json_safe(c, budget) for c in result["cases"]]}
