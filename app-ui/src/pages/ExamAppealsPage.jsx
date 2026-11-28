@@ -17,6 +17,10 @@ const CRITERIA = {
   code_style: 'Phong cách code',
   edge_case_handling: 'Trường hợp biên',
 }
+// Who produced a score revision: the source column ('ai' | 'teacher') and the author ('pipeline' for the automatic grading, else a teacher's email).
+const SOURCE_LABEL = { ai: 'AI chấm', teacher: 'Giáo viên chỉnh' }
+const author = (a) => (a === 'pipeline' ? 'chấm tự động' : a)
+
 const STYLE_LEVEL = { clean: 'Tốt', medium: 'Trung bình', poor: 'Kém' }
 
 /** One line of plain Vietnamese for what the AI found on each criterion; null when the check has no detail. */
@@ -112,7 +116,7 @@ function Detail({ appeal, onDecided, onConflict }) {
       <h3>Lịch sử điểm</h3>
       <ul>
         {appeal.revisions.map((r) => (
-          <li key={r.revision}>#{r.revision} · {r.source} · {r.score} · {r.author}{r.reason ? ` · ${r.reason}` : ''}</li>
+          <li key={r.revision}>#{r.revision} · {SOURCE_LABEL[r.source] ?? r.source} · {r.score} điểm · {author(r.author)}{r.reason ? ` · ${r.reason}` : ''}</li>
         ))}
       </ul>
       <h3>AI đã chấm thế nào</h3>

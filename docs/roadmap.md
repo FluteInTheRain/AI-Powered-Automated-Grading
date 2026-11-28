@@ -215,7 +215,7 @@ Phase 1 plan: `docs/superpowers/plans/2026-11-25-teacher-app-phase1.md`. Free pl
   measurement on the live model first, which needs a Workers AI API token (the `wrangler` OAuth token was not used).
 - [ ] **Efficiency fix only confirmed on one submission.** Re-measure over the whole dataset (`experiments/`) once a
   Workers AI token is available, then report it in the Limitations section instead of "one case".
-- [ ] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
+- [x] Appeals review minors (see the T6.4 notes in the work-log): distinguish an R2 read failure from "no data" in
   `readAudit` and log it, log the cron's expired count, show "adjusted to X" to the student, rate-limit appeals by
   IP + receipt, `DecisionForm` should refresh on a 409, rename the "pipeline"/"ai" labels in the score history.
 
