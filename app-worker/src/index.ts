@@ -11,6 +11,7 @@ import { studentAppealRoutes } from "./routes/student_appeals";
 import { isAdmin } from "./admin";
 import { teacherAdminRoutes } from "./routes/teacher_admin";
 import { teacherAppealRoutes } from "./routes/teacher_appeals";
+import { teacherDifficultyRoutes } from "./routes/teacher_difficulty";
 import { teacherExamRoutes } from "./routes/teacher_exams";
 import { teacherProblemRoutes } from "./routes/teacher_problems";
 import { teacherSettingsRoutes } from "./routes/teacher_settings";
@@ -29,6 +30,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.get("/api/teacher/me", (c) => c.json({ ...c.get("teacher"), is_admin: isAdmin(c.env, c.get("teacher").email) }));
   app.route("/api/teacher", teacherProblemRoutes());
   app.route("/api/teacher", teacherExamRoutes());
+  app.route("/api/teacher", teacherDifficultyRoutes());
   app.route("/api/teacher", teacherSettingsRoutes());
   app.route("/api/teacher", teacherAppealRoutes());
   app.route("/api/teacher", teacherAdminRoutes(deps.fetchFn));
