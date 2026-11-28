@@ -148,6 +148,6 @@ def test_description_formats_match_app_worker_parser():
     assert by_kind["arithmetic"] == "line 5: replaced `+` with `-`"
     assert by_kind["range_bound"].startswith("line 4: range upper bound off by one (+1) in `range(n)`")
     assert by_kind["wrong_end_element"] == "line 5: first-element access `[0]` returns `[1]` instead"
-    assert by_kind["wrong_return"] == "line 3: `return False` flipped to `return True`"
+    assert by_kind["wrong_return"] == "line 6: `return True` flipped to `return False`"
     assert by_kind["drop_guard"] == "line 2: removed the guard `if n < 0: ...` (early return/raise)"
     assert by_kind["off_by_one"] == "line 2: integer literal 0 changed to 1"
