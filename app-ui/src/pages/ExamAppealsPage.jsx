@@ -53,7 +53,7 @@ function AiResult({ result }) {
   )
 }
 
-function DecisionForm({ appealId, onDone }) {
+function DecisionForm({ appealId, onDone, onConflict }) {
   const [decision, setDecision] = useState('upheld')
   const [note, setNote] = useState('')
   const [score, setScore] = useState('')
@@ -69,7 +69,8 @@ function DecisionForm({ appealId, onDone }) {
       await decideAppeal(appealId, { decision, note: note.trim(), ...(adjusting ? { score: Number(score) } : {}) })
       onDone()
     } catch (e) {
-      setError(e.message)
+      if (e.status === 409) onConflict() // already decided elsewhere: reload the real state instead of leaving a stale form
+      else setError(e.message)
     } finally {
       setSaving(false)
     }
@@ -101,7 +102,7 @@ function DecisionForm({ appealId, onDone }) {
   )
 }
 
-function Detail({ appeal, onDecided }) {
+function Detail({ appeal, onDecided, onConflict }) {
   return (
     <div className="result-panel">
       <h2>{appeal.student_name} — {APPEAL_STATUS[appeal.status] ?? appeal.status}</h2>
@@ -133,7 +134,7 @@ function Detail({ appeal, onDecided }) {
         ))}
       </details>
       {PENDING.includes(appeal.status) ? (
-        <DecisionForm appealId={appeal.id} onDone={onDecided} />
+        <DecisionForm appealId={appeal.id} onDone={onDecided} onConflict={onConflict} />
       ) : (
         <p>Quyết định: {appeal.decision_note}{appeal.decided_by ? ` (${appeal.decided_by})` : ''}</p>
       )}
@@ -177,6 +178,16 @@ export default function ExamAppealsPage() {
     load()
   }
 
+  const conflicted = async () => {
+    try {
+      setSelected(await getAppeal(selected.id))
+      setErrorMessage('Khiếu nại này đã được quyết định ở nơi khác. Trang đã tải lại trạng thái mới nhất.')
+    } catch (e) {
+      setErrorMessage(e.message)
+    }
+    load()
+  }
+
   if (errorMessage && !appeals) return <p className="status-line status-error">Error: {errorMessage}</p>
   if (!appeals || !exam) return <p className="status-line">Loading…</p>
   const number = (problemId) => exam.questions.findIndex((q) => q.problem_id === problemId) + 1
@@ -213,7 +224,7 @@ export default function ExamAppealsPage() {
             ))}
           </tbody>
         </table>
-        {selected && <Detail key={selected.id} appeal={selected} onDecided={decided} />}
+        {selected && <Detail key={selected.id} appeal={selected} onDecided={decided} onConflict={conflicted} />}
       </div>
     </>
   )
