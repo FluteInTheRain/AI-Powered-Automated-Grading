@@ -3,6 +3,8 @@ import { getVisibleProblem } from "../db/problems";
 import { getOwnExam, insertExam, listExamQuestions, listOwnExams, setDeadline, type ExamRow } from "../db/exams";
 import { listResults } from "../db/attempts";
 import { getExamStats } from "../db/stats";
+import { DIMENSIONS, exportRows } from "../db/export";
+import { toCsv } from "../csv";
 import { getSettings } from "../db/teachers";
 import type { AppEnv } from "../index";
 import { parseRubric } from "../rubric";
@@ -85,6 +87,25 @@ export function teacherExamRoutes(): Hono<AppEnv> {
     if (!exam) return c.json({ detail: "Unknown exam" }, 404);
     const rows = await listResults(c.env.DB, exam.id);
     return c.json(rows);
+  });
+
+  // Token-free: the exam is found by its own id, behind Access like every /api/teacher/* route, and only for its owner.
+  r.get("/exams/:id/export.csv", async (c) => {
+    const exam = await getOwnExam(c.env.DB, c.get("teacher").id, c.req.param("id"));
+    if (!exam) return c.json({ detail: "Unknown exam" }, 404);
+    const { questionCount, attempts } = await exportRows(c.env.DB, exam.id);
+    const header = [
+      "Học viên", ...Array.from({ length: questionCount }, (_, i) => `Câu ${i + 1}`), "Tổng điểm",
+      ...DIMENSIONS.map((d) => d.label), "Bắt đầu lúc", "Nộp lúc",
+    ];
+    const rows = attempts.map((a) => [a.student_name, ...a.scores, a.total, ...a.dimensions, a.started_at, a.submitted_at]);
+    return new Response(toCsv([header, ...rows]), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="ket-qua-${exam.id}.csv"`,
+        "cache-control": "no-store",
+      },
+    });
   });
 
   r.get("/exams/:id/stats", async (c) => {

@@ -151,6 +151,12 @@ describe('ExamResultsPage', () => {
     api.updateDeadline.mockResolvedValue({})
   })
 
+  it('has an export button pointing at the CSV endpoint', async () => {
+    renderResults()
+    const link = await screen.findByRole('link', { name: /Xuất CSV/ })
+    expect(link).toHaveAttribute('href', '/api/teacher/exams/e1/export.csv')
+  })
+
   it('shows scores, dashes for missing ones and the total', async () => {
     renderResults()
     const an = (await screen.findByText('An')).closest('tr')

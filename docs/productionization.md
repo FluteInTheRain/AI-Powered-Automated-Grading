@@ -85,8 +85,14 @@ Checkbox protocol matches `docs/roadmap.md`: check an item off (`[ ]` ->
   HTTP API so it can be integrated into a real LMS (Canvas/Moodle via LTI)
   instead of only being runnable as a CLI script or local Streamlit demo.
 
-- [ ] **PR-D3 — Grade export.** Export results to CSV/Excel in a format an
-  LMS gradebook can import, instead of only living in `results/*.json`.
+- [x] **PR-D3 — Grade export.** `GET /api/teacher/exams/{id}/export.csv`
+  (`app-worker/src/routes/teacher_exams.ts`, `src/csv.ts`, `src/db/export.ts`)
+  returns one CSV row per attempt: student, per-question score, total,
+  the four rubric-dimension scores, start and submit time. Scores come from the
+  latest `score_revisions` row, so appeals adjustments are included. UTF-8 BOM
+  for Excel, CRLF, RFC 4180 quoting, and a leading apostrophe on cells that start
+  with `= + - @` (formula injection). Button "Xuất CSV" on `ExamResultsPage.jsx`.
+  CSV only; no native .xlsx and no per-LMS column mapping.
 
 ## E — Transparency & trust (matters once scores affect real people)
 
