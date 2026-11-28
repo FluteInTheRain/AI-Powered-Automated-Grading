@@ -2,21 +2,20 @@
 """Runs the small closed-form LLM checks, one per non-correctness rubric
 dimension, and converts each into a 0..1 sub-score. This is the piece that
 replaces a single free-form "give me a score 0-100" prompt.
+
+Each check's schema is a small fixed set of independent bounded
+sub-criteria (booleans / a 3-way enum) rather than one coarse field —
+score is the fraction satisfied, computed here in code. See
+docs/architecture.md's "Rubric-check granularity" section for why.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
 from .llm_client import LLMClient
-from .schemas import CHECK_SCHEMAS, EdgeCaseCheck, EfficiencyCheck, OrdinalLevel, StyleCheck
+from .schemas import CHECK_SCHEMAS, EdgeCaseCheck, EdgeCaseStatus, EfficiencyCheck, StyleCheck
 
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
-
-_STYLE_LEVEL_TO_SCORE = {
-    OrdinalLevel.CLEAN: 1.0,
-    OrdinalLevel.MEDIUM: 0.6,
-    OrdinalLevel.POOR: 0.2,
-}
 
 
 def _load_prompt(name: str) -> str:
@@ -34,8 +33,12 @@ def check_efficiency(client: LLMClient, statement: str, submission_code: str) ->
         user_prompt=prompt,
         schema=EfficiencyCheck,
     )
-    score = 1.0 if result.meets_expected_complexity else 0.4
-    return score, result
+    criteria = [
+        result.meets_time_complexity,
+        result.avoids_redundant_computation,
+        result.uses_appropriate_data_structure,
+    ]
+    return sum(criteria) / len(criteria), result
 
 
 def check_code_style(client: LLMClient, submission_code: str) -> tuple[float, StyleCheck]:
@@ -45,27 +48,32 @@ def check_code_style(client: LLMClient, submission_code: str) -> tuple[float, St
         user_prompt=prompt,
         schema=StyleCheck,
     )
-    return _STYLE_LEVEL_TO_SCORE[result.level], result
+    criteria = [
+        result.descriptive_naming,
+        result.single_responsibility,
+        result.consistent_formatting,
+        result.no_dead_or_redundant_code,
+    ]
+    return sum(criteria) / len(criteria), result
 
 
-def check_edge_case_handling(
-    client: LLMClient, statement: str, submission_code: str, rubric_weight: float
-) -> tuple[float, EdgeCaseCheck]:
-    prompt = _load_prompt("edge_case_handling").format(
-        statement=statement, submission_code=submission_code, rubric_edge_case_weight=rubric_weight
-    )
+def check_edge_case_handling(client: LLMClient, statement: str, submission_code: str) -> tuple[float, EdgeCaseCheck]:
+    prompt = _load_prompt("edge_case_handling").format(statement=statement, submission_code=submission_code)
     result: EdgeCaseCheck = client.structured_call(
         system_prompt="You are a precise, terse grading assistant. Output only valid JSON.",
         user_prompt=prompt,
         schema=EdgeCaseCheck,
     )
-    if result.handled:
-        score = 1.0
-    else:
-        # handled=False must never score 1.0, even if the model didn't (or
-        # couldn't) name any specific missing_cases — an empty list here
-        # means "unspecified", not "zero penalty". Previously this formula
-        # gave 1.0 - 0.25*0 == 1.0 in that situation, silently overriding
-        # the model's own "not handled" verdict.
-        score = max(0.25, 1.0 - 0.25 * max(1, len(result.missing_cases)))
+    statuses = [
+        result.empty_or_minimal_input,
+        result.boundary_or_extreme_values,
+        result.duplicate_or_repeated_elements,
+        result.no_result_or_invalid_case,
+        result.case_or_format_insensitivity,
+    ]
+    applicable = [s for s in statuses if s != EdgeCaseStatus.NOT_APPLICABLE]
+    if not applicable:
+        # No category applies to this problem at all — nothing to penalize.
+        return 1.0, result
+    score = sum(s == EdgeCaseStatus.HANDLED for s in applicable) / len(applicable)
     return score, result

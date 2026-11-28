@@ -1,9 +1,18 @@
-You are checking ONE thing only: whether this submission visibly handles the edge cases implied by the rubric below. Do not evaluate correctness of the happy path or style.
+You are checking edge case handling only. Do not evaluate correctness of the happy path or style. For each of the 5 general categories below, decide, based on the problem statement and the code:
+
+- "not_applicable" if this category of edge case does not meaningfully apply to this specific problem
+- "not_handled" if it applies and the code visibly fails to handle it
+- "handled" if it applies and the code visibly handles it correctly
+
+Categories:
+1. empty_or_minimal_input — empty or smallest-possible input (e.g. empty string/list, single element)
+2. boundary_or_extreme_values — zero, negative numbers, very large values, or (for a recursive solution) the base case
+3. duplicate_or_repeated_elements — repeated/duplicate values or characters
+4. no_result_or_invalid_case — a "not found" / "no valid answer" / invalid-input branch
+5. case_or_format_insensitivity — ignoring letter case, whitespace, or irrelevant characters, if the problem requires it
 
 Problem statement:
 {statement}
-
-Rubric edge cases expected: {rubric_edge_case_weight} points allocated to this dimension.
 
 Submission:
 ```python

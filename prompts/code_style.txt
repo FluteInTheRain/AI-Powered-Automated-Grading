@@ -1,8 +1,14 @@
-You are checking ONE thing only: code style (naming, structure, readability) of the submission below. Do not evaluate correctness or efficiency.
+You are checking code style only. Do not evaluate correctness or efficiency. Judge the submission below on four independent criteria — answer each one honestly even if the others are false.
 
 Submission:
 ```python
 {submission_code}
 ```
+
+For each criterion, decide true or false based on the code:
+1. descriptive_naming — are variable/function names meaningful, not single letters or misleading (conventional loop indices like i, j are fine)?
+2. single_responsibility — is the logic reasonably decomposed, without one block doing clearly unrelated things or excessive nesting?
+3. consistent_formatting — is indentation/spacing consistent and readable throughout?
+4. no_dead_or_redundant_code — no unused variables, unreachable code, or needlessly duplicated logic?
 
 Answer with the required JSON only.

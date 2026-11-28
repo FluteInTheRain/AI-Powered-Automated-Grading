@@ -42,6 +42,19 @@ Two submissions I designed to be buggy (`P01_two_sum__S3`, `P02_is_prime__S4`) a
 
 Same class of issue caught and fixed during T3.1: `P12_valid_parentheses__S3`'s injected bug (missing the "leftover unmatched opening brackets" check) initially passed 6/6 test cases because none of them covered an unclosed-bracket input — added `"("` and `"[[["` as test cases so the bug is actually exercised. Lesson for anyone adding more problems: always run the buggy submissions against the test suite and check they actually fail, don't just trust that writing a bug means the test suite will catch it.
 
+## Label/pipeline granularity mismatch (added when rubric checks were revised)
+
+`build_dataset.py`'s rule-based `efficiency`/`code_style`/`edge_case_handling`
+labels above still use the original coarse scoring (3-level style, binary
+efficiency, pass-rate-as-edge-case). The live pipeline (`src/grader/rubric_checks.py`)
+was later revised to score each of those three dimensions from several
+independent bounded sub-criteria instead of one coarse field — see
+`docs/architecture.md`'s "Rubric-check granularity" section for why. The two
+are no longer scored the same way, so sub-score-level agreement between
+`experiments/ablation.py`'s hybrid-decomposed arm and this dataset's labels
+is stale until `expected_profile` in `problems.py` is re-authored for the
+new criteria (or the comparison is restricted to `final_score_0_to_100`).
+
 ## How to extend the dataset
 
 Edit `problems.py` — add new problems to the `PROBLEMS` list, each needing `statement`, `func_name`, `rubric` (4 criteria summing to 100), `test_cases` (ideally at least 5-6 cases covering edge cases), `submissions` (minimum: 1 clean-correct, 1 correct-but-poor-performance/style, 2-3 different kinds of incorrect). Then rerun:

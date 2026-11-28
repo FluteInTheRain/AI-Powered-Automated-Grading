@@ -15,29 +15,71 @@ from typing import List
 from pydantic import BaseModel, Field
 
 
-class OrdinalLevel(str, Enum):
-    POOR = "poor"
-    MEDIUM = "medium"
-    CLEAN = "clean"
-
-
 class EfficiencyCheck(BaseModel):
-    """Atomic check: does the submission meet the expected complexity class?"""
-    meets_expected_complexity: bool
+    """Three independent, bounded sub-criteria instead of one coarse
+    pass/fail — see docs/architecture.md's "Rubric-check granularity"
+    section. Score = fraction true, computed in rubric_checks.py."""
+    meets_time_complexity: bool = Field(
+        description="does the algorithm meet the time complexity a competent solution would use for this problem?"
+    )
+    avoids_redundant_computation: bool = Field(
+        description="does it avoid recomputing the same result repeatedly, e.g. inside a loop, when it could be computed once?"
+    )
+    uses_appropriate_data_structure: bool = Field(
+        description="does it use a data structure suited to the operations performed (e.g. a set/dict for membership checks instead of scanning a list)?"
+    )
     observed_pattern: str = Field(
-        description="one short phrase, e.g. 'nested loop O(n^2)' or 'hash map O(n)'"
+        description="one short phrase, e.g. 'nested loop O(n^2)' or 'hash map O(n)' — explanatory only, not scored"
     )
 
 
 class StyleCheck(BaseModel):
-    """Atomic check: naming, structure, readability — ordinal, not free text."""
-    level: OrdinalLevel
+    """Four independent, bounded sub-criteria instead of one 3-level
+    ordinal — see docs/architecture.md's "Rubric-check granularity"
+    section. Score = fraction true, computed in rubric_checks.py."""
+    descriptive_naming: bool = Field(
+        description="are variable/function names meaningful, not single letters or misleading (conventional loop indices like i, j are fine)?"
+    )
+    single_responsibility: bool = Field(
+        description="is the logic reasonably decomposed, without one block doing clearly unrelated things or excessive nesting?"
+    )
+    consistent_formatting: bool = Field(
+        description="is indentation/spacing consistent and readable throughout?"
+    )
+    no_dead_or_redundant_code: bool = Field(
+        description="no unused variables, unreachable code, or needlessly duplicated logic?"
+    )
+
+
+class EdgeCaseStatus(str, Enum):
+    NOT_APPLICABLE = "not_applicable"
+    NOT_HANDLED = "not_handled"
+    HANDLED = "handled"
 
 
 class EdgeCaseCheck(BaseModel):
-    """Atomic check: does the code visibly handle the edge cases named in the rubric?"""
-    handled: bool
-    missing_cases: List[str] = Field(default_factory=list)
+    """Five fixed, problem-agnostic edge-case categories instead of one
+    open-ended `missing_cases: List[str]` — the old list's *length* was an
+    unbounded free-form signal in disguise (see docs/architecture.md).
+    Each category is judged not_applicable/not_handled/handled per
+    submission; score = handled / applicable, computed in rubric_checks.py.
+    Chosen by scanning all 16 problems in data/problems.py for recurring
+    edge-case themes — extend with a 6th if a new problem type needs one."""
+    empty_or_minimal_input: EdgeCaseStatus = Field(
+        description="empty or smallest-possible input, e.g. empty string/list, single element"
+    )
+    boundary_or_extreme_values: EdgeCaseStatus = Field(
+        description="zero, negative numbers, very large values, or (for recursive solutions) the base case"
+    )
+    duplicate_or_repeated_elements: EdgeCaseStatus = Field(
+        description="repeated/duplicate values or characters"
+    )
+    no_result_or_invalid_case: EdgeCaseStatus = Field(
+        description="a 'not found' / 'no valid answer' / invalid-input branch"
+    )
+    case_or_format_insensitivity: EdgeCaseStatus = Field(
+        description="ignoring letter case, whitespace, or irrelevant characters, if the problem requires it"
+    )
 
 
 # One entry per non-correctness rubric dimension. Extend this, not the prompts,

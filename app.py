@@ -35,7 +35,12 @@ st.caption(
 
 with st.sidebar:
     st.header("Server")
-    provider = st.radio("Provider", ["local", "openai"], horizontal=True)
+    _providers = ["local", "openai"]
+    _default_provider = os.environ.get("LLM_PROVIDER", "local").lower()
+    provider = st.radio(
+        "Provider", _providers, horizontal=True,
+        index=_providers.index(_default_provider) if _default_provider in _providers else 0,
+    )
 
     if provider == "local":
         base_url = st.text_input("base_url", value="http://localhost:8080/v1")
@@ -52,7 +57,7 @@ with st.sidebar:
         except Exception:
             st.error("Server unreachable — start it with scripts/model_server.sh start")
     else:
-        model = st.text_input("model", value="gpt-4o-mini")
+        model = st.text_input("model", value=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
         st.caption(
             "Uses OPENAI_API_KEY from the environment (grader.llm_config). "
             "Determinism caveat: OpenAI's seed param is best-effort, not "

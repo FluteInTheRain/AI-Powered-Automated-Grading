@@ -71,6 +71,62 @@ single-rater, not independent human ground truth, so agreement numbers here
 are a pipeline sanity check, not a thesis-grade validity claim until
 re-annotated by a real grader.
 
+## Rubric-check granularity: bounded multi-criteria decomposition
+
+The original `efficiency`/`code_style`/`edge_case_handling` checks each
+asked ONE closed-form question per dimension (a boolean, a 3-level enum,
+or a boolean + free-text list) and mapped the answer to a coarse 0..1 score
+(2-3 discrete buckets). Two problems with that:
+
+1. **Too coarse for partial credit.** `code_style` could only ever land on
+   0.2 / 0.6 / 1.0 — no way to reward "mostly good naming, one long
+   function" differently from "unreadable throughout."
+2. **`edge_case_handling`'s old `missing_cases: List[str]` was an unbounded
+   free-form list in disguise.** The score was `f(len(missing_cases))`, and
+   list *length* is generated free-form by the model even though no single
+   field is literally a float — exactly the "free-form number" risk this
+   project otherwise avoids (see "Pipeline" above). Not theoretical: the
+   model-size finding below already caught two back-to-back
+   `check_edge_case_handling` calls (same input, seed=0) returning
+   different `handled` verdicts on 7B.
+
+Fix: replace each single coarse field with a small **fixed set of
+independent boolean/enum sub-criteria**, still ONE structured call per
+dimension (per-dimension prompt scoping unchanged), still nothing but
+bounded enum/boolean fields — no free-form list length left to hide entropy
+in. Score = fraction of sub-criteria satisfied, computed in code — more
+possible score values, same "bounded choice, not composed text" decoding
+profile as before.
+
+- `EfficiencyCheck`: `meets_time_complexity`, `avoids_redundant_computation`,
+  `uses_appropriate_data_structure` (3 booleans -> 4 possible scores).
+  `observed_pattern` (free text) stays for explanation only, same as
+  before — never read by the scoring formula.
+- `StyleCheck`: `descriptive_naming`, `single_responsibility`,
+  `consistent_formatting`, `no_dead_or_redundant_code` (4 booleans -> 5
+  possible scores).
+- `EdgeCaseCheck`: 5 fixed, problem-agnostic categories
+  (`empty_or_minimal_input`, `boundary_or_extreme_values`,
+  `duplicate_or_repeated_elements`, `no_result_or_invalid_case`,
+  `case_or_format_insensitivity`), each answered `not_applicable` /
+  `not_handled` / `handled`. Score = handled / applicable, over whichever
+  categories the model judges relevant to *this* problem — no per-problem
+  authoring needed in `data/problems.py`, unlike a per-problem named list
+  would require. These 5 categories were chosen by scanning all 16
+  problems in `data/problems.py` for recurring edge-case themes; add a 6th
+  if a future problem type doesn't fit any of the five.
+
+**Known gap this doesn't fix**: `data/dataset.json`'s rule-based labels
+(`data/build_dataset.py`) still use the *old* scoring rule (3-level style,
+binary efficiency, pass-rate-as-edge-case) — they were not regenerated
+against the new criteria. `experiments/ablation.py` agreement numbers
+against `dataset.json` are stale at the sub-score level until the
+dataset's `expected_profile` tags are re-authored for the new criteria;
+comparing at `final_score_0_to_100` only is less sensitive to this than a
+sub_score-by-sub_score comparison would be, but still worth re-running
+before citing. Tracked here rather than silently left inconsistent — see
+`data/script.md`'s existing label caveat.
+
 ## Model choice
 
 Started with Qwen2.5-Coder-1.5B-Instruct for Phase 0-2 (cheap, fast,

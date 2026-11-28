@@ -1,4 +1,4 @@
-You are checking ONE thing only: does this submission meet the expected time-complexity for the problem below. Do not evaluate correctness or style.
+You are checking efficiency only. Do not evaluate correctness or style. Judge the submission below against the problem statement on three independent criteria — answer each one honestly even if the others are false.
 
 Problem statement:
 {statement}
@@ -7,5 +7,10 @@ Submission:
 ```python
 {submission_code}
 ```
+
+For each criterion, decide true or false based on the code:
+1. meets_time_complexity — does the algorithm meet the time complexity a competent solution to this problem would use (not necessarily the absolute optimum, but not a needlessly worse approach)?
+2. avoids_redundant_computation — does it avoid recomputing the same result repeatedly (e.g. inside a loop) when it could be computed once or cached?
+3. uses_appropriate_data_structure — does it use a data structure suited to the operations performed (e.g. a set/dict for membership checks instead of scanning a list)?
 
 Answer with the required JSON only.

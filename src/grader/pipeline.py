@@ -49,7 +49,7 @@ def grade(sample: dict, client: LLMClient) -> dict:
     )
     style_score, style_detail = check_code_style(client, sample["submission_code"])
     edge_case_score, edge_case_detail = check_edge_case_handling(
-        client, sample["statement"], sample["submission_code"], rubric["edge_case_handling"]
+        client, sample["statement"], sample["submission_code"]
     )
 
     sub_scores = {
